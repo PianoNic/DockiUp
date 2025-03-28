@@ -1,6 +1,6 @@
-# <p align="center">ArgonFetch</p>
+# <p align="center">DockiUp</p>
 <p align="center">
-  <img src="assets/DockiUpLogo.png" width="200" alt="DockiUp Logo">
+  <img src="assets/DockiUpLogo.png" width="600" alt="DockiUp Logo">
 </p>
 <p align="center">
   <strong>DockiUp is a simple updater for onmachine built docker containers</strong> 
