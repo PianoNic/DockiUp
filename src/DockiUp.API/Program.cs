@@ -23,7 +23,7 @@ builder.Services.AddScoped<IWebhookSecretService, WebhookSecretService>();
 // Configure the DbContext with a connection string.
 builder.Services.AddDbContext<DockiUpDbContext>(options =>
     options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        builder.Configuration.GetConnectionString("DockiUpDatabase"),
         new MySqlServerVersion(new Version(8, 0, 34))
     ));
 
@@ -51,6 +51,12 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<DockiUpDbContext>();
+    dbContext.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

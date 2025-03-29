@@ -1,0 +1,39 @@
+<form [formGroup]="updateMethodFormGroup">
+    <ng-template matStepLabel>Update Method</ng-template>
+    
+    <div class="info-box">
+        <p>How would you like to keep the container updated with changes from the Git repository?</p>
+    </div>
+    
+    <mat-radio-group formControlName="updateMethod" class="update-method-group" (change)="onUpdateMethodChange($event)">
+        <mat-radio-button value="webhook" class="update-method-option">
+            <div class="radio-content">
+                <h3>Use Webhook (Recommended)</h3>
+                <p>Create a webhook in your Git repository to notify the system about new changes immediately.</p>
+                <p class="note">This option requires admin access to the repository.</p>
+            </div>
+        </mat-radio-button>
+        
+        <mat-radio-button value="interval" class="update-method-option">
+            <div class="radio-content">
+                <h3>Check Periodically</h3>
+                <p>The system will check for changes in the repository at regular intervals.</p>
+            </div>
+        </mat-radio-button>
+    </mat-radio-group>
+    
+    <mat-form-field appearance="fill" class="full-width" *ngIf="updateMethodFormGroup.get('updateMethod')?.value === 'interval'">
+        <mat-label>Check Interval (minutes)</mat-label>
+        <input matInput type="number" formControlName="checkInterval" min="5">
+        <mat-error *ngIf="updateMethodFormGroup.get('checkInterval')?.hasError('required')">
+            Check interval is required.
+        </mat-error>
+        <mat-error *ngIf="updateMethodFormGroup.get('checkInterval')?.hasError('min')">
+            Minimum interval is 5 minutes.
+        </mat-error>
+        <mat-error *ngIf="updateMethodFormGroup.get('checkInterval')?.hasError('pattern')">
+            Please enter a valid number.
+        </mat-error>
+        <mat-hint>Minimum allowed interval is 5 minutes</mat-hint>
+    </mat-form-field>
+</form>

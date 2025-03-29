@@ -1,0 +1,26 @@
+<div class="summary-container">
+    <h3>Container Configuration Summary</h3>
+    
+    <div class="summary-section">
+        <h4>Basic Information</h4>
+        <p><strong>Name:</strong> {{ basicInfoFormGroup.get('name')?.value }}</p>
+        <p><strong>Git URL:</strong> {{ basicInfoFormGroup.get('gitUrl')?.value }}</p>
+        <p><strong>Description:</strong> {{ basicInfoFormGroup.get('description')?.value || 'None' }}</p>
+    </div>
+    
+    <div class="summary-section">
+        <h4>Update Method</h4>
+        <p><strong>Type:</strong> 
+            {{ updateMethodFormGroup.get('updateMethod')?.value === 'webhook' ? 
+               'Webhook (Git repository will notify system about changes)' : 
+               'Periodic checking' }}
+        </p>
+        <p *ngIf="updateMethodFormGroup.get('updateMethod')?.value === 'interval'">
+            <strong>Check Interval:</strong> {{ updateMethodFormGroup.get('checkInterval')?.value }} minutes
+        </p>
+        
+        <div class="webhook-info" *ngIf="updateMethodFormGroup.get('updateMethod')?.value === 'webhook'">
+            <p class="note">After creating the container, you'll need to set up a webhook in your Git repository.</p>
+        </div>
+    </div>
+</div>

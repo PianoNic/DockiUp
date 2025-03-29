@@ -1,4 +1,6 @@
 ﻿using DockiUp.API.Authorisation;
+using DockiUp.Application.Commands;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DockiUp.API.Controllers
@@ -7,7 +9,13 @@ namespace DockiUp.API.Controllers
     [Route("api/[controller]")]
     public class WebhookController : ControllerBase
     {
-        [HttpPost("github")]
+        private readonly IMediator _mediator;
+        public WebhookController(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
+
+        [HttpPost("GitHub", Name = "GitHub")]
         [GitHubWebhookAuth("your_github_webhook_secret")]
         public async Task<IActionResult> GitHubWebhook(string identifier)
         {
@@ -22,6 +30,13 @@ namespace DockiUp.API.Controllers
             Console.WriteLine(payload);
 
             return Ok();
+
+        }
+
+        [HttpPost("CreateWebhook", Name = "CreateWebhook")]
+        public async Task<IActionResult<string>> CreateWebhook(string identifier)
+        {
+            var result = await _mediator.Send(new CreateWebhookCommand(identifier));
 
         }
     }

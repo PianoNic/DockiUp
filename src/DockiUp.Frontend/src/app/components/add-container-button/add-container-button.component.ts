@@ -22,8 +22,7 @@ export class AddContainerButtonComponent {
   constructor(private dialog: MatDialog) {}
 
   openCreateDialog(): void {
-    const dialogRef = this.dialog.open(CreateEditContainerModalComponent, {
-      width: '500px',
+    const dialogRef = this.dialog.open(CreateEditContainerModalComponent, { 
       data: { inEditMode: false }
     });
 
