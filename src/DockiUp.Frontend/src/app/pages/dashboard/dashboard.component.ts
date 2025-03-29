@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UpdateStatusType } from '../enums/update-status-type.enum';
-import { Container } from '../models/container.model';
-import { ContainerService } from '../services/container.service';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { UpdateStatusType } from '../../enums/update-status-type.enum';
+import { Container } from '../../models/container.model';
+import { ContainerService } from '../../services/container.service';
+import { AddContainerButtonComponent } from "../../components/add-container-button/add-container-button.component";
 
 @Component({
   selector: 'app-dashboard',
@@ -16,8 +17,9 @@ import { MatButtonModule } from '@angular/material/button';
     MatCardModule,
     MatIconModule,
     RouterLink,
-    MatButtonModule
-  ],
+    MatButtonModule,
+    AddContainerButtonComponent
+],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })

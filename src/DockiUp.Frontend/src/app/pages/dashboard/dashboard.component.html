@@ -67,9 +67,9 @@
 
     <h2>Recent Containers</h2>
     <div class="container-list" *ngIf="(containers$ | async) as containers">
-        <mat-card *ngFor="let container of containers.slice(0, 5)" class="container-card">
+        <mat-card *ngFor="let container of containers.slice(0, 5)" class="container-card" appearance="outlined">
             <mat-card-header>
-                <mat-icon mat-card-avatar [ngClass]="getStatusClass(container.updateStatus.status)">
+                <mat-icon mat-card-avatar [ngClass]="getStatusClass(container.updateStatus.status)" class="centered-logo">
                     {{ container.updateStatus.status === 'updated' ? 'check_circle' :
                     container.updateStatus.status === 'needs_update' ? 'new_releases' :
                     container.updateStatus.status === 'updating' ? 'loop' :
@@ -91,7 +91,7 @@
         <mat-card *ngIf="containers.length === 0" class="empty-state">
             <mat-card-content>
                 <p>No containers found. Add your first container to get started.</p>
-                <button mat-raised-button color="primary" routerLink="/add-container">Add Container</button>
+                <add-container-button />           
             </mat-card-content>
         </mat-card>
     </div>

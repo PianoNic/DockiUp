@@ -4,12 +4,12 @@ import { UpdateStatusType } from '../enums/update-status-type.enum';
 import { Container } from '../models/container.model';
 import { DockerService } from './docker.service';
 import { GitService } from './git.service';
+import { sampleContainers } from './test-data/sample-containers-data';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ContainerService {
-  private containers: Container[] = [];
 
   constructor(
     private dockerService: DockerService,
@@ -18,7 +18,7 @@ export class ContainerService {
 
   getContainers(): Observable<Container[]> {
     // TODO: Implement method to get all containers
-    return of(this.containers);
+    return of(sampleContainers);
   }
 
   getContainer(id: string): Observable<Container | undefined> {

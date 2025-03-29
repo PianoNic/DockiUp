@@ -3,14 +3,16 @@ import { Router } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { AddContainerButtonComponent } from "../../components/add-container-button/add-container-button.component";
 
 @Component({
   selector: 'app-header',
   imports: [
     MatToolbarModule,
     MatIconModule,
-    MatButtonModule
-  ],
+    MatButtonModule,
+    AddContainerButtonComponent
+],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
