@@ -23,12 +23,6 @@
 }
 
 .status-card {
-    transition: transform 0.3s ease;
-
-    &:hover {
-        transform: translateY(-5px);
-    }
-
     &.updated {
         border-left: 4px solid #4caf50;
     }
@@ -44,6 +38,11 @@
     &.failed {
         border-left: 4px solid #f44336;
     }
+}
+
+.centered-logo {
+    display: flex;
+    justify-content: center;
 }
 
 .card-content {
