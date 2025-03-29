@@ -1,10 +1,10 @@
 <button mat-button [matMenuTriggerFor]="menu">Add Container</button>
 <mat-menu #menu="matMenu">
-    <button mat-menu-item>
+    <button mat-menu-item (click)="openCreateDialog()">
         <mat-icon>add_circle</mat-icon>
         Create New
     </button>
-    <button mat-menu-item>
+    <button mat-menu-item (click)="openImportDialog()">
         <mat-icon>file_upload</mat-icon>
         Import
     </button>
