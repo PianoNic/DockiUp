@@ -58,9 +58,8 @@ DockiUp runs as a service that:
 ## 💻 Technical Details
 
 - DockiUp requires access to the Docker socket to manage containers
-- Runs either as a standalone application or as a Docker container itself
-- Built with C# backend and modern frontend for simple management
-- Supports webhook integration (coming soon) for instant updates
+- Runs as a Docker container
+- Supports webhook integration for instant updates
 
 ## 📜 License
 
