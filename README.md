@@ -24,6 +24,23 @@ DockiUp monitors your Git repositories for changes, then automatically:
 
 Perfect for developers who want a simple CI/CD pipeline for their personal projects and self-hosted services.
 
+## 🖼️ Screenshots
+
+<p align="center">
+    <img src="assets/dashboard-screenshot.png" width="80%" alt="DockiUp Dashboard">
+    <em>Main dashboard showing monitored repositories and their status</em>
+</p>
+
+<p align="center">
+    <img src="assets/config-screenshot.png" width="80%" alt="Repository Configuration">
+    <em>Repository configuration screen with update interval settings</em>
+</p>
+
+<p align="center">
+    <img src="assets/logs-screenshot.png" width="80%" alt="Deployment Logs">
+    <em>Deployment logs showing successful pull, build, and restart</em>
+</p>
+
 ## ✨ Features
 
 - **Automatic Monitoring**: Checks for Git repository changes at customizable intervals
@@ -43,11 +60,21 @@ DockiUp runs as a service that:
 3. Rebuilds Docker containers based on the updated code
 4. Restarts the containers with your specified configuration
 
+<p align="center">
+    <img src="assets/workflow-diagram.png" width="90%" alt="DockiUp Workflow">
+    <em>DockiUp workflow diagram</em>
+</p>
+
 ## 📋 Getting Started
 
 1. **Installation**: [Documentation](#) for setup instructions
 2. **Configuration**: Add your Git repositories and Docker settings
 3. **Monitor**: Watch your containers stay up-to-date automatically
+
+<p align="center">
+    <img src="assets/setup-screenshot.png" width="80%" alt="Setup Screen">
+    <em>Initial setup and repository configuration</em>
+</p>
 
 ## 💻 Technical Details
 
