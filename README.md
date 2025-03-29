@@ -1,4 +1,4 @@
-<p align="center">  
+<p align="center">
     <img src="assets/DockiUpLogo.png" width="800" alt="DockiUp Logo">
 </p>
 <p align="center">
