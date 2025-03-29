@@ -10,4 +10,8 @@
     <Folder Include="Models\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DockiUp.Infrastructure\DockiUp.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
