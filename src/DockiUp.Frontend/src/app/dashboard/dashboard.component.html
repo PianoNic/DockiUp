@@ -1,0 +1,98 @@
+<div class="max-w-7xl mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
+        <div class="flex gap-3">
+            <button mat-raised-button color="primary" (click)="checkAllForUpdates()">
+                <mat-icon>refresh</mat-icon>
+                Check for Updates
+            </button>
+            <button mat-raised-button color="accent" (click)="updateAllContainers()">
+                <mat-icon>update</mat-icon>
+                Update All
+            </button>
+        </div>
+    </div>
+
+    <div class="status-cards">
+        <mat-card class="status-card">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>devices</mat-icon>
+                <mat-card-title>Total</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="card-content">
+                <span class="count">{{ statusCounts.total }}</span>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="status-card updated">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>check_circle</mat-icon>
+                <mat-card-title>Updated</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="card-content">
+                <span class="count">{{ statusCounts.updated }}</span>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="status-card needs-update">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>new_releases</mat-icon>
+                <mat-card-title>Needs Update</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="card-content">
+                <span class="count">{{ statusCounts.needsUpdate }}</span>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="status-card updating">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>loop</mat-icon>
+                <mat-card-title>Updating</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="card-content">
+                <span class="count">{{ statusCounts.updating }}</span>
+            </mat-card-content>
+        </mat-card>
+
+        <mat-card class="status-card failed">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>error</mat-icon>
+                <mat-card-title>Failed</mat-card-title>
+            </mat-card-header>
+            <mat-card-content class="card-content">
+                <span class="count">{{ statusCounts.failed }}</span>
+            </mat-card-content>
+        </mat-card>
+    </div>
+
+    <h2>Recent Containers</h2>
+    <div class="container-list" *ngIf="(containers$ | async) as containers">
+        <mat-card *ngFor="let container of containers.slice(0, 5)" class="container-card">
+            <mat-card-header>
+                <mat-icon mat-card-avatar [ngClass]="getStatusClass(container.updateStatus.status)">
+                    {{ container.updateStatus.status === 'updated' ? 'check_circle' :
+                    container.updateStatus.status === 'needs_update' ? 'new_releases' :
+                    container.updateStatus.status === 'updating' ? 'loop' :
+                    container.updateStatus.status === 'failed' ? 'error' : 'help' }}
+                </mat-icon>
+                <mat-card-title>{{ container.name }}</mat-card-title>
+                <mat-card-subtitle>{{ container.gitRepo.url }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+                <p>{{ container.description }}</p>
+                <p *ngIf="container.lastUpdated">Last updated: {{ container.lastUpdated | date:'medium' }}</p>
+            </mat-card-content>
+            <mat-card-actions>
+                <button mat-button [routerLink]="['/containers', container.id]">View</button>
+                <button mat-button [routerLink]="['/edit-container', container.id]">Edit</button>
+            </mat-card-actions>
+        </mat-card>
+
+        <mat-card *ngIf="containers.length === 0" class="empty-state">
+            <mat-card-content>
+                <p>No containers found. Add your first container to get started.</p>
+                <button mat-raised-button color="primary" routerLink="/add-container">Add Container</button>
+            </mat-card-content>
+        </mat-card>
+    </div>
+</div>

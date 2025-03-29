@@ -1,7 +1,14 @@
-<mat-toolbar>
-    <span class="mat-primary font-bold">DockiUp</span>
+<mat-toolbar color="primary">
+    <div class="flex items-center">
+        <a (click)="navigateTo('/')" class="cursor-pointer">DockiUp</a>
+    </div>
     <span class="flex-1"></span>
-    <button mat-icon-button (click)="cycleTheme()">
-        <mat-icon>{{ currentThemeIcon }}</mat-icon>
-    </button>
+    <div class="flex space-x-2">
+        <button mat-button (click)="navigateTo('/dashboard')">Dashboard</button>
+        <button mat-button (click)="navigateTo('/containers')">Containers</button>
+        <button mat-button (click)="navigateTo('/add-container')">Add Container</button>
+        <button mat-icon-button (click)="navigateTo('/settings')">
+            <mat-icon>settings</mat-icon>
+        </button>
+    </div>
 </mat-toolbar>
