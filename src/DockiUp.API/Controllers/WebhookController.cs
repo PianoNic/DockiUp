@@ -1,5 +1,4 @@
 ﻿using DockiUp.API.Authorisation;
-using DockiUp.Application.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,13 +29,6 @@ namespace DockiUp.API.Controllers
             Console.WriteLine(payload);
 
             return Ok();
-
-        }
-
-        [HttpPost("CreateWebhook", Name = "CreateWebhook")]
-        public async Task<IActionResult<string>> CreateWebhook(string identifier)
-        {
-            var result = await _mediator.Send(new CreateWebhookCommand(identifier));
 
         }
     }
