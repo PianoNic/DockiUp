@@ -1,3 +1,4 @@
+using DockiUp.Application.Models;
 using DockiUp.Application.Queries;
 using DockiUp.Application.Services;
 using DockiUp.Infrastructure;
@@ -26,6 +27,9 @@ builder.Services.AddDbContext<DockiUpDbContext>(options =>
         builder.Configuration.GetConnectionString("DockiUpDatabase"),
         new MySqlServerVersion(new Version(8, 0, 34))
     ));
+
+// Configure SystemPaths
+builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

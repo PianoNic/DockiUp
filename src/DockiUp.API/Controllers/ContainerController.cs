@@ -1,4 +1,6 @@
-﻿using MediatR;
+﻿using DockiUp.Application.Commands;
+using DockiUp.Application.Dtos;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DockiUp.API.Controllers
@@ -13,21 +15,11 @@ namespace DockiUp.API.Controllers
             _mediator = mediator;
         }
 
-        [HttpPost("GitHub", Name = "GitHub")]
-        public async Task<IActionResult> GitHubWebhook(string identifier)
+        [HttpPost("CreateContainer", Name = "CreateContainer")]
+        public async Task<IActionResult> CreateContainer([FromBody] CreateContainerDto containerInformation)
         {
-            // Read the request body
-            string payload;
-            using (var reader = new System.IO.StreamReader(Request.Body))
-            {
-                payload = await reader.ReadToEndAsync();
-            }
-
-            // Process the webhook payload here
-            Console.WriteLine(payload);
-
-            return Ok();
-
+            await _mediator.Send(new CreateContainerCommand(containerInformation));
+            return Created();
         }
     }
 }
