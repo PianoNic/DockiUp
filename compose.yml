@@ -4,9 +4,13 @@ services:
     container_name: dockiup
     build:
       context: .
-      dockerfile: src/ArgonFetch.API/Dockerfile
+      dockerfile: src/DockiUp.API/Dockerfile
     env_file:
       - .env
+    environment:
+      - ConnectionStrings__DockiUpDatabase=Server=${DB_SERVER};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD};
+      - SystemPaths__DockerSocket=${DOCKER_SOCKET_PATH}
+      - SystemPaths__ProjectsPath=${PROJECTS_PATH}
     ports:
       - "8080:8080"
     networks:
@@ -16,13 +20,15 @@ services:
     image: mysql:8.0.34
     container_name: dockiup-mysql
     restart: always
+    env_file:
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: dockiupdb-dev
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql-dockiup
     networks:
       - dockiup-network
 

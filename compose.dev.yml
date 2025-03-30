@@ -1,0 +1,15 @@
+services:
+  dev-db:
+    image: mysql:8.0.34
+    container_name: dockiup-mysql-dev
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: d4vpas8w0rd13!!!
+      MYSQL_DATABASE: dockiupdb-dev
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data-dev:/var/lib/mysql-dockiup-dev
+
+volumes:
+  mysql-data-dev:
