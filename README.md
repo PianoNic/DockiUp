@@ -8,7 +8,7 @@
     You commit, we pull, build, and deploy.
 </p>
 <p align="center">
-    <a href="#"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
+    <a href="/docs/docs.md"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
     <a href="#"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
     <a href="#"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
 </p>
