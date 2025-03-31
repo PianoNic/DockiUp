@@ -8,6 +8,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "build:agent": "ng build --aot --configuration production --output-path",
     "apigen": "npx openapi-generator-cli generate"
   },
   "private": true,
