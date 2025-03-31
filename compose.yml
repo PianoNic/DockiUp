@@ -11,6 +11,7 @@ services:
       - ConnectionStrings__DockiUpDatabase=Server=dockiup-db;Port=3306;Database=dockiupdb;User=root;Password=${MYSQL_ROOT_PASSWORD}
       - SystemPaths__DockerSocket=${DOCKER_SOCKET_PATH}
       - SystemPaths__ProjectsPath=${PROJECTS_PATH}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     ports:
       - "8080:8080"
     volumes:

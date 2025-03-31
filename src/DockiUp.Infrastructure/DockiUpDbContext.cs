@@ -31,10 +31,10 @@ namespace DockiUp.Infrastructure
                     .HasForeignKey("WebhookSecretId")
                     .IsRequired(false);
 
-                // Add a check constraint for the business rule
+                // Add a check constraint for the business rule with MySQL compatible syntax
                 entity.ToTable(tb => tb.HasCheckConstraint(
                     "CK_Container_UpdateMechanism",
-                    "([WebhookSecretId] IS NULL AND [CheckIntervals] IS NOT NULL) OR ([WebhookSecretId] IS NOT NULL AND [CheckIntervals] IS NULL) OR ([WebhookSecretId] IS NULL AND [CheckIntervals] IS NULL)"));
+                    "(`WebhookSecretId` IS NULL AND `CheckIntervals` IS NOT NULL) OR (`WebhookSecretId` IS NOT NULL AND `CheckIntervals` IS NULL) OR (`WebhookSecretId` IS NULL AND `CheckIntervals` IS NULL)"));
             });
 
             // User configuration

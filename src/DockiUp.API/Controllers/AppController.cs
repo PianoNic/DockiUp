@@ -20,7 +20,7 @@ namespace DockiUp.API.Controllers
 
         [HttpGet("", Name = "GetAppInfo")]
         [ProducesResponseType(typeof(AppInfoDto), StatusCodes.Status200OK)]
-        public ActionResult<AppInfoDto> GetAppInfo()
+        public async Task<ActionResult<AppInfoDto>> GetAppInfo()
         {
             var version = Assembly.GetEntryAssembly()?
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
