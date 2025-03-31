@@ -15,7 +15,7 @@ Add the following to your user secrets:
 ```json
 {
   "ConnectionStrings": {
-    "DockiUpDatabase": "Server=localhost;Port=3307;Database=dockiupdb-dev;User=root;Password=;"
+    "DockiUpDatabase": "Server=localhost;Port=3307;Database=dockiupdb-dev;User=root;Password=devPassword;"
   },
   "SystemPaths": {
     "DockerSocket": "",
