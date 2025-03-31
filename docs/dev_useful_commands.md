@@ -15,13 +15,13 @@ Add the following to your user secrets:
 ```json
 {
   "ConnectionStrings": {
-    "DockiUpDatabase": "Server=localhost;Port=3307;Database=dockiupdb-dev;User=root;Password=d4vpas8w0rd13!!!;"
+    "DockiUpDatabase": "Server=localhost;Port=3307;Database=dockiupdb-dev;User=root;Password=;"
   },
   "SystemPaths": {
     "DockerSocket": "",
     "ProjectsPath": ""
   },
-  "JWT_SECRET_KEY": "AOSDIJAIOSDJIO!!!2983423894uhiudhuiashduiah"
+  "JWT_SECRET_KEY": ""
 }
 ```
 
