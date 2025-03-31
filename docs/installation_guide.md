@@ -1,4 +1,3 @@
-
 # Installation Guide
 
 ## 1. Setup Environment Variables  
