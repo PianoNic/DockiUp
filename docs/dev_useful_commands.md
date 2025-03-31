@@ -1,7 +1,7 @@
 # Useful Development Commands
 
-[![.NET](https://img.shields.io/badge/.NET-7.0-purple.svg)](https://dotnet.microsoft.com/)
-[![EF Core](https://img.shields.io/badge/EF_Core-7.0-blue.svg)](https://docs.microsoft.com/en-us/ef/core/)
+[![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/)
+[![EF Core](https://img.shields.io/badge/EF_Core-9.0-blue.svg)](https://docs.microsoft.com/en-us/ef/core/)
 [![Docker](https://img.shields.io/badge/docker-required-blue.svg)](https://www.docker.com/)
 
 This document contains essential commands and configurations for developers working on DockiUp.
