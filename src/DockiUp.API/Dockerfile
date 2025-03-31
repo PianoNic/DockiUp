@@ -8,22 +8,29 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["DockiUp.API.csproj", "."]
-RUN dotnet restore "./DockiUp.API.csproj"
-COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./DockiUp.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
+COPY ["src/DockiUp.API/DockiUp.API.csproj", "src/DockiUp.API/"]
+COPY ["src/DockiUp.Application/DockiUp.Application.csproj", "src/DockiUp.Application/"]
+COPY ["src/DockiUp.Infrastructure/DockiUp.Infrastructure.csproj", "src/DockiUp.Infrastructure/"]
+COPY ["src/DockiUp.Domain/DockiUp.Domain.csproj", "src/DockiUp.Domain/"]
+
+RUN dotnet restore "src/DockiUp.API/DockiUp.API.csproj"
+COPY . . 
+WORKDIR "/src/src/DockiUp.API"
+RUN dotnet build "DockiUp.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Publish stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./DockiUp.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "DockiUp.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Final production stage
 FROM base AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
-ENV ConnectionStrings__DockiUpDatabase="Server=${DB_SERVER};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD};"
-ENV SystemPaths__DockerSocket=${DOCKER_SOCKET_PATH}
-ENV SystemPaths__ProjectsPath=${PROJECTS_PATH}
+
+# Install git in the final stage
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y git
+
+COPY --from=publish /app/publish . 
 ENTRYPOINT ["dotnet", "DockiUp.API.dll"]

@@ -8,15 +8,19 @@ services:
     env_file:
       - .env
     environment:
-      - ConnectionStrings__DockiUpDatabase=Server=${DB_SERVER};Port=${DB_PORT};Database=${DB_NAME};User=${DB_USER};Password=${DB_PASSWORD};
+      - ConnectionStrings__DockiUpDatabase=Server=dockiup-db;Port=3306;Database=dockiupdb;User=root;Password=${MYSQL_ROOT_PASSWORD}
       - SystemPaths__DockerSocket=${DOCKER_SOCKET_PATH}
       - SystemPaths__ProjectsPath=${PROJECTS_PATH}
     ports:
       - "8080:8080"
-    networks:
-      - dockiup-network
+    volumes:
+      - ${PROJECTS_PATH}:${PROJECTS_PATH}
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      dockiup-db:
+        condition: service_healthy  # Ensures DB is ready before starting the app
 
-  dev-db:
+  dockiup-db:
     image: mysql:8.0.34
     container_name: dockiup-mysql
     restart: always
@@ -24,16 +28,15 @@ services:
       - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-    ports:
-      - "3306:3306"
+      MYSQL_DATABASE: dockiupdb
     volumes:
-      - mysql-data:/var/lib/mysql-dockiup
-    networks:
-      - dockiup-network
-
-networks:
-  dockiup-network:
+      - mysql-data:/var/lib/mysql
+    healthcheck:  # Waits until MySQL is ready
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 5s
 
 volumes:
   mysql-data:

@@ -9,9 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
-     {
-         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-     });
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 builder.Services.AddSpaStaticFiles(spaStaticFilesOptions => { spaStaticFilesOptions.RootPath = "wwwroot/browser"; });
 
@@ -25,14 +25,18 @@ builder.Services.AddScoped<IWebhookSecretService, WebhookSecretService>();
 builder.Services.AddDbContext<DockiUpDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DockiUpDatabase"),
-        new MySqlServerVersion(new Version(8, 0, 34))
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DockiUpDatabase")),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)
     ));
 
 // Configure SystemPaths
 builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Register Swagger services
+builder.Services.AddSwaggerGen();  // This is the correct method for adding Swagger
 
 // Add CORS policy to allow all origins, methods, and headers
 if (builder.Environment.IsDevelopment())
@@ -66,7 +70,10 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DockiUp API V1");  // You can modify this URL as per your versioning
+    });
 }
 
 app.UseHttpsRedirection();
