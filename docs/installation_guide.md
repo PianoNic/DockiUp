@@ -24,12 +24,8 @@ nano .env
 Ensure you configure the following core settings:
 
 ```ini
-# Database Configuration
-DB_HOST=mysql
-DB_PORT=3306
-DB_NAME=dockiup
-DB_USER=dockiupuser
-DB_PASSWORD=your-secure-password
+# Database Password
+MYSQL_ROOT_PASSWORD=your-secure-database-password
 
 # Application Settings
 APP_PORT=8080
