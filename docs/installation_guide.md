@@ -28,11 +28,11 @@ Ensure you configure the following core settings:
 MYSQL_ROOT_PASSWORD=your-secure-database-password
 
 # Application Settings
-APP_PORT=8080
 JWT_SECRET_KEY=your-secure-jwt-key
 
 # Storage Paths
-STORAGE_PATH=/data/dockiup
+DOCKER_SOCKET_PATH="/your/docker/socket/path"
+PROJECTS_PATH="/your/projects/path"
 ```
 
 ## 2. Start the Application
