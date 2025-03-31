@@ -51,7 +51,7 @@ DockiUp runs as a service that:
 
 ## 📋 Getting Started
 
-1. **Installation**: [Documentation](#) for setup instructions
+1. **Installation**: [Documentation](docs/docs.md) for setup instructions
 2. **Configuration**: Add your Git repositories and Docker settings
 3. **Monitor**: Watch your containers stay up-to-date automatically
 
