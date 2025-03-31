@@ -3,4 +3,4 @@
 ## Available Documents
 
 ### Development Useful Commands
-[View Here](docs/dev_useful_commands.md)
+[View Here](dev_useful_commands.md)
