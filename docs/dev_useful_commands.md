@@ -63,7 +63,7 @@ docker compose -f compose.dev.yml logs -f
 ### Add a Migration
 
 ```sh
-dotnet ef migrations add UpdatedUser -p src/DockiUp.Infrastructure -s src/DockiUp.API -o Migrations
+dotnet ef migrations add Changes -p src/DockiUp.Infrastructure -s src/DockiUp.API -o Migrations
 ```
 
 ### Apply Migrations
