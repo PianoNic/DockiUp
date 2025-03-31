@@ -72,7 +72,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DockiUp API V1");  // You can modify this URL as per your versioning
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DockiUp API V1");
     });
 }
 

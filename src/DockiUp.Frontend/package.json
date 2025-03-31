@@ -4,9 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:apigen:clean": "npm run apigen && cls && ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "apigen": "npx openapi-generator-cli generate"
   },
   "private": true,
   "dependencies": {
@@ -19,6 +21,11 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@fortawesome/angular-fontawesome": "^1.0.0",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-brands-svg-icons": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@openapitools/openapi-generator-cli": "^2.18.4",
     "@tailwindcss/postcss": "^4.0.17",
     "postcss": "^8.5.3",
     "rxjs": "~7.8.0",

@@ -1,6 +1,18 @@
 <footer class="footer">
-    <div class="footer-content">
-        <p>Made with ❤️ by <a href="https://github.com/Pianonic" target="_blank">PianoNic</a></p>
-        <p>DockiUp &copy; {{ currentYear }} - Licensed under GPL-3.0</p>
-    </div>
+  <div class="footer-links">
+    <a href="https://github.com/Pianonic/DockiUp" class="footer-link">DockiUp</a>
+    <span class="footer-separator">•</span>
+    <a routerLink="/about" class="footer-link">About</a>
+    <span class="footer-separator">•</span>
+    <a href="https://github.com/Pianonic/DockiUp" class="footer-link" target="_blank">
+      Open Source <fa-icon [icon]="faGithub" class="footer-github-icon"></fa-icon>
+    </a>
+    <span class="footer-separator">•</span>
+    <span class="footer-text">DockiUp &copy; {{ currentYear }}</span>
+    <span class="footer-separator">•</span>
+    <span class="footer-text">GPL-3.0</span>
+    <span class="footer-text">{{ environment }}</span>
+    <span class="footer-separator">•</span>
+    <a href="https://github.com/ArgonFetch/ArgonFetch/releases/tag/{{ version }}" class="footer-link footer-version" target="_blank">{{ version }}</a>
+  </div>
 </footer>
