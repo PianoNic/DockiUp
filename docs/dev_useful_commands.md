@@ -77,9 +77,3 @@ dotnet ef database update -p src/DockiUp.Infrastructure -s src/DockiUp.API
 ```sh
 dotnet ef migrations remove -p src/DockiUp.Infrastructure -s src/DockiUp.API
 ```
-
-### Generate SQL Script
-
-```sh
-dotnet ef migrations script -p src/DockiUp.Infrastructure -s src/DockiUp.API -o migration.sql
-```
