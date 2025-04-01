@@ -59,7 +59,7 @@ namespace DockiUp.Application.Commands
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
+                expires: DateTime.Now.AddHours(1),
                 signingCredentials: creds);
 
             return Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));

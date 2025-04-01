@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DockiUp.Infrastructure.Migrations
 {
     [DbContext(typeof(DockiUpDbContext))]
-    [Migration("20250331155159_UpdatedUser")]
-    partial class UpdatedUser
+    [Migration("20250331195642_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -142,7 +142,7 @@ namespace DockiUp.Infrastructure.Migrations
                     b.HasIndex("Identifier")
                         .IsUnique();
 
-                    b.ToTable("WebhookSecrets");
+                    b.ToTable("WebhookSecret");
                 });
 
             modelBuilder.Entity("DockiUp.Domain.Models.Container", b =>

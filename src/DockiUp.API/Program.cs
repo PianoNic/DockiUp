@@ -1,10 +1,13 @@
 using DockiUp.Application.Models;
 using DockiUp.Application.Queries;
 using DockiUp.Application.Services;
+using DockiUp.Domain.Enums;
+using DockiUp.Domain.Models;
 using DockiUp.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,22 +23,20 @@ if (string.IsNullOrEmpty(secretKey))
     throw new InvalidOperationException("JWT secret key is not set in environment variables.");
 }
 
+builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidateAudience = true,
+            ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidIssuer = issuer,
-            ValidAudience = audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
     });
-
-builder.Services.AddAuthorization();
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -67,7 +68,38 @@ builder.Services.AddDbContext<DockiUpDbContext>(options =>
 builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
 
 // Register Swagger services
-builder.Services.AddSwaggerGen();  // This is the correct method for adding Swagger
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "DockiUp API",
+        Version = "v1",
+        Description = "API for the DockiUp document management system"
+    });
+
+    // Add JWT Authentication to Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\nExample: \"Bearer 1safsfsdfdfd\"",
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        {
+            new OpenApiSecurityScheme {
+                Reference = new OpenApiReference {
+                    Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // Add CORS policy to allow all origins, methods, and headers
 if (builder.Environment.IsDevelopment())
@@ -93,8 +125,55 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<DockiUpDbContext>();
-    dbContext.Database.Migrate();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        // Get the database context
+        var dbContext = services.GetRequiredService<DockiUpDbContext>();
+
+        // Apply any pending migrations
+        logger.LogInformation("Applying migrations...");
+        dbContext.Database.Migrate();
+        logger.LogInformation("Migrations applied successfully");
+
+        // Seed data using the integrated method
+        logger.LogInformation("Seeding database...");
+
+        var adminUser = new User
+        {
+            Username = "admin",
+            Email = "admin@dockiup.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+            UserRole = UserRole.Admin,
+            UserSettings = new UserSettings
+            {
+                PreferredColorScheme = ColorScheme.System
+            }
+        };
+
+        // Check if the user already exists
+        var existingUser = dbContext.Users
+            .FirstOrDefault(u => u.Username == adminUser.Username || u.Email == adminUser.Email);
+
+        if (existingUser == null)
+        {
+            dbContext.Users.Add(adminUser);
+            dbContext.SaveChanges();
+            logger.LogInformation("Admin user created successfully");
+        }
+        else
+        {
+            logger.LogInformation("Admin user already exists");
+        }
+
+        logger.LogInformation("Database seeding completed");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred during database migration or seeding");
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -118,6 +197,7 @@ if (!app.Environment.IsDevelopment())
 // Ensure frontend routes work
 app.UseRouting();
 app.UseAuthorization();
+app.UseAuthentication();
 app.UseCors();
 app.MapControllers();
 

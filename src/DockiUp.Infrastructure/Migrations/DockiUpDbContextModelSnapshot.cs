@@ -139,7 +139,7 @@ namespace DockiUp.Infrastructure.Migrations
                     b.HasIndex("Identifier")
                         .IsUnique();
 
-                    b.ToTable("WebhookSecrets");
+                    b.ToTable("WebhookSecret");
                 });
 
             modelBuilder.Entity("DockiUp.Domain.Models.Container", b =>

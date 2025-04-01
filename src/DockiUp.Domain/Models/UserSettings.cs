@@ -7,6 +7,6 @@ namespace DockiUp.Domain.Models
     public class UserSettings
     {
         public int Id { get; set; }
-        public required ColorScheme PreferredColorScheme { get; set; }
+        public ColorScheme PreferredColorScheme { get; set; }
     }
 }

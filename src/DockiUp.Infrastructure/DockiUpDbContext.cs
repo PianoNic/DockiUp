@@ -1,15 +1,22 @@
 ﻿using DockiUp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DockiUp.Infrastructure
 {
     public class DockiUpDbContext : DbContext
     {
-        public required DbSet<DockiUp.Domain.Models.Container> Containers { get; set; }
-        public required DbSet<DockiUp.Domain.Models.User> Users { get; set; }
-        public required DbSet<WebhookSecret> WebhookSecrets { get; set; }
+        private readonly ILogger<DockiUpDbContext> _logger;
 
-        public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
+        public required DbSet<Container> Containers { get; set; }
+        public required DbSet<User> Users { get; set; }
+
+        public DockiUpDbContext(
+            DbContextOptions<DockiUpDbContext> options,
+            ILogger<DockiUpDbContext> logger = null) : base(options)
+        {
+            _logger = logger;
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -24,27 +31,24 @@ namespace DockiUp.Infrastructure
                 entity.Property(c => c.Description).HasMaxLength(100).IsRequired();
                 entity.Property(c => c.GitUrl).HasMaxLength(100).IsRequired();
                 entity.Property(c => c.Path).HasMaxLength(100).IsRequired();
-
                 // Business rule: Container can have either WebhookSecret or CheckIntervals, not both
                 entity.HasOne(c => c.WebhookSecret)
                     .WithMany()
                     .HasForeignKey("WebhookSecretId")
                     .IsRequired(false);
-
                 // Add a check constraint for the business rule with MySQL compatible syntax
                 entity.ToTable(tb => tb.HasCheckConstraint(
                     "CK_Container_UpdateMechanism",
                     "(`WebhookSecretId` IS NULL AND `CheckIntervals` IS NOT NULL) OR (`WebhookSecretId` IS NOT NULL AND `CheckIntervals` IS NULL) OR (`WebhookSecretId` IS NULL AND `CheckIntervals` IS NULL)"));
             });
 
-            // User configuration
+            // User configuration 
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(u => u.Id);
                 entity.Property(u => u.Username).HasMaxLength(50).IsRequired();
                 entity.Property(u => u.PasswordHash).HasMaxLength(100).IsRequired();
                 entity.Property(u => u.Email).HasMaxLength(100).IsRequired();
-
                 // Add a unique constraint on username
                 entity.HasIndex(u => u.Username).IsUnique();
                 // Add a unique constraint on email
@@ -57,7 +61,6 @@ namespace DockiUp.Infrastructure
                 entity.HasKey(w => w.Id);
                 entity.Property(w => w.Identifier).HasMaxLength(10).IsRequired();
                 entity.Property(w => w.Secret).HasMaxLength(200).IsRequired();
-
                 // Add a unique constraint on identifier
                 entity.HasIndex(w => w.Identifier).IsUnique();
             });

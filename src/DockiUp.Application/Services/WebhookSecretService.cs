@@ -1,5 +1,4 @@
 ﻿using DockiUp.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.Application.Services
 {
@@ -15,12 +14,12 @@ namespace DockiUp.Application.Services
         public async Task<string> GetSecretByIdentifierAsync(string identifier)
         {
             // Query the database for the secret associated with the identifier
-            var secret = await _dbContext.WebhookSecrets
-                                          .Where(w => w.Identifier == identifier)
-                                          .Select(w => w.Secret)
-                                          .FirstOrDefaultAsync();
+            //var secret = await _dbContext.WebhookSecrets
+            //                              .Where(w => w.Identifier == identifier)
+            //                              .Select(w => w.Secret)
+            //                              .FirstOrDefaultAsync();
 
-            return secret;
+            return "secret";
         }
     }
 }

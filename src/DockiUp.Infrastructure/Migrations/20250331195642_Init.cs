@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DockiUp.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdatedUser : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -27,10 +27,10 @@ namespace DockiUp.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Email = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    UserRole = table.Column<int>(type: "int", nullable: false),
                     ProfilePicture = table.Column<byte[]>(type: "longblob", nullable: true),
                     UserSettings_Id = table.Column<int>(type: "int", nullable: false),
-                    UserSettings_PreferredColorScheme = table.Column<int>(type: "int", nullable: false),
-                    UserRole = table.Column<int>(type: "int", nullable: false)
+                    UserSettings_PreferredColorScheme = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -39,7 +39,7 @@ namespace DockiUp.Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "WebhookSecrets",
+                name: "WebhookSecret",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -51,7 +51,7 @@ namespace DockiUp.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_WebhookSecrets", x => x.Id);
+                    table.PrimaryKey("PK_WebhookSecret", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -81,9 +81,9 @@ namespace DockiUp.Infrastructure.Migrations
                     table.PrimaryKey("PK_Containers", x => x.Id);
                     table.CheckConstraint("CK_Container_UpdateMechanism", "(`WebhookSecretId` IS NULL AND `CheckIntervals` IS NOT NULL) OR (`WebhookSecretId` IS NOT NULL AND `CheckIntervals` IS NULL) OR (`WebhookSecretId` IS NULL AND `CheckIntervals` IS NULL)");
                     table.ForeignKey(
-                        name: "FK_Containers_WebhookSecrets_WebhookSecretId",
+                        name: "FK_Containers_WebhookSecret_WebhookSecretId",
                         column: x => x.WebhookSecretId,
-                        principalTable: "WebhookSecrets",
+                        principalTable: "WebhookSecret",
                         principalColumn: "Id");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -106,8 +106,8 @@ namespace DockiUp.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_WebhookSecrets_Identifier",
-                table: "WebhookSecrets",
+                name: "IX_WebhookSecret_Identifier",
+                table: "WebhookSecret",
                 column: "Identifier",
                 unique: true);
         }
@@ -122,7 +122,7 @@ namespace DockiUp.Infrastructure.Migrations
                 name: "Users");
 
             migrationBuilder.DropTable(
-                name: "WebhookSecrets");
+                name: "WebhookSecret");
         }
     }
 }
