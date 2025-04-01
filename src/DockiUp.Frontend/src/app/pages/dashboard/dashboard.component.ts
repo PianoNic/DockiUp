@@ -1,14 +1,22 @@
-import { Component, OnInit } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component, OnInit, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { UpdateStatusType } from '../../enums/update-status-type.enum';
-import { Container } from '../../models/container.model';
-import { ContainerService } from '../../services/container.service';
 import { AddContainerButtonComponent } from "../../components/add-container-button/add-container-button.component";
+import { ContainerStore } from './container.store';
+import { StatusType } from '../../api';
+
+interface Container {
+  id: string;
+  name: string;
+  description: string;
+  lastUpdated: Date;
+  updateStatus: {
+    status: 'updated' | 'needs_update' | 'updating' | 'failed' | 'unknown';
+  };
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -19,41 +27,30 @@ import { AddContainerButtonComponent } from "../../components/add-container-butt
     RouterLink,
     MatButtonModule,
     AddContainerButtonComponent
-],
+  ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {
-  containers$: Observable<Container[]> | undefined;
-  statusCounts = {
-    total: 0,
-    updated: 0,
-    needsUpdate: 0,
-    updating: 0,
-    failed: 0
-  };
+  StatusType = StatusType;
+  public containerStore = inject(ContainerStore);
 
-  constructor(private containerService: ContainerService) { }
+  containers = this.containerStore.containers;
+  loading = this.containerStore.loading;
+  error = this.containerStore.error;
 
   ngOnInit(): void {
-    this.loadContainers();
+    this.containerStore.loadContainers();
   }
 
-  loadContainers(): void {
-    this.containers$ = this.containerService.getContainers();
-    // TODO: Calculate status counts
-  }
-
-  updateAllContainers(): void {
-    // TODO: Implement method to update all containers
-  }
-
-  checkAllForUpdates(): void {
-    // TODO: Implement method to check all containers for updates
-  }
-
-  getStatusClass(status: UpdateStatusType): string {
-    // TODO: Return appropriate CSS class based on status
-    return '';
+  getStatusIcon(status: StatusType): string {
+    switch (status) {
+      case StatusType.Stopped: return 'pause';
+      case StatusType.Running: return 'check_circle';
+      case StatusType.NeedsUpdate: return 'new_releases';
+      case StatusType.Updating: return 'loop';
+      case StatusType.Failed: return 'error';
+      default: return '';
+    }
   }
 }

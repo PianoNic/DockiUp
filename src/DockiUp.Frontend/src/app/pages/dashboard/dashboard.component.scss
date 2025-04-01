@@ -1,87 +1,91 @@
 .dashboard-container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
 .dashboard-actions {
-    display: flex;
-    gap: 10px;
+  display: flex;
+  gap: 10px;
 }
 
 .status-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 mat-card {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 mat-card-title {
-    white-space: nowrap;
+  white-space: nowrap;
 }
 
 .status-card {
-    &.updated {
-        border-left: 4px solid #4caf50;
-    }
+  &.stopped {
+    border-left: 4px solid black;
+  }
 
-    &.needs-update {
-        border-left: 4px solid #ff9800;
-    }
+  &.updated {
+    border-left: 4px solid #4caf50;
+  }
 
-    &.updating {
-        border-left: 4px solid #2196f3;
-    }
+  &.needs-update {
+    border-left: 4px solid #ff9800;
+  }
 
-    &.failed {
-        border-left: 4px solid #f44336;
-    }
+  &.updating {
+    border-left: 4px solid #2196f3;
+  }
+
+  &.failed {
+    border-left: 4px solid #f44336;
+  }
 }
 
 .centered-logo {
-    display: flex;
-    justify-content: center;
+  display: flex;
+  justify-content: center;
 }
 
 .card-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .count {
-    font-size: 2.5rem;
-    font-weight: bold;
+  font-size: 2.5rem;
+  font-weight: bold;
 }
 
 .container-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
 }
 
 .container-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 
-    mat-card-content {
-        flex-grow: 1;
-    }
+  mat-card-content {
+    flex-grow: 1;
+  }
 }
 
 .empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
 }

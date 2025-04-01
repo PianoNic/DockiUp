@@ -1,6 +1,7 @@
 ﻿using DockiUp.Application.Commands;
 using DockiUp.Application.Dtos;
 using DockiUp.Application.Interfaces;
+using DockiUp.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,10 +27,17 @@ namespace DockiUp.API.Controllers
             return Created();
         }
 
-        [HttpGet("GetContainerStatus", Name = "GetContainerStatus")]
-        public async Task<IActionResult> GetContainerStatus(string containerId, string containerName)
+        [HttpGet("GetContainers", Name = "GetContainers")]
+        public async Task<ActionResult<ContainerDto[]>> GetContainerStatus()
         {
-            await _notificationService.NotifyContainerUpdated(containerId, containerName);
+            var containers = await _mediator.Send(new GetContainersQuery());
+            return Ok(containers);
+        }
+
+        [HttpPost("GetContainerStatus", Name = "GetContainerStatus")]
+        public async Task<IActionResult> GetContainerStatus(ContainerDto container)
+        {
+            await _notificationService.NotifyContainerUpdated(container);
             return Ok(new { Message = "Notification sent successfully." });
         }
     }

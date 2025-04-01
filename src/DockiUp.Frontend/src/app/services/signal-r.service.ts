@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { environment } from '../../environments/environment';
+import { ContainerDto } from '../api';
 
 @Injectable({
   providedIn: 'root'
@@ -22,9 +23,9 @@ export class SignalRService {
       .catch(err => console.error('SignalR Connection Error:', err));
   }
 
-  listenForContainerUpdates(callback: (containerId: string, status: string) => void) {
-    this.hubConnection.on('ContainerUpdated', (data: { containerId: string, status: string }) => {
-      callback(data.containerId, data.status);
+  listenForContainerUpdates(callback: (containerDto: ContainerDto) => void) {
+    this.hubConnection.on('ContainerUpdated', (containerDto: ContainerDto) => {
+      callback(containerDto);
     });
   }
 }

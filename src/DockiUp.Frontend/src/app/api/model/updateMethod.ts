@@ -9,12 +9,12 @@
  */
 
 
-export type UpdateMethod = 0 | 1;
+export type UpdateMethod = 'UseWebhook' | 'CheckPeriodically';
 
 export const UpdateMethod = {
 
-    NUMBER_0: 0 as UpdateMethod,
+    UseWebhook: 'UseWebhook' as UpdateMethod,
 
-    NUMBER_1: 1 as UpdateMethod
+    CheckPeriodically: 'CheckPeriodically' as UpdateMethod
 };
 

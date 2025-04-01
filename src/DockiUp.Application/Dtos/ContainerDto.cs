@@ -1,4 +1,5 @@
-﻿using DockiUp.Domain.Models;
+﻿using DockiUp.Domain.Enums;
+using DockiUp.Domain.Models;
 
 namespace DockiUp.Application.Dtos
 {
@@ -12,6 +13,7 @@ namespace DockiUp.Application.Dtos
         public required string Path { get; set; }
         public required DateTime LastUpdated { get; set; }
         public required DateTime LastGitPush { get; set; }
+        public required StatusType Status { get; set; }
 
         public WebhookSecret? WebhookSecret { get; set; }
         public int? CheckIntervals { get; set; }

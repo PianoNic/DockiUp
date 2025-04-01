@@ -10,17 +10,27 @@
         <mat-card-title>Total</mat-card-title>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <span class="count">{{ statusCounts.total }}</span>
+        <span class="count">{{ containerStore.containerStats().total }}</span>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="status-card stopped">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="centered-logo">pause</mat-icon>
+        <mat-card-title>Stopped</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="card-content">
+        <span class="count">{{ containerStore.containerStats().stopped }}</span>
       </mat-card-content>
     </mat-card>
 
     <mat-card class="status-card updated">
       <mat-card-header>
         <mat-icon mat-card-avatar class="centered-logo">check_circle</mat-icon>
-        <mat-card-title>Updated</mat-card-title>
+        <mat-card-title>Running</mat-card-title>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <span class="count">{{ statusCounts.updated }}</span>
+        <span class="count">{{ containerStore.containerStats().running }}</span>
       </mat-card-content>
     </mat-card>
 
@@ -30,7 +40,7 @@
         <mat-card-title>Needs Update</mat-card-title>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <span class="count">{{ statusCounts.needsUpdate }}</span>
+        <span class="count">{{ containerStore.containerStats().needsUpdate }}</span>
       </mat-card-content>
     </mat-card>
 
@@ -40,7 +50,7 @@
         <mat-card-title>Updating</mat-card-title>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <span class="count">{{ statusCounts.updating }}</span>
+        <span class="count">{{ containerStore.containerStats().updating }}</span>
       </mat-card-content>
     </mat-card>
 
@@ -50,19 +60,16 @@
         <mat-card-title>Failed</mat-card-title>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <span class="count">{{ statusCounts.failed }}</span>
+        <span class="count">{{ containerStore.containerStats().failed }}</span>
       </mat-card-content>
     </mat-card>
   </div>
 
-  <div class="container-list" *ngIf="(containers$ | async) as containers">
-    <mat-card *ngFor="let container of containers.slice(0, 5)" class="container-card" appearance="outlined">
+  <div class="container-list" *ngIf="!loading()">
+    <mat-card *ngFor="let container of containers().slice(0, 5)" class="container-card" appearance="outlined">
       <mat-card-header>
-        <mat-icon mat-card-avatar [ngClass]="getStatusClass(container.updateStatus.status)" class="centered-logo">
-          {{ container.updateStatus.status === 'updated' ? 'check_circle' :
-          container.updateStatus.status === 'needs_update' ? 'new_releases' :
-          container.updateStatus.status === 'updating' ? 'loop' :
-          container.updateStatus.status === 'failed' ? 'error' : 'help' }}
+        <mat-icon mat-card-avatar class="centered-logo">
+          {{ getStatusIcon(container.status) }}
         </mat-icon>
         <mat-card-title>{{ container.name }}</mat-card-title>
       </mat-card-header>
@@ -71,16 +78,25 @@
         <p *ngIf="container.lastUpdated">Last updated: {{ container.lastUpdated | date:'medium' }}</p>
       </mat-card-content>
       <mat-card-actions>
-        <button mat-button [routerLink]="['/containers', container.id]">View</button>
-        <button mat-button [routerLink]="['/edit-container', container.id]">Edit</button>
+        <button mat-button [routerLink]="['/container', container.dbContainerId]">View</button>
+        <button mat-button [routerLink]="['/edit-container', container.dbContainerId]">Edit</button>
       </mat-card-actions>
     </mat-card>
 
-    <mat-card *ngIf="containers.length === 0" class="empty-state">
+    <mat-card *ngIf="containers().length === 0" class="empty-state">
       <mat-card-content>
         <p>No containers found. Add your first container to get started.</p>
         <add-container-button />
       </mat-card-content>
     </mat-card>
   </div>
+
+  <div *ngIf="loading()" class="loading-state">
+    <p>Loading containers...</p>
+  </div>
+
+  <!-- <div *ngIf="error()" class="error-state">
+    <p>Error loading containers: {{ error() }}</p>
+    <button mat-button (click)="loadContainers()">Retry</button>
+  </div> -->
 </div>

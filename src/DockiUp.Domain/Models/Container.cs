@@ -1,4 +1,6 @@
-﻿namespace DockiUp.Domain.Models
+﻿using DockiUp.Domain.Enums;
+
+namespace DockiUp.Domain.Models
 {
     public class Container
     {
@@ -10,6 +12,7 @@
         public required string Path { get; set; }
         public required DateTime LastUpdated { get; set; }
         public required DateTime LastGitPush { get; set; }
+        public required StatusType Status { get; set; }
 
         public WebhookSecret? WebhookSecret { get; set; }
         public int? CheckIntervals { get; set; }

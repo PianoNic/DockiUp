@@ -1,4 +1,5 @@
-﻿using DockiUp.Application.Interfaces;
+﻿using DockiUp.Application.Dtos;
+using DockiUp.Application.Interfaces;
 using DockiUp.Application.SignalR;
 using Microsoft.AspNetCore.SignalR;
 
@@ -18,9 +19,9 @@ namespace DockiUp.Application.Services
             await _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
         }
 
-        public async Task NotifyContainerUpdated(string containerId, string status)
+        public async Task NotifyContainerUpdated(ContainerDto containerDto)
         {
-            await _hubContext.Clients.All.SendAsync("ContainerUpdated", new { containerId, status });
+            await _hubContext.Clients.All.SendAsync("ContainerUpdated", containerDto);
         }
     }
 }

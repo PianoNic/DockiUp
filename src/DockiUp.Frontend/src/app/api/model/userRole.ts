@@ -9,14 +9,14 @@
  */
 
 
-export type UserRole = 0 | 1 | 2;
+export type UserRole = 'None' | 'User' | 'Admin';
 
 export const UserRole = {
 
-    NUMBER_0: 0 as UserRole,
+    None: 'None' as UserRole,
 
-    NUMBER_1: 1 as UserRole,
+    User: 'User' as UserRole,
 
-    NUMBER_2: 2 as UserRole
+    Admin: 'Admin' as UserRole
 };
 

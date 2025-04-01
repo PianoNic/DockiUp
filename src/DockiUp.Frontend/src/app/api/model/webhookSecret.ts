@@ -9,14 +9,9 @@
  */
 
 
-export type ColorScheme = 'System' | 'Light' | 'Dark';
-
-export const ColorScheme = {
-
-    System: 'System' as ColorScheme,
-
-    Light: 'Light' as ColorScheme,
-
-    Dark: 'Dark' as ColorScheme
-};
+export interface WebhookSecret { 
+    id?: number;
+    identifier: string | null;
+    secret: string | null;
+}
 
