@@ -7,10 +7,11 @@ import {
   withState,
   withComputed
 } from '@ngrx/signals';
-import { ContainerService, StatusType } from '../../api';
+import { ContainerService, CreateContainerDto, StatusType } from '../../api';
 import { ContainerDto } from '../../api/model/containerDto';
 import { SignalRService } from '../../services/signal-r.service';
 import { ContainerStats } from '../../models/container-stats';
+import { finalize } from 'rxjs';
 
 type ContainerState = {
   containers: ContainerDto[];
@@ -63,6 +64,18 @@ export const ContainerStore = signalStore(
             }),
             error: (_error) => patchState(store, {
               error: 'Failed to load containers',
+              loading: false
+            })
+          });
+      },
+      createContainer(containerInfo: CreateContainerDto) {
+        patchState(store, { loading: true, error: null });
+        return containerService.createContainer(containerInfo)
+          .pipe(
+            finalize(() => patchState(store, { loading: false }))
+          ).subscribe({
+            error: (_error) => patchState(store, {
+              error: 'Failed to create container',
               loading: false
             })
           });

@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { BasicInfoStepComponent } from './basic-info-step/basic-info-step.component';
 import { SummaryStepComponent } from './summary-step/summary-step.component';
 import { UpdateMethodStepComponent } from './update-method-step/update-method-step.component';
-import { UpdateMethod } from '../../api';
+import { CreateContainerDto, UpdateMethod } from '../../api';
 
 interface DialogData {
   inEditMode: boolean;
@@ -147,20 +147,29 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
 
   onSubmit(): void {
     if (this.isFormValid()) {
+      this.dialogRef.close(this.getFormData());
+    }
+  }
+  
+  getFormData(): CreateContainerDto {
+    if (this.isFormValid()) {
       // Combine form data
       const basicInfo = this.basicInfoFormGroup.value;
-
-      // Use the helper method to get properly formatted update method data
       const updateMethodData = this.updateMethodStep?.getFormValues() || this.updateMethodFormGroup.getRawValue();
-
-      // Merge the data
-      this.formData = {
-        ...basicInfo,
-        ...updateMethodData
+      
+      // Create proper CreateContainerDto object
+      const containerDto: CreateContainerDto = {
+        name: basicInfo.name,
+        gitUrl: basicInfo.gitUrl,
+        description: basicInfo.description,
+        updateMethod: updateMethodData.updateMethod,
+        checkIntervals: updateMethodData.updateMethod === UpdateMethod.CheckPeriodically ? 
+                      updateMethodData.checkInterval : undefined
       };
-
-      this.dialogRef.close(this.formData);
+      
+      return containerDto;
     }
+    throw new Error('Form is not valid');
   }
 
   onCancel(): void {

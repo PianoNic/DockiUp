@@ -36,7 +36,7 @@ namespace DockiUp.Application.Commands
         public async Task Handle(CreateContainerCommand request, CancellationToken cancellationToken)
         {
             string projectsPath = _systemPaths.ProjectsPath;
-            string repoName = request.CreateContainerDto.ContainerName;
+            string repoName = request.CreateContainerDto.Name;
             string clonePath = Path.Combine(projectsPath, repoName);
 
             _logger.LogInformation($"Cloning repository to {projectsPath}");
@@ -73,7 +73,7 @@ namespace DockiUp.Application.Commands
 
                     var container = new Container
                     {
-                        Name = request.CreateContainerDto.ContainerName,
+                        Name = request.CreateContainerDto.Name,
                         Description = request.CreateContainerDto.Description ?? "No description provided",
                         GitUrl = request.CreateContainerDto.GitUrl,
                         Path = clonePath,

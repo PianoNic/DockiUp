@@ -11,7 +11,7 @@ import { UpdateMethod } from './updateMethod';
 
 
 export interface CreateContainerDto { 
-    containerName: string | null;
+    name: string | null;
     gitUrl: string | null;
     description?: string | null;
     updateMethod: UpdateMethod;
