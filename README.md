@@ -22,7 +22,7 @@ DockiUp monitors your Git repositories for changes, then automatically:
 2. Rebuilds your Docker containers with the updated code
 3. Deploys the new containers with minimal downtime
 
-Perfect for developers who want a simple CI/CD pipeline for their personal projects and self-hosted services.
+Perfect for developers who want a simple CI/CD pipeline for their personal projects.
 
 ## 🖼️ Screenshots
 
