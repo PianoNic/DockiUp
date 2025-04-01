@@ -21,5 +21,11 @@ namespace DockiUp.API.Controllers
             await _mediator.Send(new CreateContainerCommand(containerInformation));
             return Created();
         }
+
+        [HttpGet("GetContainerStatus", Name = "GetContainerStatus")]
+        public async Task<IActionResult> GetContainerStatus([FromQuery] string containerName)
+        {
+
+        }
     }
 }
