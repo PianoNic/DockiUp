@@ -26,6 +26,7 @@
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@microsoft/signalr": "^8.0.7",
     "@openapitools/openapi-generator-cli": "^2.18.4",
     "@tailwindcss/postcss": "^4.0.17",
     "postcss": "^8.5.3",

@@ -1,6 +1,8 @@
+using DockiUp.Application.Interfaces;
 using DockiUp.Application.Models;
 using DockiUp.Application.Queries;
 using DockiUp.Application.Services;
+using DockiUp.Application.SignalR;
 using DockiUp.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -67,7 +69,7 @@ builder.Services.AddDbContext<DockiUpDbContext>(options =>
 builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
 
 // Register Swagger services
-builder.Services.AddSwaggerGen();  // This is the correct method for adding Swagger
+builder.Services.AddSwaggerGen();
 
 // Add CORS policy to allow all origins, methods, and headers
 if (builder.Environment.IsDevelopment())
@@ -88,6 +90,9 @@ if (builder.Environment.IsDevelopment())
         });
     });
 }
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 var app = builder.Build();
 
@@ -120,6 +125,12 @@ app.UseRouting();
 app.UseAuthorization();
 app.UseCors();
 app.MapControllers();
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+    endpoints.MapHub<NotificationHub>("/api/notificationHub"); // Register the SignalR Hub
+});
 
 // Serve Angular Frontend in Production
 if (!app.Environment.IsDevelopment())
