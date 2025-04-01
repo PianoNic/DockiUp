@@ -7,10 +7,19 @@ import { MatButtonModule } from '@angular/material/button';
 import { BasicInfoStepComponent } from './basic-info-step/basic-info-step.component';
 import { SummaryStepComponent } from './summary-step/summary-step.component';
 import { UpdateMethodStepComponent } from './update-method-step/update-method-step.component';
+import { UpdateMethod } from '../../api';
 
 interface DialogData {
   inEditMode: boolean;
   containerData?: any;
+}
+
+interface ContainerFormData {
+  name: string;
+  gitUrl: string;
+  description: string;
+  updateMethod: UpdateMethod;
+  checkInterval?: number;
 }
 
 @Component({
@@ -32,10 +41,13 @@ interface DialogData {
 })
 export class CreateEditContainerModalComponent implements OnInit, AfterViewInit {
   @ViewChild('stepper') stepper!: MatStepper;
+  @ViewChild(UpdateMethodStepComponent) updateMethodStep!: UpdateMethodStepComponent;
+  @ViewChild(BasicInfoStepComponent) basicInfoStep!: BasicInfoStepComponent;
+
   inEditMode: boolean;
   basicInfoFormGroup: FormGroup;
   updateMethodFormGroup: FormGroup;
-  formData: any = {};
+  formData: ContainerFormData = {} as ContainerFormData;
 
   constructor(
     private dialogRef: MatDialogRef<CreateEditContainerModalComponent>,
@@ -43,6 +55,7 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
   ) {
     this.inEditMode = data.inEditMode;
 
+    // Initialize form groups
     this.basicInfoFormGroup = new FormGroup({
       name: new FormControl('', [
         Validators.required,
@@ -60,7 +73,7 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
     });
 
     this.updateMethodFormGroup = new FormGroup({
-      updateMethod: new FormControl('webhook', [Validators.required]),
+      updateMethod: new FormControl(UpdateMethod.UseWebhook, [Validators.required]),
       checkInterval: new FormControl({ value: 5, disabled: true }, [
         Validators.required,
         Validators.min(5),
@@ -71,27 +84,53 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
 
   ngOnInit(): void {
     if (this.inEditMode && this.data.containerData) {
-      this.basicInfoFormGroup.patchValue(this.data.containerData);
-      this.updateMethodFormGroup.patchValue(this.data.containerData);
+      this.patchFormValues(this.data.containerData);
+    }
+  }
 
-      if (this.data.containerData.updateMethod === 'interval') {
-        this.updateMethodFormGroup.get('checkInterval')?.enable();
+  patchFormValues(containerData: any): void {
+    // Patch basic info
+    this.basicInfoFormGroup.patchValue({
+      name: containerData.name || '',
+      gitUrl: containerData.gitUrl || '',
+      description: containerData.description || ''
+    });
+
+    // Map string values to enum values if needed
+    let updateMethod = containerData.updateMethod;
+    if (typeof updateMethod === 'string') {
+      // Map from legacy string values to enum values
+      switch (updateMethod) {
+        case 'webhook':
+          updateMethod = UpdateMethod.UseWebhook;
+          break;
+        case 'manually':
+          updateMethod = UpdateMethod.UpdateManually;
+          break;
+        case 'interval':
+          updateMethod = UpdateMethod.CheckPeriodically;
+          break;
       }
     }
 
-    this.updateMethodFormGroup.get('updateMethod')?.valueChanges.subscribe(value => {
-      if (value === 'interval') {
-        this.updateMethodFormGroup.get('checkInterval')?.enable();
-      } else {
-        this.updateMethodFormGroup.get('checkInterval')?.disable();
-      }
+    // Patch update method
+    this.updateMethodFormGroup.patchValue({
+      updateMethod: updateMethod || UpdateMethod.UseWebhook,
+      checkInterval: containerData.checkInterval || 5
     });
+
+    // Enable interval field if needed
+    if (updateMethod === UpdateMethod.CheckPeriodically) {
+      this.updateMethodFormGroup.get('checkInterval')?.enable();
+    } else {
+      this.updateMethodFormGroup.get('checkInterval')?.disable();
+    }
   }
 
   isCurrentStepValid(): boolean {
-    if (!this.stepper) 
+    if (!this.stepper)
       return false;
-  
+
     switch (this.stepper.selectedIndex) {
       case 0:
         return this.basicInfoFormGroup.valid;
@@ -100,7 +139,7 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
       default:
         return true;
     }
-  }  
+  }
 
   isFormValid(): boolean {
     return this.basicInfoFormGroup.valid && this.updateMethodFormGroup.valid;
@@ -108,10 +147,18 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
 
   onSubmit(): void {
     if (this.isFormValid()) {
-      this.formData = { ...this.basicInfoFormGroup.value, ...this.updateMethodFormGroup.value };
-      if (this.formData.updateMethod !== 'interval') {
-        delete this.formData.checkInterval;
-      }
+      // Combine form data
+      const basicInfo = this.basicInfoFormGroup.value;
+
+      // Use the helper method to get properly formatted update method data
+      const updateMethodData = this.updateMethodStep?.getFormValues() || this.updateMethodFormGroup.getRawValue();
+
+      // Merge the data
+      this.formData = {
+        ...basicInfo,
+        ...updateMethodData
+      };
+
       this.dialogRef.close(this.formData);
     }
   }
@@ -121,11 +168,11 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
   }
 
   ngAfterViewInit(): void {
+    // Set up stepper validation
     setTimeout(() => {
       this.stepper.selectionChange.subscribe(() => {
         this.isCurrentStepValid();
       });
     });
   }
-  
 }

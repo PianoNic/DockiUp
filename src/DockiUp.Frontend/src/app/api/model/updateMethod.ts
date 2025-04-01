@@ -9,11 +9,13 @@
  */
 
 
-export type UpdateMethod = 'UseWebhook' | 'CheckPeriodically';
+export type UpdateMethod = 'UseWebhook' | 'UpdateManually' | 'CheckPeriodically';
 
 export const UpdateMethod = {
 
     UseWebhook: 'UseWebhook' as UpdateMethod,
+
+    UpdateManually: 'UpdateManually' as UpdateMethod,
 
     CheckPeriodically: 'CheckPeriodically' as UpdateMethod
 };

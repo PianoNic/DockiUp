@@ -14,6 +14,7 @@ namespace DockiUp.Application.Dtos
         public required DateTime LastUpdated { get; set; }
         public required DateTime LastGitPush { get; set; }
         public required StatusType Status { get; set; }
+        public required UpdateMethod UpdateMethod { get; set; }
 
         public WebhookSecret? WebhookSecret { get; set; }
         public int? CheckIntervals { get; set; }

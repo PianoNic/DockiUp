@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DockiUp.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdatedUser : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -73,6 +73,8 @@ namespace DockiUp.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     LastUpdated = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastGitPush = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    UpdateMethod = table.Column<int>(type: "int", nullable: false),
                     WebhookSecretId = table.Column<int>(type: "int", nullable: true),
                     CheckIntervals = table.Column<int>(type: "int", nullable: true)
                 },

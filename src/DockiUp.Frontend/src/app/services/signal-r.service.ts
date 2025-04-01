@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import * as signalR from '@microsoft/signalr';
 import { environment } from '../../environments/environment';
 import { ContainerDto } from '../api';
+import * as signalR from '@microsoft/signalr';
 
 @Injectable({
   providedIn: 'root'
@@ -19,8 +19,8 @@ export class SignalRService {
       .build();
 
     this.hubConnection.start()
-      .then(() => console.log('SignalR Connected!'))
-      .catch(err => console.error('SignalR Connection Error:', err));
+      .then(() => console.log('NotificationHub Connected!'))
+      .catch(err => console.error('NotificationHub Connection Error:', err));
   }
 
   listenForContainerUpdates(callback: (containerDto: ContainerDto) => void) {

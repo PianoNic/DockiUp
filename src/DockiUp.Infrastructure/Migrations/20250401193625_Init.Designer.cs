@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DockiUp.Infrastructure.Migrations
 {
     [DbContext(typeof(DockiUpDbContext))]
-    [Migration("20250331155159_UpdatedUser")]
-    partial class UpdatedUser
+    [Migration("20250401193625_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -65,6 +65,12 @@ namespace DockiUp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UpdateMethod")
+                        .HasColumnType("int");
 
                     b.Property<int?>("WebhookSecretId")
                         .HasColumnType("int");

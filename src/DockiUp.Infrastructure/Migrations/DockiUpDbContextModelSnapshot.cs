@@ -63,6 +63,12 @@ namespace DockiUp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UpdateMethod")
+                        .HasColumnType("int");
+
                     b.Property<int?>("WebhookSecretId")
                         .HasColumnType("int");
 

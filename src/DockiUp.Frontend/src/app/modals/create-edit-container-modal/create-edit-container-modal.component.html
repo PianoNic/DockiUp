@@ -5,14 +5,14 @@
 
 <mat-dialog-content>
     <mat-stepper [linear]="true" #stepper>
-        <mat-step>
+        <mat-step [completed]="basicInfoFormGroup.valid">
             <ng-template matStepLabel>Basic Information</ng-template>
             <app-basic-info-step [formGroup]="basicInfoFormGroup"></app-basic-info-step>
         </mat-step>
 
-        <mat-step>
+        <mat-step [completed]="updateMethodFormGroup.valid">
             <ng-template matStepLabel>Update Method</ng-template>
-            <app-update-method-step [formGroup]="updateMethodFormGroup"></app-update-method-step>
+            <app-update-method-step [updateMethodFormGroup]="updateMethodFormGroup"></app-update-method-step>
         </mat-step>
 
         <mat-step>
@@ -27,8 +27,8 @@
     <button mat-button mat-dialog-close (click)="onCancel()">Cancel</button>
     <span class="space-between"></span>
     <button mat-button (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0">Back</button>
-    <button mat-button *ngIf="stepper.selectedIndex !== stepper.steps.length - 1" 
-            (click)="stepper.next()" [disabled]="!isCurrentStepValid()">Next</button>
-    <button mat-button color="primary" *ngIf="stepper.selectedIndex === stepper.steps.length - 1" 
-            (click)="onSubmit()" [disabled]="!isFormValid()">{{ inEditMode ? 'Update' : 'Create' }} Container</button>
+    <button mat-button *ngIf="stepper.selectedIndex !== stepper.steps.length - 1" (click)="stepper.next()"
+        [disabled]="!isCurrentStepValid()">Next</button>
+    <button mat-raised-button color="primary" *ngIf="stepper.selectedIndex === stepper.steps.length - 1"
+        (click)="onSubmit()" [disabled]="!isFormValid()">{{ inEditMode ? 'Update' : 'Create' }} Container</button>
 </mat-dialog-actions>

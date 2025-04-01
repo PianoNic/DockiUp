@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
-import { FormControl, FormGroup, Validators, ReactiveFormsModule  } from '@angular/forms';
+import { FormControl, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 
@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 export class BasicInfoStepComponent {
   @Input() formGroup!: FormGroup;
 
-  constructor(){
+  constructor() {
     this.formGroup = new FormGroup({
       name: new FormControl('', [
         Validators.required,

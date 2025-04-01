@@ -1,38 +1,25 @@
-.summary-container {
-    background-color: #f9f9f9;
-    padding: 20px;
-    border-radius: 4px;
-    margin-bottom: 20px;
-
-    h3 {
-        margin-top: 0;
-        margin-bottom: 16px;
-        color: rgba(0, 0, 0, 0.87);
-    }
-}
-
-.summary-section {
+.summary-card {
     margin-bottom: 16px;
-
-    h4 {
-        margin: 0 0 8px 0;
-        color: rgba(0, 0, 0, 0.7);
-        font-weight: 500;
-    }
-
-    p {
-        margin: 0 0 8px 0;
-    }
-
-    .webhook-info {
-        margin-top: 16px;
-        padding: 8px;
-        background-color: #e3f2fd;
-        border-radius: 4px;
-    }
 }
 
-.note {
-    font-style: italic;
-    color: rgba(0, 0, 0, 0.54);
+mat-card-title {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.review-note {
+    border-left: 4px solid #2196f3;
+}
+
+.note-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    .icon-container {
+        display: flex;
+        align-items: center;
+        justify-items: center;
+        width: 24px;
+    }
 }

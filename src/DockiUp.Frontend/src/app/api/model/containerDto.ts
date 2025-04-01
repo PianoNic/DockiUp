@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { StatusType } from './statusType';
+import { UpdateMethod } from './updateMethod';
 import { WebhookSecret } from './webhookSecret';
 
 
@@ -21,6 +22,7 @@ export interface ContainerDto {
     lastUpdated: string;
     lastGitPush: string;
     status: StatusType;
+    updateMethod: UpdateMethod;
     webhookSecret?: WebhookSecret;
     checkIntervals?: number | null;
 }

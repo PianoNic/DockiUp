@@ -34,7 +34,8 @@ namespace DockiUp.Application.Queries
                         Identifier = "webhook-1",
                         Secret = "s3cr3t-k3y-1"
                     },
-                    Status = StatusType.Running
+                    Status = StatusType.Running,
+                    UpdateMethod = UpdateMethod.UpdateManually
                 },
                 new ContainerDto
                 {
@@ -47,7 +48,8 @@ namespace DockiUp.Application.Queries
                     LastUpdated = DateTime.Now.AddHours(-12),
                     LastGitPush = DateTime.Now.AddDays(-1),
                     CheckIntervals = 30,
-                    Status = StatusType.Updating
+                    Status = StatusType.Updating,
+                    UpdateMethod = UpdateMethod.CheckPeriodically
                 },
                 new ContainerDto
                 {
@@ -66,7 +68,8 @@ namespace DockiUp.Application.Queries
                         Secret = "s3cr3t-k3y-2"
                     },
                     CheckIntervals = 120,
-                    Status = StatusType.Updating
+                    Status = StatusType.Updating,
+                    UpdateMethod = UpdateMethod.UseWebhook
                 }
             });
         }
