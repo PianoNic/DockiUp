@@ -5,5 +5,5 @@
 ### Installation Guide  
 [View Here](installation_guide.md)
 
-### Development Useful Commands  
-[View Here](dev_useful_commands.md)
+### Development setup and Commands  
+[View Here](dev_setup.md)
