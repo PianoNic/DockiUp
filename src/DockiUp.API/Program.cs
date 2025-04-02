@@ -57,13 +57,12 @@ builder.Services.AddScoped<IWebhookSecretService, WebhookSecretService>();
 
 // Configure the DbContext with a connection string.
 builder.Services.AddDbContext<DockiUpDbContext>(options =>
-    options.UseMySql(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DockiUpDatabase"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DockiUpDatabase")),
-        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null)
+            errorCodesToAdd: null)
     ));
 
 // Configure SystemPaths

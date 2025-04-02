@@ -3,16 +3,16 @@ using System;
 using DockiUp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace DockiUp.Infrastructure.Migrations
 {
     [DbContext(typeof(DockiUpDbContext))]
-    [Migration("20250401193625_Init")]
+    [Migration("20250402081649_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -21,67 +21,68 @@ namespace DockiUp.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.3")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("DockiUp.Domain.Models.Container", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("CheckIntervals")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("ContainerId")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("GitUrl")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("LastGitPush")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Path")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("character varying(100)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int>("UpdateMethod")
-                        .HasColumnType("int");
+                    b.Property<string>("UpdateMethod")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int?>("WebhookSecretId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WebhookSecretId");
-
                     b.ToTable("Containers", t =>
                         {
-                            t.HasCheckConstraint("CK_Container_UpdateMechanism", "(`WebhookSecretId` IS NULL AND `CheckIntervals` IS NOT NULL) OR (`WebhookSecretId` IS NOT NULL AND `CheckIntervals` IS NULL) OR (`WebhookSecretId` IS NULL AND `CheckIntervals` IS NULL)");
+                            t.HasCheckConstraint("CK_Container_ManualNoWebhookOrIntervals", "\"UpdateMethod\" != 'UpdateManually' OR (\"WebhookSecretId\" IS NULL AND \"CheckIntervals\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Container_WebhookOrCheckIntervals", "(\"WebhookSecretId\" IS NULL OR \"CheckIntervals\" IS NULL) AND NOT (\"WebhookSecretId\" IS NOT NULL AND \"CheckIntervals\" IS NOT NULL)");
                         });
                 });
 
@@ -89,30 +90,31 @@ namespace DockiUp.Infrastructure.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<byte[]>("ProfilePicture")
-                        .HasColumnType("longblob");
+                        .HasColumnType("bytea");
 
-                    b.Property<int>("UserRole")
-                        .HasColumnType("int");
+                    b.Property<string>("UserRole")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
 
@@ -129,21 +131,27 @@ namespace DockiUp.Infrastructure.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ContainerId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Identifier")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
+                        .HasColumnType("character varying(10)");
 
                     b.Property<string>("Secret")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContainerId")
+                        .IsUnique();
 
                     b.HasIndex("Identifier")
                         .IsUnique();
@@ -151,27 +159,19 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("WebhookSecrets");
                 });
 
-            modelBuilder.Entity("DockiUp.Domain.Models.Container", b =>
-                {
-                    b.HasOne("DockiUp.Domain.Models.WebhookSecret", "WebhookSecret")
-                        .WithMany()
-                        .HasForeignKey("WebhookSecretId");
-
-                    b.Navigation("WebhookSecret");
-                });
-
             modelBuilder.Entity("DockiUp.Domain.Models.User", b =>
                 {
                     b.OwnsOne("DockiUp.Domain.Models.UserSettings", "UserSettings", b1 =>
                         {
                             b1.Property<int>("UserId")
-                                .HasColumnType("int");
+                                .HasColumnType("integer");
 
                             b1.Property<int>("Id")
-                                .HasColumnType("int");
+                                .HasColumnType("integer");
 
-                            b1.Property<int>("PreferredColorScheme")
-                                .HasColumnType("int");
+                            b1.Property<string>("PreferredColorScheme")
+                                .IsRequired()
+                                .HasColumnType("text");
 
                             b1.HasKey("UserId");
 
@@ -183,6 +183,19 @@ namespace DockiUp.Infrastructure.Migrations
 
                     b.Navigation("UserSettings")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.Models.WebhookSecret", b =>
+                {
+                    b.HasOne("DockiUp.Domain.Models.Container", null)
+                        .WithOne("WebhookSecret")
+                        .HasForeignKey("DockiUp.Domain.Models.WebhookSecret", "ContainerId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.Models.Container", b =>
+                {
+                    b.Navigation("WebhookSecret");
                 });
 #pragma warning restore 612, 618
         }

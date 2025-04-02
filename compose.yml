@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     environment:
-      - ConnectionStrings__DockiUpDatabase=Server=dockiup-db;Port=3306;Database=dockiupdb;User=root;Password=${MYSQL_ROOT_PASSWORD}
+      - ConnectionStrings__DockiUpDatabase=Host=dockiup-db;Port=5432;Database=dockiupdb;User=postgres;Password=${POSTGRES_PASSWORD}
       - SystemPaths__DockerSocket=${DOCKER_SOCKET_PATH}
       - SystemPaths__ProjectsPath=${PROJECTS_PATH}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -22,22 +22,23 @@ services:
         condition: service_healthy  # Ensures DB is ready before starting the app
 
   dockiup-db:
-    image: mysql:8.0.34
-    container_name: dockiup-mysql
+    image: postgres:15
+    container_name: dockiup-postgres
     restart: always
     env_file:
       - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: dockiupdb
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: dockiupdb
     volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:  # Waits until MySQL is ready
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       retries: 5
       start_period: 20s
       timeout: 5s
-
+    ports:
+      - "5432:5432"
 volumes:
-  mysql-data:
+  postgres-data:

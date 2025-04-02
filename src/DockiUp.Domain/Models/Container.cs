@@ -15,6 +15,7 @@ namespace DockiUp.Domain.Models
         public required StatusType Status { get; set; }
         public required UpdateMethod UpdateMethod { get; set; }
 
+        public int? WebhookSecretId { get; set; }
         public WebhookSecret? WebhookSecret { get; set; }
         public int? CheckIntervals { get; set; }
     }
