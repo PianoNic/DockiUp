@@ -38,5 +38,5 @@ docker compose -f compose.dev.yml up -d
 ### Add a Migration
 
 ```sh
-dotnet ef migrations add Changes -p src/DockiUp.Infrastructure -s src/DockiUp.API -o Migrations
+dotnet ef migrations add Changes
 ```
