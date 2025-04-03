@@ -1,25 +1,30 @@
 <h2 mat-dialog-title>
     <span *ngIf="inEditMode; else createMode">Edit Container</span>
     <ng-template #createMode><span>Create Container</span></ng-template>
+    <div class="sizer"></div>
 </h2>
 
 <mat-dialog-content>
-    <mat-stepper [linear]="true" #stepper>
-        <mat-step [completed]="basicInfoFormGroup.valid">
-            <ng-template matStepLabel>Basic Information</ng-template>
-            <app-basic-info-step [formGroup]="basicInfoFormGroup"></app-basic-info-step>
+    
+    <mat-progress-bar mode="indeterminate" *ngIf="containerStore.loading()"></mat-progress-bar>
+
+    <mat-stepper [linear]="true" class="stepper" #stepper>
+        <mat-step>
+            <ng-template matStepLabel>Basic<br>Information</ng-template>
+            <app-basic-info-step [formGroup]="basicInfoFormGroup"  [containerNames]="containerStore.containerNames"></app-basic-info-step>
         </mat-step>
 
-        <mat-step [completed]="updateMethodFormGroup.valid">
+        <mat-step>
             <ng-template matStepLabel>Update Method</ng-template>
             <app-update-method-step [updateMethodFormGroup]="updateMethodFormGroup"></app-update-method-step>
         </mat-step>
 
         <mat-step>
-            <ng-template matStepLabel>Summary</ng-template>
-            <app-summary-step [basicInfoFormGroup]="basicInfoFormGroup"
-                [updateMethodFormGroup]="updateMethodFormGroup"></app-summary-step>
+            <ng-template matStepLabel>Compose<br>and ENV</ng-template>
+            
         </mat-step>
+
+      
     </mat-stepper>
 </mat-dialog-content>
 
@@ -27,8 +32,15 @@
     <button mat-button mat-dialog-close (click)="onCancel()">Cancel</button>
     <span class="space-between"></span>
     <button mat-button (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0">Back</button>
-    <button mat-button *ngIf="stepper.selectedIndex !== stepper.steps.length - 1" (click)="stepper.next()"
+    <button mat-button *ngIf="stepper.selectedIndex === 0" (click)="stepper.next()"
         [disabled]="!isCurrentStepValid()">Next</button>
-    <button mat-raised-button color="primary" *ngIf="stepper.selectedIndex === stepper.steps.length - 1"
-        (click)="onSubmit()" [disabled]="!isFormValid()">{{ inEditMode ? 'Update' : 'Create' }} Container</button>
+
+    <button mat-raised-button color="accent" 
+        *ngIf="stepper.selectedIndex === stepper.steps.length - 2" 
+        (click)="setupFiles()">Next!</button>
+
+    <button mat-raised-button color="primary" 
+        *ngIf="stepper.selectedIndex === stepper.steps.length - 1" 
+        (click)="onSubmit()" 
+        [disabled]="!isFormValid()">{{ inEditMode ? 'Update' : 'Create' }} Container</button>
 </mat-dialog-actions>

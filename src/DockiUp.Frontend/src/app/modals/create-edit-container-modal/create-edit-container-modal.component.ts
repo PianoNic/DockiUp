@@ -1,13 +1,14 @@
-import { AfterViewInit, Component, Inject, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, inject, Inject, OnInit, ViewChild } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogModule } from '@angular/material/dialog';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { BasicInfoStepComponent } from './basic-info-step/basic-info-step.component';
-import { SummaryStepComponent } from './summary-step/summary-step.component';
 import { UpdateMethodStepComponent } from './update-method-step/update-method-step.component';
 import { CreateContainerDto, UpdateMethod } from '../../api';
+import { ContainerStore } from '../../pages/dashboard/container.store';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 interface DialogData {
   inEditMode: boolean;
@@ -31,10 +32,10 @@ interface ContainerFormData {
     MatDialogClose,
     MatDialogModule,
     MatStepperModule,
-    SummaryStepComponent,
     BasicInfoStepComponent,
     UpdateMethodStepComponent,
-    MatButtonModule
+    MatButtonModule,
+    MatProgressBarModule
   ],
   templateUrl: './create-edit-container-modal.component.html',
   styleUrl: './create-edit-container-modal.component.scss'
@@ -48,6 +49,8 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
   basicInfoFormGroup: FormGroup;
   updateMethodFormGroup: FormGroup;
   formData: ContainerFormData = {} as ContainerFormData;
+
+  containerStore = inject(ContainerStore);
 
   constructor(
     private dialogRef: MatDialogRef<CreateEditContainerModalComponent>,
@@ -150,26 +153,50 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
       this.dialogRef.close(this.getFormData());
     }
   }
-  
+
   getFormData(): CreateContainerDto {
     if (this.isFormValid()) {
       // Combine form data
       const basicInfo = this.basicInfoFormGroup.value;
       const updateMethodData = this.updateMethodStep?.getFormValues() || this.updateMethodFormGroup.getRawValue();
-      
+
       // Create proper CreateContainerDto object
       const containerDto: CreateContainerDto = {
         name: basicInfo.name,
         gitUrl: basicInfo.gitUrl,
         description: basicInfo.description,
         updateMethod: updateMethodData.updateMethod,
-        checkIntervals: updateMethodData.updateMethod === UpdateMethod.CheckPeriodically ? 
-                      updateMethodData.checkInterval : undefined
+        checkIntervals: updateMethodData.updateMethod === UpdateMethod.CheckPeriodically ?
+          updateMethodData.checkInterval : undefined
       };
-      
+
       return containerDto;
     }
     throw new Error('Form is not valid');
+  }
+
+  async setupFiles(): Promise<void> {
+    if (this.isFormValid()) {
+      const result = this.getFormData();
+      this.containerStore.createContainer(result);
+      await this.waitForLoadingToComplete();
+      this.stepper.next();
+    }
+  }
+  
+  private waitForLoadingToComplete(): Promise<void> {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (!this.containerStore.loading()) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100); 
+    });
+  }
+
+  get isLoading(): boolean {
+    return this.containerStore.loading();
   }
 
   onCancel(): void {

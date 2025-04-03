@@ -29,7 +29,7 @@ export class AddContainerButtonComponent {
 
   openCreateDialog(): void {
     const dialogRef = this.dialog.open(CreateEditContainerModalComponent, { 
-      data: { inEditMode: false }
+      data: { inEditMode: false },
     });
 
     dialogRef.afterClosed().subscribe((result: CreateContainerDto) => {

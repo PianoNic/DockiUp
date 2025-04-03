@@ -45,7 +45,7 @@ export class DashboardComponent implements OnInit {
 
   getStatusIcon(status: StatusType): string {
     switch (status) {
-      case StatusType.Stopped: return 'pause';
+      case StatusType.Stopped: return 'stop';
       case StatusType.Running: return 'check_circle';
       case StatusType.NeedsUpdate: return 'new_releases';
       case StatusType.Updating: return 'loop';

@@ -14,6 +14,9 @@
         <mat-error *ngIf="formGroup.get('name')?.hasError('pattern')">
             Container Name cannot be empty or whitespace.
         </mat-error>
+        <mat-error *ngIf="formGroup.get('name')?.hasError('nameExists')">
+            This container name already exists.
+        </mat-error>
         <mat-hint align="end">{{ formGroup.get('name')?.value?.length || 0 }}/20</mat-hint>
     </mat-form-field>
 

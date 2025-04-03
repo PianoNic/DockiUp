@@ -6,7 +6,7 @@ namespace DockiUp.Application.Dtos
     public class ContainerDto
     {
         public int DbContainerId { get; set; }
-        public required string ContainerId { get; set; }
+        public string? ContainerId { get; set; }
         public required string Name { get; set; }
         public required string Description { get; set; }
         public required string GitUrl { get; set; }

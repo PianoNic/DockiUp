@@ -44,11 +44,14 @@ switch ($Command) {
         Pop-Location
     }
     "recreate-db" {
-        Push-Location $RootPath
-        docker compose -f $DockerComposeFile down
-        docker compose -f $DockerComposeFile up -d
-        Pop-Location
-    }
+		Push-Location $RootPath
+		docker compose -f $DockerComposeFile down
+
+		docker volume prune -f
+
+		docker compose -f $DockerComposeFile up -d
+		Pop-Location
+	}
     "stop-db" {
         Push-Location $RootPath
         docker compose -f $DockerComposeFile down

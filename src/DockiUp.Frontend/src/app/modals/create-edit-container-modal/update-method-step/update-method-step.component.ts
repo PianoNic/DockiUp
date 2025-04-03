@@ -20,8 +20,6 @@ import { UpdateMethod } from '../../../api';
 })
 export class UpdateMethodStepComponent implements OnInit {
   @Input() updateMethodFormGroup!: FormGroup;
-
-  // Expose UpdateMethod enum to template
   updateMethodOptions = UpdateMethod;
 
   ngOnInit(): void {
