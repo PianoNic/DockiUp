@@ -14,7 +14,7 @@ import { WebhookSecret } from './webhookSecret';
 
 export interface ContainerDto { 
     dbContainerId?: number;
-    containerId: string | null;
+    containerId?: string | null;
     name: string | null;
     description: string | null;
     gitUrl: string | null;

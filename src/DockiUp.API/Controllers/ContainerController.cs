@@ -21,10 +21,10 @@ namespace DockiUp.API.Controllers
         }
 
         [HttpPost("CreateContainer", Name = "CreateContainer")]
-        public async Task<IActionResult> CreateContainer([FromBody] CreateContainerDto containerInformation)
+        public async Task<ActionResult<ComposeInfoDto>> CreateContainer([FromBody] CreateContainerDto containerInformation)
         {
-            await _mediator.Send(new CreateContainerCommand(containerInformation));
-            return Created();
+            var result = await _mediator.Send(new CreateContainerCommand(containerInformation));
+            return Ok(result);
         }
 
         [HttpGet("GetContainers", Name = "GetContainers")]

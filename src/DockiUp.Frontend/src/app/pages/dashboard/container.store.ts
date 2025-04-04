@@ -12,7 +12,6 @@ import { ContainerDto } from '../../api/model/containerDto';
 import { SignalRService } from '../../services/signal-r.service';
 import { ContainerStats } from '../../models/container-stats';
 import { finalize } from 'rxjs';
-import { ReactiveFormsModule } from '@angular/forms';
 
 type ContainerState = {
   containers: ContainerDto[];

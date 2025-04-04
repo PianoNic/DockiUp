@@ -9,6 +9,7 @@ import { UpdateMethodStepComponent } from './update-method-step/update-method-st
 import { CreateContainerDto, UpdateMethod } from '../../api';
 import { ContainerStore } from '../../pages/dashboard/container.store';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ComposeAndEnvComponent } from "./compose-and-env/compose-and-env.component";
 
 interface DialogData {
   inEditMode: boolean;
@@ -35,8 +36,9 @@ interface ContainerFormData {
     BasicInfoStepComponent,
     UpdateMethodStepComponent,
     MatButtonModule,
-    MatProgressBarModule
-  ],
+    MatProgressBarModule,
+    ComposeAndEnvComponent
+],
   templateUrl: './create-edit-container-modal.component.html',
   styleUrl: './create-edit-container-modal.component.scss'
 })
@@ -183,7 +185,7 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
       this.stepper.next();
     }
   }
-  
+
   private waitForLoadingToComplete(): Promise<void> {
     return new Promise((resolve) => {
       const interval = setInterval(() => {
@@ -191,7 +193,7 @@ export class CreateEditContainerModalComponent implements OnInit, AfterViewInit 
           clearInterval(interval);
           resolve();
         }
-      }, 100); 
+      }, 100);
     });
   }
 

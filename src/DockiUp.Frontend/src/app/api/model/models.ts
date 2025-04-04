@@ -1,5 +1,7 @@
 export * from './appInfoDto';
 export * from './colorScheme';
+export * from './composeDto';
+export * from './composeInfoDto';
 export * from './containerDto';
 export * from './createContainerDto';
 export * from './createUserDto';

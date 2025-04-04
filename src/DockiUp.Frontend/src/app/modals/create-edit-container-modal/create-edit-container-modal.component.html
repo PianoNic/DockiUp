@@ -5,7 +5,7 @@
 </h2>
 
 <mat-dialog-content>
-    
+
     <mat-progress-bar mode="indeterminate" *ngIf="containerStore.loading()"></mat-progress-bar>
 
     <mat-stepper [linear]="true" class="stepper" #stepper>
@@ -21,10 +21,10 @@
 
         <mat-step>
             <ng-template matStepLabel>Compose<br>and ENV</ng-template>
-            
+            <app-compose-and-env></app-compose-and-env>
         </mat-step>
 
-      
+
     </mat-stepper>
 </mat-dialog-content>
 
@@ -35,12 +35,12 @@
     <button mat-button *ngIf="stepper.selectedIndex === 0" (click)="stepper.next()"
         [disabled]="!isCurrentStepValid()">Next</button>
 
-    <button mat-raised-button color="accent" 
-        *ngIf="stepper.selectedIndex === stepper.steps.length - 2" 
+    <button mat-raised-button color="accent"
+        *ngIf="stepper.selectedIndex === stepper.steps.length - 2"
         (click)="setupFiles()">Next!</button>
 
-    <button mat-raised-button color="primary" 
-        *ngIf="stepper.selectedIndex === stepper.steps.length - 1" 
-        (click)="onSubmit()" 
+    <button mat-raised-button color="primary"
+        *ngIf="stepper.selectedIndex === stepper.steps.length - 1"
+        (click)="onSubmit()"
         [disabled]="!isFormValid()">{{ inEditMode ? 'Update' : 'Create' }} Container</button>
 </mat-dialog-actions>
