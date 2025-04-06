@@ -59,7 +59,7 @@ export class BasicInfoStepComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         debounceTime(500),
         distinctUntilChanged(),
-        filter(url => !!url && url.length > 5 && url.startsWith('http'))
+        filter(url => !!url && url.length > 5)
       )
       .subscribe(url => {
         this.validateGitUrl(url);
@@ -95,6 +95,7 @@ export class BasicInfoStepComponent implements OnInit, OnDestroy {
       return exists ? { nameExists: true } : null;
     };
   }
+
   gitUrlValidator() {
     return (_control: AbstractControl): ValidationErrors | null => {
       if (this.isValidGitUrl === false && !this.isValidatingGitUrl) {
@@ -108,7 +109,6 @@ export class BasicInfoStepComponent implements OnInit, OnDestroy {
     this.isValidatingGitUrl = true;
     this.isValidGitUrl = null;
     
-    // Mark form as pending validation
     this.formGroup.get('gitUrl')?.markAsPending();
     
     this.containerStore.IsValidGitRepository(url)
