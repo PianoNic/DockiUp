@@ -1,7 +1,8 @@
+<!-- In basic-info-step.component.html -->
 <form [formGroup]="formGroup" class="gap-top">
     <mat-form-field appearance="fill" class="full-width">
         <mat-label>Container Name</mat-label>
-        <input matInput formControlName="name" required maxlength="20">
+        <input matInput formControlName="name" required maxlength="20" [disabled]="isValidatingGitUrl">
         <mat-error *ngIf="formGroup.get('name')?.hasError('required')">
             Container Name is required.
         </mat-error>
@@ -33,12 +34,17 @@
         <mat-error *ngIf="formGroup.get('gitUrl')?.hasError('maxlength')">
             Maximum 100 characters allowed.
         </mat-error>
-        <mat-hint align="end">{{ formGroup.get('gitUrl')?.value?.length || 0 }}/100</mat-hint>
+        <mat-error *ngIf="formGroup.get('gitUrl')?.hasError('invalidGitUrl')">
+            Not a valid Git repository URL.
+        </mat-error>
+        <mat-hint *ngIf="isValidatingGitUrl">Validating Git URL...</mat-hint>
+        <mat-hint *ngIf="isValidGitUrl === true" style="color: green">Valid Git repository</mat-hint>
+        <mat-hint *ngIf="!isValidatingGitUrl" align="end">{{ formGroup.get('gitUrl')?.value?.length || 0 }}/100</mat-hint>
     </mat-form-field>
 
     <mat-form-field appearance="fill" class="full-width">
         <mat-label>Description</mat-label>
-        <textarea matInput formControlName="description" rows="2" maxlength="100"></textarea>
+        <textarea matInput formControlName="description" rows="2" maxlength="100" [disabled]="isValidatingGitUrl"></textarea>
         <mat-error *ngIf="formGroup.get('description')?.hasError('maxlength')">
             Maximum 100 characters allowed.
         </mat-error>

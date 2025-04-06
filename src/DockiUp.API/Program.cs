@@ -52,6 +52,9 @@ builder.Services.AddSpaStaticFiles(spaStaticFilesOptions => { spaStaticFilesOpti
 // Add MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AppQuery).Assembly));
 
+// Add HttpClient for external API calls
+builder.Services.AddHttpClient();
+
 // Add the WebhookSecretService with scoped lifetime
 builder.Services.AddScoped<IWebhookSecretService, WebhookSecretService>();
 

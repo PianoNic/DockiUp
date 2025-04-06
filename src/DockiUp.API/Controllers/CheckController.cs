@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using DockiUp.Application.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DockiUp.API.Controllers
@@ -16,24 +17,15 @@ namespace DockiUp.API.Controllers
             _httpClient = httpClient;
         }
 
-        [HttpGet("CheckGitLink", Name = "CheckGitLink")]
-        [ProducesResponseType(200)]
-        public async Task<ActionResult<int>> CheckGitLink(string url)
+        [HttpGet("IsValidGitRepository", Name = "IsValidGitRepository")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<bool>> IsValidGitRepository(string url)
         {
-            if (string.IsNullOrEmpty(url))
-            {
-                return BadRequest("URL cannot be null or empty.");
-            }
+            if (string.IsNullOrWhiteSpace(url))
+                return BadRequest("URL is required.");
 
-            try
-            {
-                var response = await _httpClient.GetAsync(url);
-                return Ok((int)response.StatusCode);
-            }
-            catch (HttpRequestException)
-            {
-                return Ok(500);
-            }
+            var result = await _mediator.Send(new IsValidGitRepositoryQuery(url));
+            return Ok(result);
         }
     }
 }

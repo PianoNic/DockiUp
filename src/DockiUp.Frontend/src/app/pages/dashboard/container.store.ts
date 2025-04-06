@@ -7,7 +7,7 @@ import {
   withState,
   withComputed
 } from '@ngrx/signals';
-import { ContainerService, CreateContainerDto, StatusType } from '../../api';
+import { CheckService, ContainerService, CreateContainerDto, StatusType } from '../../api';
 import { ContainerDto } from '../../api/model/containerDto';
 import { SignalRService } from '../../services/signal-r.service';
 import { ContainerStats } from '../../models/container-stats';
@@ -56,6 +56,8 @@ export const ContainerStore = signalStore(
   withMethods((store) => {
     const containerService = inject(ContainerService);
     const signalRService = inject(SignalRService);
+    const checkService = inject(CheckService);
+
     return {
       loadContainers() {
         patchState(store, { loading: true, error: null });
@@ -94,6 +96,13 @@ export const ContainerStore = signalStore(
         signalRService.listenForContainerUpdates((containerDto) => {
           this.updateContainer(containerDto);
         });
+      },
+      IsValidGitRepository(url: string) {
+        patchState(store, { loading: true, error: null });
+        return checkService.isValidGitRepository(url)
+          .pipe(
+            finalize(() => patchState(store, { loading: false }))
+          );
       }
     };
   }),
