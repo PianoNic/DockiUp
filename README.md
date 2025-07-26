@@ -8,7 +8,7 @@
     You commit, we pull, build, and deploy.
 </p>
 <p align="center">
-    <a href="https://github.com/Pianonic/DockiUp"><img src="https://badgetrack.pianonic.ch/badge?url=https://github.com/Pianonic/DockiUp&label=Visitors&color=006db8&style=flat&logo=github" alt="Visitor Count"/></a>
+    <a href="https://github.com/Pianonic/DockiUp"><img src="https://badgetrack.pianonic.ch/badge?tag=docki-up&label=visits&color=006db8&style=flat" alt="visits" /></a>
     <a href="/docs/docs.md"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
     <a href="/docs/installation_guide.md"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
     <a href="/docs/dev_setup.md"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
