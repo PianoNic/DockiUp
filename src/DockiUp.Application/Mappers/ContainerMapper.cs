@@ -1,4 +1,5 @@
 ﻿using DockiUp.Application.Dtos;
+using DockiUp.Domain.Enums;
 using DockiUp.Domain.Models;
 
 namespace DockiUp.Application.Mappers
@@ -25,12 +26,13 @@ namespace DockiUp.Application.Mappers
                 GitUrl = container.GitUrl,
                 Path = container.Path,
                 LastUpdated = container.LastUpdated,
-                LastGitPush = container.LastGitPush,
+                LastGitPush = container.LastGitPush ?? default(DateTime),
                 Status = container.Status,
-                UpdateMethod = container.UpdateMethod,
-                WebhookSecret = container.WebhookSecret,
-                CheckIntervals = container.CheckIntervals
+                UpdateMethod = container.UpdateMethod ?? default(UpdateMethod),
+                CheckIntervals = container.CheckIntervals,
+                SetupStatus = container.SetupStatus,
             };
+
         }
 
         /// <summary>
@@ -54,7 +56,8 @@ namespace DockiUp.Application.Mappers
                 Status = dto.Status,
                 UpdateMethod = dto.UpdateMethod,
                 WebhookSecret = dto.WebhookSecret,
-                CheckIntervals = dto.CheckIntervals
+                CheckIntervals = dto.CheckIntervals,
+                SetupStatus = dto.SetupStatus,
             };
         }
     }

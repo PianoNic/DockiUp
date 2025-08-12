@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DockiUp.Infrastructure.Migrations
 {
     [DbContext(typeof(DockiUpDbContext))]
-    [Migration("20250402081649_Init")]
+    [Migration("20250414162611_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -49,7 +49,7 @@ namespace DockiUp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("LastGitPush")
+                    b.Property<DateTime?>("LastGitPush")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LastUpdated")
@@ -65,12 +65,14 @@ namespace DockiUp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("SetupStatus")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("UpdateMethod")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int?>("WebhookSecretId")

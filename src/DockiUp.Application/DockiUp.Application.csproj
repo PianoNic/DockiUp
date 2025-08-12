@@ -18,8 +18,4 @@
     <ProjectReference Include="..\DockiUp.Infrastructure\DockiUp.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Enums\" />
-  </ItemGroup>
-
 </Project>

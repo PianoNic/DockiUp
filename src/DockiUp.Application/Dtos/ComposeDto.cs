@@ -1,9 +1,10 @@
-﻿namespace DockiUp.Application.Dtos
+﻿using DockiUp.Application.Models;
+
+namespace DockiUp.Application.Dtos
 {
     public class ComposeDto
     {
-        public string? ServiceName { get; set; }
-        public List<string>? Ports { get; set; }
-        public List<string>? EnvironmentVariables { get; set; }
+        public required string FileName { get; set; }
+        public required List<DockerService> Services { get; set; }
     }
 }

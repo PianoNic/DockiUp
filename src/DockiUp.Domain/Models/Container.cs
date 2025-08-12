@@ -11,9 +11,10 @@ namespace DockiUp.Domain.Models
         public required string GitUrl { get; set; }
         public required string Path { get; set; }
         public required DateTime LastUpdated { get; set; }
-        public required DateTime LastGitPush { get; set; }
+        public DateTime? LastGitPush { get; set; }
         public required StatusType Status { get; set; }
-        public required UpdateMethod UpdateMethod { get; set; }
+        public UpdateMethod? UpdateMethod { get; set; }
+        public required ContainerSetupStatus SetupStatus { get; set; }
 
         public int? WebhookSecretId { get; set; }
         public WebhookSecret? WebhookSecret { get; set; }

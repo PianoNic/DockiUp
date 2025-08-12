@@ -46,7 +46,7 @@ namespace DockiUp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("LastGitPush")
+                    b.Property<DateTime?>("LastGitPush")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LastUpdated")
@@ -62,12 +62,14 @@ namespace DockiUp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("SetupStatus")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("UpdateMethod")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int?>("WebhookSecretId")

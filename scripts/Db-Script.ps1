@@ -67,26 +67,30 @@ switch ($Command) {
         }
     }
     "full-reset" {
-        Write-Host "Performing full reset..." -ForegroundColor Yellow
-        $MigrationDir = Join-Path -Path $MigrationsPath -ChildPath "Migrations"
-        if (Test-Path $MigrationDir) {
-            Remove-Item -Recurse -Force $MigrationDir
-            Write-Host "Migrations directory deleted." -ForegroundColor Green
-        } else {
-            Write-Host "Migrations directory not found." -ForegroundColor Yellow
-        }
-        
-        Push-Location $RootPath
-        docker compose -f $DockerComposeFile down
-        docker compose -f $DockerComposeFile up -d
-        Pop-Location
-        
-        Push-Location $MigrationsPath
-        dotnet ef migrations add Init
-        Pop-Location
-        
-        Write-Host "Full reset completed with 'Init' migration." -ForegroundColor Green
-    }
+		Write-Host "Performing full reset..." -ForegroundColor Yellow
+		$MigrationDir = Join-Path -Path $MigrationsPath -ChildPath "Migrations"
+		if (Test-Path $MigrationDir) {
+			Remove-Item -Recurse -Force $MigrationDir
+			Write-Host "Migrations directory deleted." -ForegroundColor Green
+		} else {
+			Write-Host "Migrations directory not found." -ForegroundColor Yellow
+		}
+		
+		Push-Location $RootPath
+		# Stop the containers
+		docker compose -f $DockerComposeFile down
+		# Remove all volumes associated with the compose file
+		docker compose -f $DockerComposeFile down -v
+		# Start the containers again
+		docker compose -f $DockerComposeFile up -d
+		Pop-Location
+		
+		Push-Location $MigrationsPath
+		dotnet ef migrations add Init
+		Pop-Location
+		
+		Write-Host "Full reset completed with 'Init' migration." -ForegroundColor Green
+	}
     default {
         Write-Host "Invalid command: $Command. Use '-help' or '--help' for a list of commands." -ForegroundColor Red
         exit 1

@@ -24,9 +24,10 @@ namespace DockiUp.Infrastructure.Migrations
                     GitUrl = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Path = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     LastUpdated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    LastGitPush = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastGitPush = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
-                    UpdateMethod = table.Column<string>(type: "text", nullable: false),
+                    UpdateMethod = table.Column<string>(type: "text", nullable: true),
+                    SetupStatus = table.Column<int>(type: "integer", nullable: false),
                     WebhookSecretId = table.Column<int>(type: "integer", nullable: true),
                     CheckIntervals = table.Column<int>(type: "integer", nullable: true)
                 },
