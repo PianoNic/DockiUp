@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, computed } from '@angular/core';
+import { Component, OnInit, inject, computed, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
@@ -7,7 +7,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ProjectDto } from '../api';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { firstValueFrom } from 'rxjs';
+import { ActivityEntryDto, DashboardService, NodeDto, NodesService, ProjectDto } from '../api';
 import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
 import { ProjectStore } from '../shared/stores/project.store';
@@ -21,6 +23,7 @@ import { ProjectStore } from '../shared/stores/project.store';
     RouterLink,
     MatButtonModule,
     MatMenuModule,
+    MatTooltipModule,
     CreateProjectButton,
     MatProgressBar,
     MatProgressSpinnerModule,
@@ -30,8 +33,137 @@ import { ProjectStore } from '../shared/stores/project.store';
 })
 export class Dashboard implements OnInit {
   projectStore = inject(ProjectStore);
-  projects = this.projectStore.projectDtos;
+  private dashboardService = inject(DashboardService);
+  private nodesService = inject(NodesService);
 
+  projects = this.projectStore.projectDtos;
+  readonly recentActivity = signal<ActivityEntryDto[]>([]);
+  readonly nodes = signal<NodeDto[]>([]);
+
+  async ngOnInit() {
+    await this.projectStore.loadContainers();
+    await this.loadOverview();
+  }
+
+  async loadOverview() {
+    try {
+      const [stats, nodes] = await Promise.all([
+        firstValueFrom(this.dashboardService.apiDashboardStatsGet()),
+        firstValueFrom(this.nodesService.apiNodesGet()),
+      ]);
+      this.recentActivity.set(stats?.recentActivity ?? []);
+      this.nodes.set(nodes ?? []);
+    } catch {
+      // Overview is best-effort; the project list is the primary content.
+    }
+  }
+
+  async refresh() {
+    await this.projectStore.loadContainers();
+    await this.loadOverview();
+  }
+
+  // ---- KPI figures ----
+  readonly allContainers = computed(() => this.projects().flatMap(p => p.containers || []));
+
+  readonly containerStats = computed(() => {
+    const c = this.allContainers();
+    const by = (s: UpdateMethodType) => c.filter(x => normalizeContainerState(x.state) === s).length;
+    return {
+      total: c.length,
+      running: by(UpdateMethodType.Running),
+      stopped: by(UpdateMethodType.Stopped),
+      updating: by(UpdateMethodType.Updating),
+      crashed: by(UpdateMethodType.Crashed),
+    };
+  });
+
+  /** Percentage widths for the health bar segments. */
+  readonly health = computed(() => {
+    const s = this.containerStats();
+    const total = s.total || 1;
+    return {
+      running: (s.running / total) * 100,
+      stopped: (s.stopped / total) * 100,
+      crashed: (s.crashed / total) * 100,
+      updating: (s.updating / total) * 100,
+    };
+  });
+
+  readonly onlineNodeCount = computed(() => this.nodes().filter(n => n.online).length);
+
+  projectCountForNode(nodeId: string): number {
+    return this.projects().filter(p => (p as ProjectDto & { nodeId?: string }).nodeId === nodeId).length;
+  }
+
+  readonly localProjectCount = computed(() =>
+    this.projects().filter(p => !(p as ProjectDto & { nodeId?: string }).nodeId).length);
+
+  // ---- project helpers ----
+  getRunningCount(project: ProjectDto): number {
+    return (project.containers || []).filter(c => normalizeContainerState(c.state) === UpdateMethodType.Running).length;
+  }
+
+  getTotalCount(project: ProjectDto): number {
+    return (project.containers || []).length;
+  }
+
+  getProjectStatusIcon(project: ProjectDto): string {
+    const states = (project?.containers ?? []).map(c => normalizeContainerState(c.state));
+    if (states.length === 0) return 'help';
+    if (states.some(s => s === UpdateMethodType.Crashed)) return 'error';
+    if (states.some(s => s === UpdateMethodType.Updating)) return 'loop';
+    if (states.every(s => s === UpdateMethodType.Stopped)) return 'stop';
+    if (states.some(s => s === UpdateMethodType.Running)) return 'check_circle';
+    if (states.some(s => s === UpdateMethodType.Created)) return 'pending';
+    return 'help';
+  }
+
+  /** CSS status class for a project (drives the accent colour). */
+  getProjectStatusClass(project: ProjectDto): string {
+    const states = (project?.containers ?? []).map(c => normalizeContainerState(c.state));
+    if (states.length === 0) return 'unknown';
+    if (states.some(s => s === UpdateMethodType.Crashed)) return 'crashed';
+    if (states.some(s => s === UpdateMethodType.Updating)) return 'updating';
+    if (states.every(s => s === UpdateMethodType.Stopped)) return 'stopped';
+    if (states.some(s => s === UpdateMethodType.Running)) return 'running';
+    return 'unknown';
+  }
+
+  projectNodeName(project: ProjectDto): string | null {
+    const nodeId = (project as ProjectDto & { nodeId?: string }).nodeId;
+    if (!nodeId) return null;
+    return this.nodes().find(n => n.id === nodeId)?.name ?? 'node';
+  }
+
+  // ---- activity helpers ----
+  activityIcon(action: string): string {
+    if (action.startsWith('deploy')) return 'rocket_launch';
+    if (action.startsWith('node.create')) return 'dns';
+    if (action.startsWith('node.delete')) return 'delete';
+    if (action.includes('stop')) return 'stop';
+    if (action.includes('restart')) return 'refresh';
+    if (action.includes('update')) return 'system_update';
+    return 'bolt';
+  }
+
+  activityLabel(a: ActivityEntryDto): string {
+    return `${a.action.replace(/[._]/g, ' ')} ${a.target}`.trim();
+  }
+
+  relativeTime(iso: string): string {
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return '';
+    const s = Math.max(0, Math.floor((Date.now() - then) / 1000));
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  }
+
+  // ---- project actions ----
   async onStopProject(project: ProjectDto) {
     await this.projectStore.stopProject(project.dockerProjectName);
   }
@@ -48,62 +180,4 @@ export class Dashboard implements OnInit {
   canUpdateProject(project: ProjectDto): boolean {
     return project.managedByDockiUp && (project as ProjectDto & { id?: string }).id != null;
   }
-
-  getRunningCount(project: ProjectDto): number {
-    return (project.containers || []).filter(c => normalizeContainerState(c.state) === UpdateMethodType.Running).length;
-  }
-
-  getTotalCount(project: ProjectDto): number {
-    return (project.containers || []).length;
-  }
-
-  async ngOnInit() {
-    await this.projectStore.loadContainers();
-  }
-
-  /** Accepts state as number or string (API may send enum as string). */
-  getStatusIcon(status?: number | string): string {
-    const n = normalizeContainerState(status);
-    if (n === UpdateMethodType.Unknown) return 'help';
-
-    switch (n) {
-      case UpdateMethodType.Running:
-        return 'check_circle';
-      case UpdateMethodType.Stopped:
-        return 'stop';
-      case UpdateMethodType.Updating:
-        return 'loop';
-      case UpdateMethodType.Crashed:
-        return 'error';
-      case UpdateMethodType.Created:
-        return 'pending';
-      default:
-        return 'help';
-    }
-  }
-
-  /** Project-level status: prefer first container, else derive from all containers. */
-  getProjectStatusIcon(project: ProjectDto): string {
-    const containers = project?.containers ?? [];
-    if (containers.length === 0) return 'help';
-    const states = containers.map(c => normalizeContainerState(c.state));
-    if (states.some(s => s === UpdateMethodType.Crashed)) return 'error';
-    if (states.some(s => s === UpdateMethodType.Updating)) return 'loop';
-    if (states.every(s => s === UpdateMethodType.Stopped)) return 'stop';
-    if (states.some(s => s === UpdateMethodType.Running)) return 'check_circle';
-    if (states.some(s => s === UpdateMethodType.Created)) return 'pending';
-    return 'help';
-  }
-
-  readonly containerStats = computed(() => {
-    const allContainers = this.projects().flatMap(p => p.containers || []);
-
-    return {
-      stopped: allContainers.filter(c => normalizeContainerState(c.state) === UpdateMethodType.Stopped).length,
-      running: allContainers.filter(c => normalizeContainerState(c.state) === UpdateMethodType.Running).length,
-      needsUpdate: allContainers.filter(c => normalizeContainerState(c.state) === UpdateMethodType.Updating).length,
-      updating: allContainers.filter(c => normalizeContainerState(c.state) === UpdateMethodType.Updating).length,
-      crashed: allContainers.filter(c => normalizeContainerState(c.state) === UpdateMethodType.Crashed).length,
-    };
-  });
 }

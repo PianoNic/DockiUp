@@ -1,136 +1,183 @@
 <div class="container-wrapper">
-  <div class="flex-header">
-    <h1 class="dashboard-title">Dashboard</h1>
-    <span style="flex:1"></span>
-    @if (projects().length !== 0 && projectStore.loading()) {
-    <mat-progress-spinner diameter="28" mode="indeterminate" color="primary" />
-    }
-  </div>
+  <!-- Header -->
+  <header class="dash-header">
+    <div class="dash-heading">
+      <h1 class="dashboard-title">Dashboard</h1>
+      <p class="dash-subtitle">Your Docker stacks at a glance</p>
+    </div>
+    <div class="dash-actions">
+      @if (projectStore.loading()) {
+        <mat-progress-spinner diameter="24" mode="indeterminate" color="primary" />
+      }
+      <button mat-stroked-button (click)="refresh()" [disabled]="projectStore.loading()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <app-create-project-button />
+    </div>
+  </header>
 
-  <div class="status-cards">
-    <mat-card class="status-card total">
-      <mat-card-header class="centered-flexbox">
-        <mat-icon mat-card-avatar class="centered-logo">layers</mat-icon>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ projects().length }}</span>
-      </mat-card-content>
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <mat-card appearance="outlined" class="kpi kpi-projects">
+      <div class="kpi-label"><mat-icon>layers</mat-icon> Projects</div>
+      <div class="kpi-value">{{ projects().length }}</div>
     </mat-card>
 
-    <mat-card class="status-card stopped">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">stop</mat-icon>
-        <mat-card-title>Stopped</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ containerStats().stopped }}</span>
-      </mat-card-content>
+    <mat-card appearance="outlined" class="kpi kpi-running">
+      <div class="kpi-label"><mat-icon>check_circle</mat-icon> Running</div>
+      <div class="kpi-value">
+        {{ containerStats().running }}<span class="kpi-of">of {{ containerStats().total }}</span>
+      </div>
     </mat-card>
 
-    <mat-card class="status-card updated">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">check_circle</mat-icon>
-        <mat-card-title>Running</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ containerStats().running }}</span>
-      </mat-card-content>
+    <mat-card appearance="outlined" class="kpi kpi-stopped">
+      <div class="kpi-label"><mat-icon>stop_circle</mat-icon> Stopped</div>
+      <div class="kpi-value">{{ containerStats().stopped }}</div>
     </mat-card>
 
-    <mat-card class="status-card needs-update">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">new_releases</mat-icon>
-        <mat-card-title class="text-sm">Updates</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ containerStats().needsUpdate }}</span>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="status-card updating">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">loop</mat-icon>
-        <mat-card-title>Updating</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ containerStats().updating }}</span>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="status-card failed">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">error</mat-icon>
-        <mat-card-title>Crashed</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="card-content">
-        <span class="count">{{ containerStats().crashed }}</span>
-      </mat-card-content>
+    <mat-card appearance="outlined" class="kpi kpi-crashed" [class.alert]="containerStats().crashed > 0">
+      <div class="kpi-label"><mat-icon>error</mat-icon> Crashed</div>
+      <div class="kpi-value">{{ containerStats().crashed }}</div>
     </mat-card>
   </div>
 
+  <!-- Health bar: proportion of containers by state -->
+  @if (containerStats().total > 0) {
+    <div class="health">
+      <div class="health-bar" [matTooltip]="containerStats().running + ' running · ' + containerStats().stopped + ' stopped · ' + containerStats().updating + ' updating · ' + containerStats().crashed + ' crashed'">
+        <span class="seg running" [style.width.%]="health().running"></span>
+        <span class="seg updating" [style.width.%]="health().updating"></span>
+        <span class="seg stopped" [style.width.%]="health().stopped"></span>
+        <span class="seg crashed" [style.width.%]="health().crashed"></span>
+      </div>
+      <div class="health-legend">
+        <span><i class="dot running"></i> Running</span>
+        <span><i class="dot updating"></i> Updating</span>
+        <span><i class="dot stopped"></i> Stopped</span>
+        <span><i class="dot crashed"></i> Crashed</span>
+      </div>
+    </div>
+  }
+
+  <!-- Nodes + Recent activity -->
+  <div class="panels">
+    <mat-card appearance="outlined" class="panel">
+      <div class="panel-head">
+        <h2><mat-icon>dns</mat-icon> Nodes</h2>
+        <span class="panel-sub">{{ onlineNodeCount() }} online</span>
+      </div>
+      <div class="panel-body">
+        <div class="node-row">
+          <span class="node-name"><i class="status-dot online"></i> Local host</span>
+          <span class="node-meta">{{ localProjectCount() }} projects</span>
+        </div>
+        @for (node of nodes(); track node.id) {
+          <div class="node-row">
+            <span class="node-name">
+              <i class="status-dot" [class.online]="node.online" [class.offline]="!node.online"></i>
+              {{ node.name }}
+              @if (node.dockerVersion) { <span class="node-ver">docker {{ node.dockerVersion }}</span> }
+            </span>
+            <span class="node-meta">
+              {{ node.online ? 'online' : 'offline' }} · {{ projectCountForNode(node.id) }} projects
+            </span>
+          </div>
+        }
+        @if (nodes().length === 0) {
+          <p class="panel-empty">No remote nodes. Add one to deploy across multiple hosts.</p>
+        }
+      </div>
+    </mat-card>
+
+    <mat-card appearance="outlined" class="panel">
+      <div class="panel-head">
+        <h2><mat-icon>history</mat-icon> Recent activity</h2>
+      </div>
+      <div class="panel-body">
+        @for (a of recentActivity(); track a.id) {
+          <div class="activity-row">
+            <mat-icon class="activity-icon">{{ activityIcon(a.action) }}</mat-icon>
+            <span class="activity-text">{{ activityLabel(a) }}</span>
+            <span class="activity-time" [matTooltip]="a.createdAt">{{ relativeTime(a.createdAt) }}</span>
+          </div>
+        }
+        @if (recentActivity().length === 0) {
+          <p class="panel-empty">No activity yet.</p>
+        }
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- Projects -->
+  <h2 class="section-title">Projects</h2>
   @if (projects().length !== 0) {
-  <div class="container-list">
-    @for (project of projects(); track project.dockerProjectName) {
-    <mat-card appearance="outlined">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="centered-logo">
-          {{ getProjectStatusIcon(project) }}
-        </mat-icon>
-        <mat-card-title-group>
-          <mat-card-title>{{ project.projectName }}</mat-card-title>
-          <mat-card-subtitle class="project-description">
-            {{ project.projectDescription }}
-          </mat-card-subtitle>
-        </mat-card-title-group>
-      </mat-card-header>
-      <mat-card-content>
-        <p>Containers: {{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</p>
-      </mat-card-content>
-      <mat-card-actions>
-        <button mat-button [routerLink]="['/project', project.dockerProjectName]">View</button>
-        <button mat-icon-button [matMenuTriggerFor]="projectMenu">
-          <mat-icon>more_vert</mat-icon>
-        </button>
-        <mat-menu #projectMenu="matMenu">
-          <a mat-menu-item [routerLink]="['/project', project.dockerProjectName]">
-            <mat-icon>visibility</mat-icon>
-            <span>View</span>
-          </a>
-          <button mat-menu-item (click)="onStopProject(project)" [disabled]="projectStore.loading()">
-            <mat-icon>stop</mat-icon>
-            <span>Stop project</span>
-          </button>
-          <button mat-menu-item (click)="onRestartProject(project)" [disabled]="projectStore.loading()">
-            <mat-icon>refresh</mat-icon>
-            <span>Restart project</span>
-          </button>
-          @if (canUpdateProject(project)) {
-            <button mat-menu-item (click)="onUpdateProject(project)" [disabled]="projectStore.loading()">
-              <mat-icon>system_update</mat-icon>
-              <span>Update (pull &amp; restart)</span>
+    <div class="container-list">
+      @for (project of projects(); track project.dockerProjectName) {
+        <mat-card appearance="outlined" class="project-card" [attr.data-status]="getProjectStatusClass(project)">
+          <mat-card-header>
+            <mat-icon mat-card-avatar class="status-avatar" [attr.data-status]="getProjectStatusClass(project)">
+              {{ getProjectStatusIcon(project) }}
+            </mat-icon>
+            <mat-card-title-group>
+              <mat-card-title>{{ project.projectName }}</mat-card-title>
+              <mat-card-subtitle class="project-description">{{ project.projectDescription }}</mat-card-subtitle>
+            </mat-card-title-group>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="project-meta">
+              <span class="chip running-chip">{{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</span>
+              @if (projectNodeName(project); as nodeName) {
+                <span class="chip node-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
+              }
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-button [routerLink]="['/project', project.dockerProjectName]">View</button>
+            <button mat-icon-button [matMenuTriggerFor]="projectMenu">
+              <mat-icon>more_vert</mat-icon>
             </button>
-          }
-        </mat-menu>
-      </mat-card-actions>
-    </mat-card>
-    }
-  </div>
+            <mat-menu #projectMenu="matMenu">
+              <a mat-menu-item [routerLink]="['/project', project.dockerProjectName]">
+                <mat-icon>visibility</mat-icon>
+                <span>View</span>
+              </a>
+              <button mat-menu-item (click)="onStopProject(project)" [disabled]="projectStore.loading()">
+                <mat-icon>stop</mat-icon>
+                <span>Stop project</span>
+              </button>
+              <button mat-menu-item (click)="onRestartProject(project)" [disabled]="projectStore.loading()">
+                <mat-icon>refresh</mat-icon>
+                <span>Restart project</span>
+              </button>
+              @if (canUpdateProject(project)) {
+                <button mat-menu-item (click)="onUpdateProject(project)" [disabled]="projectStore.loading()">
+                  <mat-icon>system_update</mat-icon>
+                  <span>Update (pull &amp; restart)</span>
+                </button>
+              }
+            </mat-menu>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
   }
 
   @if (projects().length === 0 && !projectStore.loading()) {
-  <div class="container-list">
-    <mat-card class="empty-state">
-      <mat-card-content>
-        <p>No compose stacks found. Add your first compose stack to get started.</p>
-        <app-create-project-button />
-      </mat-card-content>
-    </mat-card>
-  </div>
+    <div class="container-list">
+      <mat-card class="empty-state">
+        <mat-card-content>
+          <mat-icon class="empty-icon">inbox</mat-icon>
+          <p>No compose stacks found. Add your first compose stack to get started.</p>
+          <app-create-project-button />
+        </mat-card-content>
+      </mat-card>
+    </div>
   }
 
   @if (projects().length === 0 && projectStore.loading()) {
-  <div class="loading-state">
-    <mat-progress-bar mode="indeterminate" />
-  </div>
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate" />
+    </div>
   }
 </div>
