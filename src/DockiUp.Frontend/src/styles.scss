@@ -32,7 +32,7 @@
 
 html {
   @include mat.theme((
-    color: mat.$orange-palette,
+    color: mat.$azure-palette,
     typography: Roboto,
     density: 0
   ));
