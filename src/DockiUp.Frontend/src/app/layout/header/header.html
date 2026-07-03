@@ -21,6 +21,11 @@
           <div class="user-email">DockiUp</div>
         </div>
         <div class="dropdown-divider"></div>
+        <a mat-button class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
+          <mat-icon>account_circle</mat-icon>
+          <span>Profile</span>
+        </a>
+        <div class="dropdown-divider"></div>
         <app-theme-toggle />
       </div>
     }

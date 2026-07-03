@@ -1,0 +1,123 @@
+.activity-wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.activity-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.activity-title {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.activity-subtitle {
+  margin: 2px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 14px;
+}
+
+.activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 10px;
+  background: var(--mat-sys-surface);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  input {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+    font-size: 14px;
+    width: 200px;
+  }
+}
+
+.activity-empty {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 14px;
+  padding: 24px 4px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 14px;
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--mat-sys-surface-container-high, rgba(0, 0, 0, 0.04)); }
+}
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.when { color: var(--mat-sys-on-surface-variant); font-size: 12.5px; white-space: nowrap; }
+
+.who { font-weight: 500; }
+.who.system { color: var(--mat-sys-on-surface-variant); font-style: italic; }
+
+.action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+  color: var(--mat-sys-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+}
+
+.target { font-weight: 500; }
+.details { color: var(--mat-sys-on-surface-variant); }

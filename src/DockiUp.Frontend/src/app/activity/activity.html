@@ -1,0 +1,69 @@
+<div class="activity-wrapper">
+  <header class="activity-header">
+    <div>
+      <h1 class="activity-title">Activity</h1>
+      <p class="activity-subtitle">Audit trail of deploys, lifecycle actions and node changes</p>
+    </div>
+    <div class="activity-actions">
+      <div class="filter-field">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          placeholder="Filter…"
+          [value]="filter()"
+          (input)="setFilter($any($event.target).value)"
+        />
+      </div>
+      <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  @if (loading() && entries().length === 0) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (filtered().length === 0 && !loading()) {
+    <p class="activity-empty">
+      @if (entries().length === 0) { No activity yet. } @else { No rows match "{{ filter() }}". }
+    </p>
+  } @else {
+    <div class="table-scroll">
+      <table class="activity-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Who</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of filtered(); track e.id) {
+            <tr>
+              <td class="mono when">{{ e.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td>
+                @if (e.actorName) {
+                  <span class="who">{{ e.actorName }}</span>
+                } @else {
+                  <span class="who system">system</span>
+                }
+              </td>
+              <td>
+                <span class="action-badge">
+                  <mat-icon>{{ activityIcon(e.action) }}</mat-icon>
+                  {{ e.action }}
+                </span>
+              </td>
+              <td class="target">{{ e.target }}</td>
+              <td class="details">{{ e.details }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

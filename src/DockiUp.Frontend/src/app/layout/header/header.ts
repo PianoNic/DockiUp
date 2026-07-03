@@ -3,6 +3,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ThemeToggleComponent } from '../../shared/components/theme-toggle/theme-toggle.component';
 import { CreateProjectButton } from '../../shared/components/create-project-button/button/create-project-button';
 
@@ -13,6 +14,7 @@ import { CreateProjectButton } from '../../shared/components/create-project-butt
     MatToolbarModule,
     MatButtonModule,
     MatIconModule,
+    RouterLink,
     ThemeToggleComponent,
     CreateProjectButton,
   ],
