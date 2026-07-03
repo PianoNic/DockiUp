@@ -9,11 +9,6 @@
       @if (projectStore.loading()) {
         <mat-progress-spinner diameter="24" mode="indeterminate" color="primary" />
       }
-      <button mat-stroked-button (click)="refresh()" [disabled]="projectStore.loading()">
-        <mat-icon>refresh</mat-icon>
-        Refresh
-      </button>
-      <app-create-project-button />
     </div>
   </header>
 

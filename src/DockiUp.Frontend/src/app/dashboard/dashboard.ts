@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, computed, signal } from '@angular/core';
+import { Component, OnInit, inject, computed, signal, effect, untracked } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
@@ -40,9 +40,18 @@ export class Dashboard implements OnInit {
   readonly recentActivity = signal<ActivityEntryDto[]>([]);
   readonly nodes = signal<NodeDto[]>([]);
 
+  constructor() {
+    // The project list live-updates over SignalR (DockiUpHubService -> store). Whenever it changes,
+    // refresh the overview panels (nodes + recent activity) so the whole dashboard stays current
+    // without a manual refresh button.
+    effect(() => {
+      this.projects();
+      untracked(() => this.loadOverview());
+    });
+  }
+
   async ngOnInit() {
     await this.projectStore.loadContainers();
-    await this.loadOverview();
   }
 
   async loadOverview() {
@@ -56,11 +65,6 @@ export class Dashboard implements OnInit {
     } catch {
       // Overview is best-effort; the project list is the primary content.
     }
-  }
-
-  async refresh() {
-    await this.projectStore.loadContainers();
-    await this.loadOverview();
   }
 
   // ---- KPI figures ----
