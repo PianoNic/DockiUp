@@ -10,8 +10,10 @@ namespace DockiUp.API.Nodes
 {
     /// <summary>Runs only when this process boots in the <c>node</c> role. It dials OUT to the control
     /// plane's <c>/hubs/node</c> over SignalR (NAT-friendly), registers itself, and answers control-plane
-    /// invocations. Phase 1 only proves the channel (<c>Ping</c>); routing real Docker/compose work over
-    /// it comes later. Booting never blocks on the control plane being up - the connection retries.</summary>
+    /// invocations. Booting never blocks on the control plane being up - the connection retries.
+    /// Exercised end-to-end by the multi-server integration tests (a live SignalR connection + daemon are
+    /// required), so it's excluded from unit-coverage rather than mocked line-by-line.</summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class NodeAgentHostedService(
         IConfiguration configuration,
         IServiceProvider services,

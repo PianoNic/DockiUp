@@ -7,11 +7,29 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!-- Test the ASP.NET-facing types (controllers, hubs, node infra) directly. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="coverlet.msbuild" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DockiUp.Domain\DockiUp.Domain.csproj" />
+    <ProjectReference Include="..\DockiUp.Application\DockiUp.Application.csproj" />
+    <ProjectReference Include="..\DockiUp.Infrastructure\DockiUp.Infrastructure.csproj" />
+    <ProjectReference Include="..\DockiUp.API\DockiUp.API.csproj" />
   </ItemGroup>
 
   <ItemGroup>

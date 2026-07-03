@@ -5,6 +5,8 @@ using DockiUp.Application.Interfaces;
 namespace DockiUp.API.HostedServices;
 
 /// <summary>Periodically fetches current container/project state and broadcasts via SignalR only when something changed (crashes, new deployments, state changes).</summary>
+// Background polling loop over a live daemon + hub; exercised by the running app, not unit-mocked.
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public class ContainerStateBroadcastHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;

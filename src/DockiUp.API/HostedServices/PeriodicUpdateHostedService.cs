@@ -9,6 +9,8 @@ using Microsoft.Extensions.Options;
 namespace DockiUp.API.HostedServices
 {
     /// <summary>Runs periodic project updates (Komodo-style resource poll interval).</summary>
+    // Timer-driven background loop; exercised by the running app rather than unit-mocked.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class PeriodicUpdateHostedService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;

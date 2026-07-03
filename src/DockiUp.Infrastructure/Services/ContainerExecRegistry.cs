@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Text;
@@ -10,6 +11,9 @@ using Microsoft.Extensions.Options;
 
 namespace DockiUp.Infrastructure.Services
 {
+    // Bridges a container's TTY over a hand-rolled hijacked Docker stream (npipe/unix upgrade dance).
+    // Only meaningful against a real daemon + container; covered by the web-terminal integration tests.
+    [ExcludeFromCodeCoverage]
     public sealed class ContainerExecRegistry : IContainerExecRegistry
     {
         private readonly IDockerClient _docker;
@@ -177,6 +181,7 @@ namespace DockiUp.Infrastructure.Services
         }
     }
 
+    [ExcludeFromCodeCoverage]
     internal sealed class ContainerExecSession(string id, Stream transport, IDockerClient docker) : IContainerExecSession
     {
         public string Id { get; } = id;

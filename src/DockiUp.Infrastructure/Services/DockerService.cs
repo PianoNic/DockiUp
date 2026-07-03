@@ -6,6 +6,7 @@ using DockiUp.Application.Mappers;
 using DockiUp.Application.Models;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DockiUp.Infrastructure.Services
 {
@@ -115,6 +116,7 @@ namespace DockiUp.Infrastructure.Services
             };
         }
 
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public Task StartProjectAsync(string folderPath)
             => RunComposeAsync("up -d", folderPath, "Start successfully", throwOnFailure: true);
 
@@ -122,6 +124,7 @@ namespace DockiUp.Infrastructure.Services
         // takes no socket from our config, so when SystemPaths.DockerSocket is set we point DOCKER_HOST at
         // the same daemon. Otherwise compose would silently target the default socket while container
         // operations (via Docker.DotNet) use the configured one - a split brain on non-default setups.
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process; covered by integration/E2E
         private async Task RunComposeAsync(string composeArgs, string folderPath, string successMessage, bool throwOnFailure)
         {
             using var process = new Process
@@ -178,9 +181,11 @@ namespace DockiUp.Infrastructure.Services
             await _dockiUpDockerClient.DockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters());
         }
 
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public Task StopProjectAsync(string folderPath)
             => RunComposeAsync("down", folderPath, "Stop successfully", throwOnFailure: false);
 
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public Task RestartProjectAsync(string folderPath)
             => RunComposeAsync("restart", folderPath, "Restart successfully", throwOnFailure: false);
 

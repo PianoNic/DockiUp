@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!-- Only our own assemblies count toward coverage. -->
+          <Include>[DockiUp.Domain]*,[DockiUp.Application]*,[DockiUp.Infrastructure]*,[DockiUp.API]*</Include>
+          <!-- Exclude generated code (OpenAPI transformers), EF migrations, and the app entry point:
+               none of these carry hand-written logic worth unit-testing. -->
+          <ExcludeByFile>**/Migrations/*.cs,**/*.generated.cs,**/*.g.cs</ExcludeByFile>
+          <Exclude>[DockiUp.API]Program,[DockiUp.Infrastructure]DockiUp.Infrastructure.Migrations.*</Exclude>
+          <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

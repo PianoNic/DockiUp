@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Docker.DotNet;
 using DockiUp.Application.Interfaces;
 using DockiUp.Application.Models;
@@ -7,12 +8,12 @@ namespace DockiUp.Infrastructure.Clients
 {
     /// <summary>
     /// Docker client configured from SystemPaths (Komodo-style: optional socket path for single host).
+    /// Thin factory over Docker.DotNet - only meaningfully exercised against a real daemon (integration).
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class DockiUpDockerClient : IDockiUpDockerClient
     {
-        public DockerClient DockerClient { get; }
-
-        DockerClient IDockiUpDockerClient.DockerClient => DockerClient;
+        public IDockerClient DockerClient { get; }
 
         public DockiUpDockerClient(IOptions<SystemPaths> systemPaths)
         {
