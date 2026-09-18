@@ -17,6 +17,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Toamaisutaa.AspNetCore" Version="0.7.0" />
+    <PackageReference Include="Toamaisutaa.OpenIdConnect" Version="0.7.0" />
   </ItemGroup>
 
   <ItemGroup>

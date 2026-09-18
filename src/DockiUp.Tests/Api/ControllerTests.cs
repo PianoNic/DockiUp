@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Moq;
+using Toamaisutaa.Abstractions;
+using Toamaisutaa.AspNetCore;
 
 namespace DockiUp.Tests.Api;
 
@@ -101,6 +103,47 @@ public class ControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(info, ok.Value);
         mediator.Verify(m => m.Send(It.IsAny<GetAppInfoQuery>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task App_GetAppInfo_WithoutAuthProvider_StaysOpen()
+    {
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetAppInfoQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<AppInfoDto>(new AppInfoDto { Version = "v1", Environment = "Testing" }));
+
+        var result = await WithHttp(new AppController(mediator.Object)).GetAppInfo();
+
+        var dto = Assert.IsType<AppInfoDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.False(dto.AuthEnabled);
+        Assert.Equal(string.Empty, dto.Authority);
+    }
+
+    [Fact]
+    public async Task App_GetAppInfo_WithAuthProvider_MapsToamaisutaaClientConfiguration()
+    {
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(m => m.Send(It.IsAny<GetAppInfoQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<AppInfoDto>(new AppInfoDto { Version = "v1", Environment = "Testing" }));
+        var provider = new Mock<IToamaisutaaClientConfigurationProvider>();
+        provider.Setup(p => p.GetConfiguration(It.IsAny<HttpContext>())).Returns(new ToamaisutaaClientConfiguration
+        {
+            Authority = "https://idp.example.com",
+            ClientId = "dockiup",
+            RedirectUri = "https://dockiup.example.com/",
+            PostLogoutRedirectUri = "https://dockiup.example.com/bye",
+            Scope = "openid profile email roles",
+        });
+
+        var result = await WithHttp(new AppController(mediator.Object, provider.Object)).GetAppInfo();
+
+        var dto = Assert.IsType<AppInfoDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.True(dto.AuthEnabled);
+        Assert.Equal("https://idp.example.com", dto.Authority);
+        Assert.Equal("dockiup", dto.ClientId);
+        Assert.Equal("https://dockiup.example.com/", dto.RedirectUri);
+        Assert.Equal("https://dockiup.example.com/bye", dto.PostLogoutRedirectUri);
+        Assert.Equal("openid profile email roles", dto.Scope);
     }
 
     // ----------------------------------------------------------------- ContainerController

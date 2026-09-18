@@ -9,8 +9,14 @@
  */
 
 
-export interface AppInfoDto { 
+export interface AppInfoDto {
     version: string;
     environment: string;
+    authority?: string;
+    clientId?: string;
+    redirectUri?: string;
+    postLogoutRedirectUri?: string;
+    scope?: string;
+    authEnabled?: boolean;
 }
 

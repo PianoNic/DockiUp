@@ -1,12 +1,15 @@
 using DockiUp.Application.Commands;
 using DockiUp.Application.Models;
 using Mediator;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace DockiUp.API.Controllers
 {
     /// <summary>Webhook endpoint for git providers (Komodo-style: trigger update on push).</summary>
+    // Anonymous: git providers can't carry a user token; the webhook secret is the credential here.
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class WebhookController : ControllerBase

@@ -1,5 +1,7 @@
 import { Injectable, inject, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ProjectDto } from '../../api';
 import { ProjectStore } from '../stores/project.store';
@@ -11,6 +13,7 @@ const HUB_METHOD_CONTAINERS_CHANGED = 'ContainersChanged';
 })
 export class DockiUpHubService implements OnDestroy {
   private readonly projectStore = inject(ProjectStore);
+  private readonly oidc = inject(OidcSecurityService);
   private hub: signalR.HubConnection | null = null;
 
   constructor() {
@@ -30,7 +33,12 @@ export class DockiUpHubService implements OnDestroy {
   private async connect(): Promise<void> {
     if (this.hub) return;
     this.hub = new signalR.HubConnectionBuilder()
-      .withUrl(this.hubUrl, { withCredentials: true })
+      // accessTokenFactory feeds the OIDC token to the hub as ?access_token= (SignalR can't set
+      // Authorization on the socket). Empty in open mode, where the hub accepts anonymous connections.
+      .withUrl(this.hubUrl, {
+        withCredentials: true,
+        accessTokenFactory: async () => (await firstValueFrom(this.oidc.getAccessToken())) ?? '',
+      })
       .withAutomaticReconnect()
       .build();
 

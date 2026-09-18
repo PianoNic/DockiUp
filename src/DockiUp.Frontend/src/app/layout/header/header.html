@@ -9,25 +9,39 @@
 
   <app-create-project-button />
 
-  <div class="user-menu-container">
-    <button mat-button class="user-button" (click)="toggleUserMenu()">
-      <span>User</span>
-      <mat-icon>account_circle</mat-icon>
+  @if (authEnabled() && !isAuthenticated()) {
+    <button mat-button class="user-button" (click)="login()">
+      <span>Login</span>
+      <mat-icon>login</mat-icon>
     </button>
-    @if (userMenuOpen()) {
-      <div class="user-dropdown">
-        <div class="user-info">
-          <div class="user-name">User</div>
-          <div class="user-email">DockiUp</div>
+  } @else {
+    <div class="user-menu-container">
+      <button mat-button class="user-button" (click)="toggleUserMenu()">
+        <span>{{ displayName() }}</span>
+        <mat-icon>account_circle</mat-icon>
+      </button>
+      @if (userMenuOpen()) {
+        <div class="user-dropdown">
+          <div class="user-info">
+            <div class="user-name">{{ displayName() }}</div>
+            <div class="user-email">{{ email() }}</div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a mat-button class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
+            <mat-icon>account_circle</mat-icon>
+            <span>Profile</span>
+          </a>
+          <div class="dropdown-divider"></div>
+          <app-theme-toggle />
+          @if (authEnabled() && isAuthenticated()) {
+            <div class="dropdown-divider"></div>
+            <a mat-button class="dropdown-link" (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              <span>Logout</span>
+            </a>
+          }
         </div>
-        <div class="dropdown-divider"></div>
-        <a mat-button class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
-          <mat-icon>account_circle</mat-icon>
-          <span>Profile</span>
-        </a>
-        <div class="dropdown-divider"></div>
-        <app-theme-toggle />
-      </div>
-    }
-  </div>
+      }
+    </div>
+  }
 </mat-toolbar>

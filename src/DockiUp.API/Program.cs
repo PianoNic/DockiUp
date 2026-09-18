@@ -17,6 +17,10 @@ var builder = WebApplication.CreateBuilder(args);
 // the database (migrations, DB-polling background work) is therefore control-plane-only.
 var isNodeRole = !string.IsNullOrWhiteSpace(builder.Configuration["Node:ControlPlaneUrl"]);
 
+// Auth is opt-in: only when Oidc:Authority is configured does Toamaisutaa validate tokens and lock the API down.
+// Unset (the default, and the dev experience) leaves every endpoint anonymous - open mode.
+var authEnabled = !string.IsNullOrWhiteSpace(builder.Configuration["Oidc:Authority"]);
+
 #region Configure Services
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -108,6 +112,17 @@ builder.Services.AddCors(options =>
 });
 #endregion
 
+#region Authentication / Authorization
+// Toamaisutaa validates the IdP's access tokens (config section "Oidc") and puts every endpoint behind
+// an authenticated-user fallback policy; [AllowAnonymous] opts out (GetAppInfo, webhook, node hub, SPA shell).
+// Without an authority nothing is registered and the app runs open, as in dev and the test suite.
+if (authEnabled)
+{
+    builder.Services.AddToamaisutaaBearer(builder.Configuration);
+    builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
+}
+#endregion
+
 var app = builder.Build();
 
 if (app.Environment.IsProduction())
@@ -178,13 +193,16 @@ if (!app.Environment.IsProduction())
 
 app.UseStaticFiles();
 app.UseRouting();
-app.UseAuthorization();
 app.UseCors();
+if (authEnabled)
+    app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.MapHub<DockiUpHub>("/hubs/dockiup");
 app.MapHub<NodeHub>("/hubs/node");
 
-app.MapFallbackToFile("index.html");
+// The SPA shell must load even when unauthenticated so it can run the client-side login redirect.
+app.MapFallbackToFile("index.html").AllowAnonymous();
 #endregion
 
 app.Run();

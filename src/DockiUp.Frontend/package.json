@@ -41,6 +41,7 @@
     "@ngrx/signals": "^21.0.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "angular-auth-oidc-client": "^21.0.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

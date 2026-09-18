@@ -3,6 +3,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import * as signalR from '@microsoft/signalr';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { firstValueFrom } from 'rxjs';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { environment } from '../../environments/environment';
@@ -20,6 +22,7 @@ import { environment } from '../../environments/environment';
 })
 export class ContainerTerminal implements AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly oidc = inject(OidcSecurityService);
   protected readonly containerId = this.route.snapshot.paramMap.get('containerId') ?? '';
   // The node the container runs on (absent/empty = local control-plane host).
   private readonly nodeId = this.route.snapshot.queryParamMap.get('nodeId') || null;
@@ -66,7 +69,11 @@ export class ContainerTerminal implements AfterViewInit, OnDestroy {
 
     const base = (environment.apiBaseUrl ?? '').replace(/\/$/, '');
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl(`${base}/hubs/dockiup`, { withCredentials: true })
+      // Bearer token for the hub when auth is enabled; empty in open mode (anonymous accepted).
+      .withUrl(`${base}/hubs/dockiup`, {
+        withCredentials: true,
+        accessTokenFactory: async () => (await firstValueFrom(this.oidc.getAccessToken())) ?? '',
+      })
       .build();
     this.conn = conn;
 

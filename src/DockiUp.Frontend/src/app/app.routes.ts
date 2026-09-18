@@ -6,12 +6,14 @@ import { Detail } from './detail/detail';
 import { User } from './user/user';
 import { Activity } from './activity/activity';
 import { ContainerTerminal } from './container-terminal/container-terminal';
+import { authGuard } from './shared/auth/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
   {
     path: '',
     component: LayoutComponent,
+    canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: Dashboard },
       { path: 'containers', component: Containers },
