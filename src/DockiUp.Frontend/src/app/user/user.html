@@ -1,1 +1,76 @@
-<p>user works!</p>
+<div class="profile">
+  <header class="profile-header">
+    @if (picture() && !pictureFailed()) {
+      <img class="avatar" [src]="picture()" alt="" referrerpolicy="no-referrer" (error)="pictureFailed.set(true)" />
+    } @else {
+      <div class="avatar">{{ initials() }}</div>
+    }
+    <div>
+      <h1>{{ name() }}</h1>
+      <p class="sub">
+        @if (authEnabled()) { {{ email() ?? username() ?? 'Signed in' }} } @else { Login is off — everyone shares this local profile }
+      </p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2><mat-icon>badge</mat-icon> Identity</h2>
+      @if (authEnabled()) {
+        <dl>
+          <dt>Name</dt><dd>{{ name() }}</dd>
+          <dt>Email</dt><dd>{{ email() ?? '—' }}</dd>
+          <dt>Username</dt><dd>{{ username() ?? '—' }}</dd>
+          <dt>Subject</dt><dd class="mono">{{ subject() ?? '—' }}</dd>
+          <dt>Roles</dt>
+          <dd>
+            @for (r of roles(); track r) { <span class="chip">{{ r }}</span> } @empty { — }
+          </dd>
+        </dl>
+      } @else {
+        <p class="muted">
+          DockiUp is running without authentication. Set <code>Oidc__Authority</code> and <code>Oidc__ClientId</code>
+          to your identity provider to require sign-in; your name, email and roles then show up here.
+        </p>
+      }
+    </section>
+
+    <section class="card">
+      <h2><mat-icon>palette</mat-icon> Appearance</h2>
+      <mat-button-toggle-group [value]="theme.getTheme()()" (change)="theme.setTheme($event.value)" aria-label="Theme" hideSingleSelectionIndicator>
+        @for (t of themes; track t.value) {
+          <mat-button-toggle [value]="t.value"><mat-icon>{{ t.icon }}</mat-icon> {{ t.label }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+      <p class="muted">Auto follows your operating system. Saved in this browser.</p>
+    </section>
+
+    <section class="card">
+      <h2><mat-icon>info</mat-icon> About</h2>
+      <dl>
+        <dt>Version</dt><dd class="mono">{{ app()?.version ?? '…' }}</dd>
+        <dt>Environment</dt><dd>{{ app()?.environment ?? '…' }}</dd>
+        <dt>Sign-in</dt><dd class="mono">{{ authEnabled() ? app()?.authority : 'disabled' }}</dd>
+      </dl>
+      @if (authEnabled()) {
+        <button mat-stroked-button (click)="signOut()"><mat-icon>logout</mat-icon> Sign out</button>
+      }
+    </section>
+
+    @if (authEnabled()) {
+      <section class="card wide">
+        <h2><mat-icon>history</mat-icon> Your recent activity</h2>
+        @for (e of mine(); track e.id) {
+          <div class="activity-row">
+            <span class="chip">{{ e.action }}</span>
+            <span class="target">{{ e.target }}</span>
+            <span class="muted when">{{ e.createdAt | localDate }}</span>
+          </div>
+        } @empty {
+          <p class="muted">Nothing yet. Deploys and lifecycle actions you trigger show up here.</p>
+        }
+        <a mat-button routerLink="/activity">All activity</a>
+      </section>
+    }
+  </div>
+</div>

@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -9,7 +9,7 @@ import { ActivityEntryDto, ActivityService } from '../api';
 /** Audit log of everything DockiUp did — deploys, project lifecycle, node changes (KRINT-style). */
 @Component({
   selector: 'app-activity',
-  imports: [DatePipe, MatIconModule, MatButtonModule, MatProgressBarModule],
+  imports: [LocalDatePipe, MatIconModule, MatButtonModule, MatProgressBarModule],
   templateUrl: './activity.html',
   styleUrl: './activity.scss',
 })

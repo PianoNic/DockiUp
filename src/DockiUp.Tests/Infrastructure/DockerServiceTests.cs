@@ -39,7 +39,7 @@ public class DockerServiceTests
         var client = new Mock<IDockiUpDockerClient>();
         client.Setup(c => c.DockerClient).Returns(docker.Object);
         var db = TestDb.Create();
-        var svc = new DockerService(client.Object, db, Options.Create(new SystemPaths { ProjectsPath = "/p" }));
+        var svc = new DockerService(client.Object, db, Options.Create(new SystemPaths { ProjectsPath = "/p" }), new Mock<IDockiUpProjectConfigurationService>().Object);
         return (svc, containers, db);
     }
 

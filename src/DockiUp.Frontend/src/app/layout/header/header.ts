@@ -10,6 +10,7 @@ import { map } from 'rxjs/operators';
 import { ThemeToggleComponent } from '../../shared/components/theme-toggle/theme-toggle.component';
 import { CreateProjectButton } from '../../shared/components/create-project-button/button/create-project-button';
 import { AppService } from '../../api';
+import { TaskCenter } from './task-center';
 
 @Component({
   selector: 'app-header',
@@ -21,6 +22,7 @@ import { AppService } from '../../api';
     RouterLink,
     ThemeToggleComponent,
     CreateProjectButton,
+    TaskCenter,
   ],
   templateUrl: './header.html',
   styleUrl: './header.scss',
@@ -50,6 +52,8 @@ export class Header {
     return data?.name ?? data?.preferred_username ?? data?.email ?? 'User';
   });
   protected readonly email = computed(() => this.userData()?.userData?.email ?? 'DockiUp');
+  protected readonly picture = computed<string | undefined>(() => this.userData()?.userData?.picture || undefined);
+  protected readonly pictureFailed = signal(false);
 
   onMenuToggle(): void {
     this.menuToggle.emit();

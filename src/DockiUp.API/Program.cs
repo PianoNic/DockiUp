@@ -12,10 +12,28 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// When Node:ControlPlaneUrl is set this process boots in the "node" role: it owns no application
-// database and only drives its local Docker daemon over the agent connection. Anything that touches
-// the database (migrations, DB-polling background work) is therefore control-plane-only.
-var isNodeRole = !string.IsNullOrWhiteSpace(builder.Configuration["Node:ControlPlaneUrl"]);
+// DockiUp runs in one of two roles from the same image. When Node:ServerUrl is set it boots as a
+// stripped "node": it dials OUT to the control plane over SignalR and runs Docker work on its own host.
+// No UI, no app database, no auth, no user-facing endpoints - only /health. Anything else is the full
+// control plane.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Node:ServerUrl"]))
+{
+    builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
+    builder.Services.AddSingleton<IDockiUpDockerClient, DockiUpDockerClient>();
+    builder.Services.AddSingleton<IContainerExecRegistry, ContainerExecRegistry>();
+    builder.Services.AddScoped<IDockerService, DockerService>();
+    builder.Services.AddScoped<IDockiUpProjectConfigurationService, DockiUpProjectConfigurationService>();
+    // DockerService takes the DbContext, but a node only calls its raw (DB-free) paths, so the context
+    // is registered without a connection string and never opened.
+    builder.Services.AddDbContext<DockiUpDbContext>(options => options.UseNpgsql());
+    builder.Services.AddScoped<IDockiUpDbContext>(provider => provider.GetRequiredService<DockiUpDbContext>());
+    builder.Services.AddHostedService<NodeAgentHostedService>();
+
+    var nodeApp = builder.Build();
+    nodeApp.MapGet("/health", () => Results.Ok(new { status = "ok", role = "node" }));
+    nodeApp.Run();
+    return;
+}
 
 // Auth is opt-in: only when Oidc:Authority is configured does Toamaisutaa validate tokens and lock the API down.
 // Unset (the default, and the dev experience) leaves every endpoint anonymous - open mode.
@@ -33,17 +51,14 @@ builder.Services.AddOpenApi();
 builder.Services.AddApplicationModule();
 
 builder.Services.Configure<SystemPaths>(builder.Configuration.GetSection("SystemPaths"));
-builder.Services.Configure<DockiUp.Application.Models.DockiUpWebhookOptions>(builder.Configuration.GetSection("Webhook"));
-builder.Services.Configure<DockiUp.API.HostedServices.PeriodicUpdateOptions>(options =>
-{
-    options.PollInterval = TimeSpan.FromMinutes(1);
-});
-// These poll the project database, so they only run on the control plane.
-if (!isNodeRole)
-{
-    builder.Services.AddHostedService<DockiUp.API.HostedServices.PeriodicUpdateHostedService>();
-    builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStateBroadcastHostedService>();
-}
+// Deploy pipeline: one queue (hosted worker) runs every deployment; periodic checks feed it.
+builder.Services.AddScoped<DockiUp.Application.Deployments.DeploymentRunner>();
+builder.Services.AddSingleton<DockiUp.Application.Deployments.IDeploymentEvents, DockiUp.API.Deployments.DeploymentEvents>();
+builder.Services.AddSingleton<DockiUp.API.Deployments.DeploymentQueue>();
+builder.Services.AddSingleton<DockiUp.Application.Deployments.IDeploymentQueue>(sp => sp.GetRequiredService<DockiUp.API.Deployments.DeploymentQueue>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DockiUp.API.Deployments.DeploymentQueue>());
+builder.Services.AddHostedService<DockiUp.API.HostedServices.PeriodicUpdateHostedService>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStateBroadcastHostedService>();
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDockiUpHubBroadcastService, DockiUpHubBroadcastService>();
@@ -61,23 +76,11 @@ builder.Services.AddSingleton<IDockiUpDockerClient, DockiUpDockerClient>();
 // Live-connection registry is shared by the hub (control plane) and the controller.
 builder.Services.AddSingleton<INodeRegistry, NodeRegistry>();
 
-// When Node:ControlPlaneUrl is set this process boots in the "node" role and dials out to the
-// control plane; otherwise it IS the control plane and hosts the hub + Nodes API.
-if (isNodeRole)
-{
-    // A node always uses its own daemon, so it resolves Docker locally and never re-routes.
-    builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
-    builder.Services.AddSingleton<INodeRpc, OfflineNodeRpc>();
-    builder.Services.AddSingleton<INodeDirectory, EmptyNodeDirectory>();
-    builder.Services.AddHostedService<NodeAgentHostedService>();
-}
-else
-{
-    // Control plane: route Docker work to the local daemon or a node over SignalR, by the project's NodeId.
-    builder.Services.AddScoped<IDockerServiceResolver, DockerServiceResolver>();
-    builder.Services.AddSingleton<INodeRpc, NodeRpc>();
-    builder.Services.AddSingleton<INodeDirectory, NodeDirectory>();
-}
+// Control plane: route Docker work to the local daemon or a node over SignalR, by the project's NodeId.
+builder.Services.AddScoped<IDockerServiceResolver, DockerServiceResolver>();
+builder.Services.AddSingleton<DeployLogRelay>();
+builder.Services.AddSingleton<INodeRpc, NodeRpc>();
+builder.Services.AddSingleton<INodeDirectory, NodeDirectory>();
 #endregion
 #endregion
 
@@ -92,6 +95,18 @@ builder.Services.AddDbContext<DockiUpDbContext>(options =>
 
 builder.Services.AddScoped<IDockiUpDbContext>(provider =>
     provider.GetRequiredService<DockiUpDbContext>());
+#endregion
+
+#region Error responses
+// Handlers signal "no such thing" / "bad input" with plain exceptions; surface those as 404/400
+// ProblemDetails carrying the message, so the UI can show *why* instead of a bare 500.
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+{
+    var exception = context.Exception
+        ?? context.HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    if (exception is KeyNotFoundException or ArgumentException)
+        context.ProblemDetails.Detail = exception.Message;
+});
 #endregion
 
 #region CORS Configuration
@@ -120,6 +135,7 @@ if (authEnabled)
 {
     builder.Services.AddToamaisutaaBearer(builder.Configuration);
     builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
+    builder.Services.AddToamaisutaaCurrentUser(); // who did it, for the activity feed
 }
 #endregion
 
@@ -133,8 +149,7 @@ if (app.Environment.IsProduction())
 }
 
 #region Database Initialization with Retry Logic
-// A node has no application database, so it must not try to connect or migrate on boot.
-bool dbConnected = isNodeRole;
+bool dbConnected = false;
 int retryCount = 0;
 const int maxRetries = 10;
 const int retryDelaySeconds = 5;
@@ -191,6 +206,15 @@ if (app.Environment.IsDevelopment())
 if (!app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    StatusCodeSelector = exception => exception switch
+    {
+        KeyNotFoundException => StatusCodes.Status404NotFound,
+        ArgumentException => StatusCodes.Status400BadRequest,
+        _ => StatusCodes.Status500InternalServerError,
+    },
+});
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors();

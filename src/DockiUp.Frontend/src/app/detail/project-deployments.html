@@ -1,0 +1,56 @@
+<div class="deploy-grid">
+  <section class="panel">
+    <h2 class="section-title">
+      Deployments
+      <span class="count-chip">{{ deployments().length }}</span>
+    </h2>
+
+    @if (deployments().length === 0) {
+      <p class="empty">No deployments yet. Press <strong>Deploy now</strong> or push to the repository.</p>
+    } @else {
+      <div class="deploy-list">
+        @for (d of deployments(); track d.id) {
+          <button class="deploy-row" [class.selected]="d.id === selectedId()" (click)="select(d)">
+            <span class="state-badge" [attr.data-state]="badgeState(d)">{{ d.status.toLowerCase() }}</span>
+            <span class="deploy-main">
+              <span class="deploy-title">
+                {{ d.trigger }}
+                @if (d.commitAfter) {
+                  <span class="mono">{{ shortSha(d.commitAfter) }}</span>
+                }
+              </span>
+              @if (d.commitMessage) {
+                <span class="deploy-msg" [title]="d.commitMessage">{{ d.commitMessage }}</span>
+              }
+              <span class="deploy-sub">{{ d.actorName ?? 'system' }} · {{ d.createdAt | localDate: 'short' }}</span>
+            </span>
+            <span class="deploy-dur">{{ duration(d) }}</span>
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="panel">
+    <h2 class="section-title">
+      Log
+      @if (selected(); as s) {
+        <span class="count-chip">{{ s.trigger }} · {{ s.createdAt | localDate: 'short' }}</span>
+        <span class="grow"></span>
+        @if (canRedeploy(s)) {
+          <button mat-stroked-button (click)="redeploy(s)">
+            <mat-icon>history</mat-icon>
+            Deploy this version
+          </button>
+        } @else if (s.commitAfter && s.commitAfter === deployedCommit()) {
+          <span class="live-chip"><mat-icon>verified</mat-icon> live</span>
+        }
+      }
+    </h2>
+    @if (selected()?.error; as error) {
+      <p class="deploy-error"><mat-icon>error</mat-icon>{{ error }}</p>
+    }
+    <pre class="log" #logBox>{{ log() || 'Select a deployment to see its log.' }}</pre>
+  </section>
+
+</div>

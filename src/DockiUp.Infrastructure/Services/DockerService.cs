@@ -15,12 +15,14 @@ namespace DockiUp.Infrastructure.Services
         private readonly IDockiUpDockerClient _dockiUpDockerClient;
         private readonly IDockiUpDbContext _dbContext;
         private readonly SystemPaths _systemPaths;
-        private const string ComposeFileName = "dockiup_compose.yml";
-        public DockerService(IDockiUpDockerClient dockiUpDockerClient, IDockiUpDbContext dbContext, IOptions<SystemPaths> systemPaths)
+        private readonly IDockiUpProjectConfigurationService _projectFiles;
+
+        public DockerService(IDockiUpDockerClient dockiUpDockerClient, IDockiUpDbContext dbContext, IOptions<SystemPaths> systemPaths, IDockiUpProjectConfigurationService projectFiles)
         {
             _dockiUpDockerClient = dockiUpDockerClient;
             _dbContext = dbContext;
             _systemPaths = systemPaths.Value;
+            _projectFiles = projectFiles;
         }
 
         public async Task<ProjectDto[]> GetRawProjectsAsync()
@@ -80,7 +82,7 @@ namespace DockiUp.Infrastructure.Services
                 {
                     project.Id = proj.Id;
                     project.ProjectName = proj.ProjectName;
-                    project.ProjectDescription = proj.Description ?? "Not Managed By DockiUp";
+                    project.ProjectDescription = proj.Description ?? string.Empty;
                     project.ManagedByDockiUp = true;
                     project.NodeId = proj.NodeId;
                     project.ProjectPath = proj.ProjectPath;
@@ -117,54 +119,123 @@ namespace DockiUp.Infrastructure.Services
         }
 
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
-        public Task StartProjectAsync(string folderPath)
-            => RunComposeAsync("up -d", folderPath, "Start successfully", throwOnFailure: true);
+        public Task StartProjectAsync(string dockerProjectName)
+            => RunComposeAsync(["-p", dockerProjectName, "start"], workingDirectory: null, _ => Task.CompletedTask, CancellationToken.None);
 
-        // Runs a `docker compose` subcommand in the project folder. The compose CLI - unlike Docker.DotNet -
-        // takes no socket from our config, so when SystemPaths.DockerSocket is set we point DOCKER_HOST at
-        // the same daemon. Otherwise compose would silently target the default socket while container
-        // operations (via Docker.DotNet) use the configured one - a split brain on non-default setups.
-        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process; covered by integration/E2E
-        private async Task RunComposeAsync(string composeArgs, string folderPath, string successMessage, bool throwOnFailure)
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
+        public Task StopProjectAsync(string dockerProjectName)
+            => RunComposeAsync(["-p", dockerProjectName, "stop"], workingDirectory: null, _ => Task.CompletedTask, CancellationToken.None);
+
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
+        public Task RestartProjectAsync(string dockerProjectName)
+            => RunComposeAsync(["-p", dockerProjectName, "restart"], workingDirectory: null, _ => Task.CompletedTask, CancellationToken.None);
+
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
+        public Task RemoveProjectAsync(string dockerProjectName, bool removeVolumes)
+            => RunComposeAsync(removeVolumes ? ["-p", dockerProjectName, "down", "--volumes"] : ["-p", dockerProjectName, "down"],
+                workingDirectory: null, _ => Task.CompletedTask, CancellationToken.None);
+
+        public Task DeleteProjectFilesAsync(string projectPath)
         {
-            using var process = new Process
+            // Only ever inside the projects root: this deletes recursively.
+            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var full = Path.GetFullPath(projectPath);
+            if (!full.StartsWith(root, StringComparison.Ordinal))
+                throw new ArgumentException($"Refusing to delete '{projectPath}': it is outside the projects folder.");
+            if (Directory.Exists(full))
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "docker",
-                    Arguments = $"compose -f {ComposeFileName} {composeArgs}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = folderPath
-                }
-            };
-            if (!string.IsNullOrWhiteSpace(_systemPaths.DockerSocket))
-                process.StartInfo.Environment["DOCKER_HOST"] = _systemPaths.DockerSocket;
-
-            process.Start();
-
-            // Drain both pipes before waiting so a chatty compose can't deadlock on a full buffer.
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode == 0)
-            {
-                Console.WriteLine(successMessage);
+                foreach (var file in Directory.EnumerateFiles(full, "*", SearchOption.AllDirectories))
+                    File.SetAttributes(file, FileAttributes.Normal); // git pack files are read-only
+                Directory.Delete(full, recursive: true);
             }
-            else if (throwOnFailure)
-            {
-                throw new ArgumentException("Docker Compose failed", error);
-            }
-            else
-            {
-                Console.WriteLine("Docker Compose failed");
-                Console.WriteLine(error);
-            }
+            return Task.CompletedTask;
         }
+
+        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default)
+            => _projectFiles.SyncRepositoryAsync(projectPath, branch, commit, log);
+
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
+        public Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
+            => RunComposeAsync(["-p", target.DockerProjectName, "-f", target.ComposePath, "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
+
+        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
+        public async Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
+        {
+            string[] project = ["-p", target.DockerProjectName, "-f", target.ComposePath];
+            var before = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
+
+            // Pull first, while the old containers still serve traffic. Buildable services are skipped here
+            // and built by `up --build`.
+            await RunComposeAsync([.. project, "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
+            await RunComposeAsync([.. project, "up", "-d", "--build", "--remove-orphans"], target.ProjectPath, log, cancellationToken);
+
+            var after = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
+            return new ComposeUpResult(!before.SetEquals(after));
+        }
+
+        private async Task<HashSet<string>> ProjectContainerIdsAsync(string dockerProjectName, CancellationToken cancellationToken)
+        {
+            var containers = await _dockiUpDockerClient.DockerClient.Containers.ListContainersAsync(new ContainersListParameters
+            {
+                All = true,
+                Filters = new Dictionary<string, IDictionary<string, bool>>
+                {
+                    ["label"] = new Dictionary<string, bool> { [$"com.docker.compose.project={dockerProjectName}"] = true },
+                },
+            }, cancellationToken);
+            return containers.Select(c => c.ID).ToHashSet();
+        }
+
+        // Runs `docker compose <args>`, streaming every output line to `log` (compose writes progress to
+        // stderr). The compose CLI takes no socket from our config, so when SystemPaths.DockerSocket is set
+        // DOCKER_HOST points it at the same daemon Docker.DotNet uses - otherwise the two would split-brain.
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process; covered by integration/E2E
+        private async Task RunComposeAsync(string[] args, string? workingDirectory, Func<string, Task> log, CancellationToken cancellationToken)
+        {
+            var startInfo = new ProcessStartInfo("docker")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = workingDirectory ?? Path.GetTempPath(),
+            };
+            foreach (var arg in (string[])["compose", "--ansi", "never", "--progress", "plain", .. args])
+                startInfo.ArgumentList.Add(arg);
+            if (!string.IsNullOrWhiteSpace(_systemPaths.DockerSocket))
+                startInfo.Environment["DOCKER_HOST"] = _systemPaths.DockerSocket;
+
+            await log("$ docker compose " + string.Join(' ', args));
+            using var process = Process.Start(startInfo)!;
+
+            // Keep the tail of the output so a failure carries compose's own explanation.
+            var tail = new Queue<string>();
+            var gate = new SemaphoreSlim(1, 1);
+            async Task Pump(StreamReader reader)
+            {
+                while (await reader.ReadLineAsync(cancellationToken) is { } line)
+                {
+                    await gate.WaitAsync(cancellationToken);
+                    try
+                    {
+                        tail.Enqueue(line);
+                        if (tail.Count > 20) tail.Dequeue();
+                        await log(line);
+                    }
+                    finally { gate.Release(); }
+                }
+            }
+            await Task.WhenAll(Pump(process.StandardOutput), Pump(process.StandardError));
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException(
+                    $"docker compose {string.Join(' ', args)} failed (exit {process.ExitCode}):" + Environment.NewLine
+                    + string.Join(Environment.NewLine, tail));
+        }
+
+        public Task RemoveContainerAsync(string containerId)
+            => _dockiUpDockerClient.DockerClient.Containers.RemoveContainerAsync(containerId, new ContainerRemoveParameters { Force = true });
 
         public async Task RestartContainerAsync(string containerId)
         {
@@ -180,14 +251,6 @@ namespace DockiUp.Infrastructure.Services
         {
             await _dockiUpDockerClient.DockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters());
         }
-
-        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
-        public Task StopProjectAsync(string folderPath)
-            => RunComposeAsync("down", folderPath, "Stop successfully", throwOnFailure: false);
-
-        [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
-        public Task RestartProjectAsync(string folderPath)
-            => RunComposeAsync("restart", folderPath, "Restart successfully", throwOnFailure: false);
 
         public async Task<string> GetContainerLogsAsync(string containerId, int? tail = null, CancellationToken cancellationToken = default)
         {

@@ -1,122 +1,127 @@
 using DockiUp.Application.Commands;
+using DockiUp.Application.Deployments;
 using DockiUp.Application.Dtos;
 using DockiUp.Application.Interfaces;
 using DockiUp.Application.Models;
+using DockiUp.Domain;
 using DockiUp.Domain.Enums;
 using DockiUp.Tests.TestSupport;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Moq;
 
 namespace DockiUp.Tests.Application;
 
+/// <summary>Creating a project: files are prepared where it will run, the row is stored, and the first
+/// deployment is queued (the queue - not this handler - runs compose).</summary>
 public class DeployProjectCommandHandlerTests : IDisposable
 {
     private readonly string _projectsRoot = Path.Combine(Path.GetTempPath(), "dockiup-tests-" + Guid.NewGuid().ToString("N"));
+    private readonly Mock<IDockiUpProjectConfigurationService> _files = new();
+    private readonly Mock<IActivityLogger> _activity = new();
+    private readonly Mock<INodeRpc> _rpc = new();
+    private readonly Mock<IMediator> _mediator = new();
+    private readonly DockiUp.Infrastructure.DockiUpDbContext _db = TestDb.Create();
 
-    private (DeployProjectCommandHandler handler, Mock<IDockerService> docker, Mock<IDockiUpProjectConfigurationService> config,
-        Mock<IActivityLogger> activity, Mock<INodeRpc> rpc, DockiUp.Infrastructure.DockiUpDbContext db) Build()
+    public DeployProjectCommandHandlerTests()
     {
-        var docker = new Mock<IDockerService>();
-        var config = new Mock<IDockiUpProjectConfigurationService>();
-        config.Setup(c => c.WriteComposeFileAsync(It.IsAny<string>(), It.IsAny<string>()))
+        _files.Setup(c => c.WriteComposeFileAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((string path, string _) => Path.Combine(path, "dockiup_compose.yml"));
-        var activity = new Mock<IActivityLogger>();
-        var rpc = new Mock<INodeRpc>();
-        var db = TestDb.Create();
-        var paths = Options.Create(new SystemPaths { ProjectsPath = _projectsRoot });
-        var handler = new DeployProjectCommandHandler(docker.Object, paths, config.Object, db, activity.Object, rpc.Object);
-        return (handler, docker, config, activity, rpc, db);
+        _mediator.Setup(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((QueueDeploymentCommand c, CancellationToken _) => new ValueTask<DeploymentDto>(new DeploymentDto(
+                Guid.NewGuid(), c.ProjectId, c.Trigger, DeploymentStatus.Queued, null, null, null, null, null, DateTime.UtcNow, null, null, null)));
     }
 
-    [Fact]
-    public async Task Compose_DeploysLocally_PersistsProject_AndLogs()
+    private DeployProjectCommandHandler Handler() => new(
+        Options.Create(new SystemPaths { ProjectsPath = _projectsRoot }), _files.Object, _db, _activity.Object, _rpc.Object, _mediator.Object);
+
+    private static SetupProjectDto Compose(string name = "My App", Guid? node = null) => new()
     {
-        var (handler, docker, config, activity, rpc, db) = Build();
-        var dto = new SetupProjectDto
-        {
-            ProjectName = "My App",
-            ProjectOrigin = ProjectOriginType.Compose,
-            Compose = "services: {}",
-            ProjectUpdateMethod = ProjectUpdateMethod.Manual,
-        };
+        ProjectName = name,
+        ProjectOrigin = ProjectOriginType.Compose,
+        Compose = "services: {}",
+        NodeId = node,
+        ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+    };
 
-        await handler.Handle(new DeployProjectCommand(dto), CancellationToken.None);
+    [Fact]
+    public async Task Compose_PreparesLocally_PersistsProject_AndQueuesCreateDeployment()
+    {
+        var queued = await Handler().Handle(new DeployProjectCommand(Compose()), CancellationToken.None);
 
-        var saved = await db.ProjectInfo.SingleAsync();
+        var saved = await _db.ProjectInfo.SingleAsync();
         Assert.Equal("My App", saved.ProjectName);
         Assert.Equal("myapp", saved.DockerProjectName); // lowercased, whitespace stripped
         Assert.Null(saved.NodeId);
-        Assert.Equal(ProjectOriginType.Compose, saved.ProjectOrigin);
-        config.Verify(c => c.WriteComposeFileAsync(It.IsAny<string>(), "services: {}"), Times.Once);
-        docker.Verify(d => d.StartProjectAsync(It.IsAny<string>()), Times.Once);
-        rpc.Verify(r => r.InvokeAsync<NodeDeployResultDto>(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Never);
-        activity.Verify(a => a.LogAsync("deploy", "My App", null, "Compose", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(saved.Branch);
+        Assert.Equal(48, saved.WebhookSecret.Length); // 24 random bytes, hex
+        Assert.Equal(Path.Combine(_projectsRoot, "My App", "dockiup_compose.yml"), saved.ComposePath);
+        _files.Verify(c => c.WriteComposeFileAsync(It.IsAny<string>(), "services: {}"), Times.Once);
+
+        Assert.NotNull(queued);
+        Assert.Equal(DeploymentTrigger.Create, queued!.Trigger);
+        _mediator.Verify(m => m.Send(It.Is<QueueDeploymentCommand>(c => c.ProjectId == saved.Id && c.Trigger == DeploymentTrigger.Create),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _activity.Verify(a => a.LogAsync("create", "My App", saved.Id, "Compose", It.IsAny<CancellationToken>(), null), Times.Once);
     }
 
     [Fact]
-    public async Task Git_DeploysLocally_ClonesThenComposes()
+    public async Task Git_ClonesRequestedBranch_UsesRepoComposeFile_AndRecordsBranch()
     {
-        var (handler, docker, config, _, _, db) = Build();
+        _files.Setup(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git", "release"))
+            .Callback((string path, string _, string? _) =>
+            {
+                Directory.CreateDirectory(Path.Combine(path, "deploy"));
+                File.WriteAllText(Path.Combine(path, "deploy", "compose.yml"), "services: {}");
+            })
+            .ReturnsAsync("release");
         var dto = new SetupProjectDto
         {
             ProjectName = "git-app",
             ProjectOrigin = ProjectOriginType.Git,
             GitUrl = "file:///repo.git",
-            Compose = "services: {}",
+            Branch = "release",
+            ComposeFile = "deploy/compose.yml",
             ProjectUpdateMethod = ProjectUpdateMethod.Manual,
         };
 
-        await handler.Handle(new DeployProjectCommand(dto), CancellationToken.None);
+        await Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None);
 
-        config.Verify(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git"), Times.Once);
-        docker.Verify(d => d.StartProjectAsync(It.IsAny<string>()), Times.Once);
-        Assert.Equal("file:///repo.git", (await db.ProjectInfo.SingleAsync()).GitUrl);
+        var saved = await _db.ProjectInfo.SingleAsync();
+        Assert.Equal("release", saved.Branch);
+        Assert.Equal(Path.GetFullPath(Path.Combine(_projectsRoot, "git-app", "deploy", "compose.yml")), saved.ComposePath);
+        _files.Verify(c => c.WriteComposeFileAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never); // repo's own compose
     }
 
     [Fact]
-    public async Task WithNodeId_ShipsToNode_PersistsReturnedPaths_NoLocalStart()
+    public async Task WithNodeId_PreparesOnNode_PersistsReturnedPaths_NothingLocal()
     {
-        var (handler, docker, config, _, rpc, db) = Build();
         var node = Guid.NewGuid();
-        rpc.Setup(r => r.InvokeAsync<NodeDeployResultDto>(node, "DeployProject", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NodeDeployResultDto("/node/path", "/node/path/dockiup_compose.yml"));
-        var dto = new SetupProjectDto
-        {
-            ProjectName = "remote",
-            ProjectOrigin = ProjectOriginType.Compose,
-            Compose = "services: {}",
-            NodeId = node,
-            ProjectUpdateMethod = ProjectUpdateMethod.Manual,
-        };
+        _rpc.Setup(r => r.InvokeAsync<PreparedProject>(node, "PrepareProject", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PreparedProject("/node/path", "/node/path/dockiup_compose.yml", null));
 
-        await handler.Handle(new DeployProjectCommand(dto), CancellationToken.None);
+        await Handler().Handle(new DeployProjectCommand(Compose("remote", node)), CancellationToken.None);
 
-        var saved = await db.ProjectInfo.SingleAsync();
+        var saved = await _db.ProjectInfo.SingleAsync();
         Assert.Equal(node, saved.NodeId);
         Assert.Equal("/node/path", saved.ProjectPath);
         Assert.Equal("/node/path/dockiup_compose.yml", saved.ComposePath);
-        rpc.Verify(r => r.InvokeAsync<NodeDeployResultDto>(node, "DeployProject", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
-        docker.Verify(d => d.StartProjectAsync(It.IsAny<string>()), Times.Never); // node runs it, not us
-        config.Verify(c => c.WriteComposeFileAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _files.Verify(c => c.WriteComposeFileAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        Assert.False(Directory.Exists(Path.Combine(_projectsRoot, "remote")));
     }
 
     [Fact]
-    public async Task Import_LogsOnly_DoesNotPersist()
+    public async Task Import_LogsOnly_DoesNotPersistOrQueue()
     {
-        var (handler, docker, _, activity, _, db) = Build();
-        var dto = new SetupProjectDto
-        {
-            ProjectName = "imported",
-            ProjectOrigin = ProjectOriginType.Import,
-            ProjectUpdateMethod = ProjectUpdateMethod.Manual,
-        };
+        var dto = new SetupProjectDto { ProjectName = "imported", ProjectOrigin = ProjectOriginType.Import, ProjectUpdateMethod = ProjectUpdateMethod.Manual };
 
-        await handler.Handle(new DeployProjectCommand(dto), CancellationToken.None);
+        var result = await Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None);
 
-        Assert.Empty(db.ProjectInfo);
-        docker.Verify(d => d.StartProjectAsync(It.IsAny<string>()), Times.Never);
-        activity.Verify(a => a.LogAsync("deploy", "imported", null, "Import", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(result);
+        Assert.Empty(_db.ProjectInfo);
+        _mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Verify(a => a.LogAsync("deploy", "imported", null, "Import", It.IsAny<CancellationToken>(), null), Times.Once);
     }
 
     public void Dispose()

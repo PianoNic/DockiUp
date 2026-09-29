@@ -4,7 +4,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -13,6 +12,7 @@ import { ActivityEntryDto, DashboardService, NodeDto, NodesService, ProjectDto }
 import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
 import { ProjectStore } from '../shared/stores/project.store';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 
 @Component({
   selector: 'app-dashboard',
@@ -21,8 +21,8 @@ import { ProjectStore } from '../shared/stores/project.store';
     MatCardModule,
     MatIconModule,
     RouterLink,
+    LocalDatePipe,
     MatButtonModule,
-    MatMenuModule,
     MatTooltipModule,
     CreateProjectButton,
     MatProgressBar,
@@ -39,6 +39,7 @@ export class Dashboard implements OnInit {
   projects = this.projectStore.projectDtos;
   readonly recentActivity = signal<ActivityEntryDto[]>([]);
   readonly nodes = signal<NodeDto[]>([]);
+  readonly localDockerVersion = signal<string | null>(null);
 
   constructor() {
     // The project list live-updates over SignalR (DockiUpHubService -> store). Whenever it changes,
@@ -61,6 +62,7 @@ export class Dashboard implements OnInit {
         firstValueFrom(this.nodesService.apiNodesGet()),
       ]);
       this.recentActivity.set(stats?.recentActivity ?? []);
+      this.localDockerVersion.set(stats?.localDockerVersion ?? null);
       this.nodes.set(nodes ?? []);
     } catch {
       // Overview is best-effort; the project list is the primary content.
@@ -169,19 +171,18 @@ export class Dashboard implements OnInit {
 
   // ---- project actions ----
   async onStopProject(project: ProjectDto) {
-    await this.projectStore.stopProject(project.dockerProjectName);
+    await this.projectStore.lifecycle(project, 'stop');
   }
 
   async onRestartProject(project: ProjectDto) {
-    await this.projectStore.restartProject(project.dockerProjectName);
+    await this.projectStore.lifecycle(project, 'restart');
   }
 
-  async onUpdateProject(project: ProjectDto) {
-    const id = (project as ProjectDto & { id?: string })?.id;
-    if (id != null) await this.projectStore.updateProject(id);
+  async onDeployProject(project: ProjectDto) {
+    if (project.id) await this.projectStore.deployNow(project.id);
   }
 
-  canUpdateProject(project: ProjectDto): boolean {
-    return project.managedByDockiUp && (project as ProjectDto & { id?: string }).id != null;
+  canDeploy(project: ProjectDto): boolean {
+    return project.managedByDockiUp && !!project.id;
   }
 }

@@ -20,5 +20,8 @@ export interface ProjectDto {
     containers: Array<ContainerDto>;
     projectPath?: string | null;
     updateMethod?: string | null;
+    deployedCommit?: string | null;
+    deployedCommitMessage?: string | null;
+    deployedAt?: string | null;
 }
 

@@ -1,4 +1,4 @@
-import { StsConfigHttpLoader, StsConfigLoader } from 'angular-auth-oidc-client';
+import { LogLevel, StsConfigHttpLoader, StsConfigLoader } from 'angular-auth-oidc-client';
 import { map } from 'rxjs/operators';
 import { AppService } from '../../api';
 import { environment } from '../../../environments/environment';
@@ -19,6 +19,8 @@ export const authLoaderFactory = (appService: AppService) => {
       useRefreshToken: true,
       renewTimeBeforeTokenExpiresInSeconds: 30,
       secureRoutes: [environment.apiBaseUrl],
+      // Open mode hands the client an empty config on purpose; silence its validation noise.
+      logLevel: app.authEnabled ? LogLevel.Warn : LogLevel.None,
     })),
   );
   return new StsConfigHttpLoader(config$);

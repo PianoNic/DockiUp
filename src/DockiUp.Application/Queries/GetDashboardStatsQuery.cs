@@ -15,11 +15,13 @@ namespace DockiUp.Application.Queries
     {
         private readonly IDockerService _dockerService;
         private readonly IDockiUpDbContext _dbContext;
+        private readonly IDockiUpDockerClient? _dockerClient;
 
-        public GetDashboardStatsQueryHandler(IDockerService dockerService, IDockiUpDbContext dbContext)
+        public GetDashboardStatsQueryHandler(IDockerService dockerService, IDockiUpDbContext dbContext, IDockiUpDockerClient? dockerClient = null)
         {
             _dockerService = dockerService;
             _dbContext = dbContext;
+            _dockerClient = dockerClient;
         }
 
         public async ValueTask<DashboardStatsDto> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
@@ -52,7 +54,16 @@ namespace DockiUp.Application.Queries
                 TotalContainers = containers.Count,
                 RunningContainers = running,
                 RecentActivity = recentActivity,
+                LocalDockerVersion = await TryGetLocalDockerVersionAsync(cancellationToken),
             };
+        }
+
+        // Best effort: the version is cosmetic, so an unreachable daemon must not fail the dashboard.
+        private async Task<string?> TryGetLocalDockerVersionAsync(CancellationToken cancellationToken)
+        {
+            if (_dockerClient is null) return null;
+            try { return (await _dockerClient.DockerClient.System.GetVersionAsync(cancellationToken)).Version; }
+            catch { return null; }
         }
     }
 }

@@ -184,7 +184,7 @@ public class NodeInfraTests
     }
 
     // ---------------------------------------------------------------------
-    // NodeDirectory / EmptyNodeDirectory
+    // NodeDirectory
     // ---------------------------------------------------------------------
 
     [Fact]
@@ -216,37 +216,6 @@ public class NodeInfraTests
         Assert.Empty(directory.GetOnlineNodeIds());
     }
 
-    [Fact]
-    public void EmptyNodeDirectory_AlwaysReturnsEmpty()
-    {
-        var directory = new EmptyNodeDirectory();
-
-        Assert.Empty(directory.GetOnlineNodeIds());
-    }
-
-    // ---------------------------------------------------------------------
-    // LocalDockerServiceResolver
-    // ---------------------------------------------------------------------
-
-    [Fact]
-    public void LocalDockerServiceResolver_ResolvesLocal_ForNull()
-    {
-        var local = new Mock<IDockerService>();
-        var resolver = new LocalDockerServiceResolver(local.Object);
-
-        Assert.Same(local.Object, resolver.Resolve(null));
-    }
-
-    [Fact]
-    public void LocalDockerServiceResolver_ResolvesLocal_ForAnyNodeId()
-    {
-        var local = new Mock<IDockerService>();
-        var resolver = new LocalDockerServiceResolver(local.Object);
-
-        // A node never re-routes; every id resolves to its own local daemon.
-        Assert.Same(local.Object, resolver.Resolve(Guid.NewGuid()));
-    }
-
     // ---------------------------------------------------------------------
     // DockerServiceResolver
     // ---------------------------------------------------------------------
@@ -257,7 +226,7 @@ public class NodeInfraTests
         var local = new Mock<IDockerService>();
         var hub = new Mock<IHubContext<NodeHub>>();
         var registry = new Mock<INodeRegistry>();
-        var resolver = new DockerServiceResolver(local.Object, hub.Object, registry.Object);
+        var resolver = new DockerServiceResolver(local.Object, hub.Object, registry.Object, new DeployLogRelay());
 
         Assert.Same(local.Object, resolver.Resolve(null));
     }
@@ -268,7 +237,7 @@ public class NodeInfraTests
         var local = new Mock<IDockerService>();
         var hub = new Mock<IHubContext<NodeHub>>();
         var registry = new Mock<INodeRegistry>();
-        var resolver = new DockerServiceResolver(local.Object, hub.Object, registry.Object);
+        var resolver = new DockerServiceResolver(local.Object, hub.Object, registry.Object, new DeployLogRelay());
 
         var resolved = resolver.Resolve(Guid.NewGuid());
 
@@ -278,7 +247,7 @@ public class NodeInfraTests
     }
 
     // ---------------------------------------------------------------------
-    // NodeRpc / OfflineNodeRpc
+    // NodeRpc
     // ---------------------------------------------------------------------
 
     [Fact]
@@ -295,15 +264,6 @@ public class NodeInfraTests
             () => rpc.InvokeAsync<bool>(node, "AnyMethod", new object?[] { "arg" }, CancellationToken.None));
 
         Assert.Equal(node, ex.NodeId);
-    }
-
-    [Fact]
-    public async Task OfflineNodeRpc_InvokeAsync_ThrowsNotSupported()
-    {
-        var rpc = new OfflineNodeRpc();
-
-        await Assert.ThrowsAsync<NotSupportedException>(
-            () => rpc.InvokeAsync<bool>(Guid.NewGuid(), "AnyMethod", new object?[0], CancellationToken.None));
     }
 
     // ---------------------------------------------------------------------
@@ -333,7 +293,7 @@ public class NodeInfraTests
         var registry = new Mock<INodeRegistry>();
         string connectionId = string.Empty;
         registry.Setup(r => r.TryGetConnectionId(It.IsAny<Guid>(), out connectionId)).Returns(false);
-        return new RemoteDockerService(node, hub.Object, registry.Object);
+        return new RemoteDockerService(node, hub.Object, registry.Object, new DeployLogRelay());
     }
 
     [Fact]
@@ -373,7 +333,7 @@ public class NodeInfraTests
         var node = Guid.NewGuid();
         var svc = OfflineRemote(node);
 
-        var ex = await Assert.ThrowsAsync<NodeOfflineException>(() => svc.StartProjectAsync("/path"));
+        var ex = await Assert.ThrowsAsync<NodeOfflineException>(() => svc.StartProjectAsync("myapp"));
         Assert.Equal(node, ex.NodeId);
     }
 
@@ -381,14 +341,39 @@ public class NodeInfraTests
     public async Task RemoteDockerService_StopProjectAsync_ThrowsNodeOffline_WhenOffline()
     {
         var svc = OfflineRemote(Guid.NewGuid());
-        await Assert.ThrowsAsync<NodeOfflineException>(() => svc.StopProjectAsync("/path"));
+        await Assert.ThrowsAsync<NodeOfflineException>(() => svc.StopProjectAsync("myapp"));
     }
 
     [Fact]
     public async Task RemoteDockerService_RestartProjectAsync_ThrowsNodeOffline_WhenOffline()
     {
         var svc = OfflineRemote(Guid.NewGuid());
-        await Assert.ThrowsAsync<NodeOfflineException>(() => svc.RestartProjectAsync("/path"));
+        await Assert.ThrowsAsync<NodeOfflineException>(() => svc.RestartProjectAsync("myapp"));
+    }
+
+    [Fact]
+    public async Task RemoteDockerService_PipelineSteps_ThrowNodeOffline_WhenOffline()
+    {
+        var svc = OfflineRemote(Guid.NewGuid());
+
+        await Assert.ThrowsAsync<NodeOfflineException>(() => svc.SyncRepositoryAsync("/p/app", "main", null, _ => Task.CompletedTask));
+        await Assert.ThrowsAsync<NodeOfflineException>(() =>
+            svc.ComposeUpAsync(new DockiUp.Application.Dtos.ComposeTarget("/p/app", "/p/app/c.yml", "app"), _ => Task.CompletedTask));
+    }
+
+    [Fact]
+    public async Task DeployLogRelay_RoutesLinesToRegisteredRun_AndDropsAfterRemove()
+    {
+        var relay = new DeployLogRelay();
+        var lines = new List<string>();
+        var runId = relay.Register(line => { lines.Add(line); return Task.CompletedTask; });
+
+        await relay.WriteAsync(runId, "one");
+        await relay.WriteAsync("unknown-run", "ignored");
+        relay.Remove(runId);
+        await relay.WriteAsync(runId, "late");
+
+        Assert.Equal(["one"], lines);
     }
 
     [Fact]
@@ -465,15 +450,15 @@ public class NodeInfraTests
     }
 
     [Fact]
-    public void NodeDraftDto_ExposesMembers_IncludingNullableControlPlaneUrl()
+    public void NodeDraftDto_ExposesMembers_IncludingNullableServerUrl()
     {
         var dto = new NodeDraftDto("suggested", "tok-abc", "https://control.example");
         Assert.Equal("suggested", dto.SuggestedName);
         Assert.Equal("tok-abc", dto.Token);
-        Assert.Equal("https://control.example", dto.ControlPlaneUrl);
+        Assert.Equal("https://control.example", dto.ServerUrl);
 
         var withoutUrl = new NodeDraftDto("s", "t", null);
-        Assert.Null(withoutUrl.ControlPlaneUrl);
+        Assert.Null(withoutUrl.ServerUrl);
     }
 
     [Fact]

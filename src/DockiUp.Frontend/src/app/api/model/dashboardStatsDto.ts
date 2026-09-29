@@ -16,5 +16,6 @@ export interface DashboardStatsDto {
     totalContainers: DashboardStatsDtoTotalProjects;
     runningContainers: DashboardStatsDtoTotalProjects;
     recentActivity: Array<ActivityEntryDto>;
+    localDockerVersion?: string | null;
 }
 

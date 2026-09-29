@@ -41,14 +41,22 @@ namespace DockiUp.API.Nodes
         /// anything. The UI builds the copy-paste node compose from this and only saves on demand.</summary>
         [HttpGet("draft")]
         [ProducesResponseType(typeof(NodeDraftDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public IActionResult Draft()
         {
-            var controlPlaneUrl = configuration["DockiUp:PublicUrl"]
-                ?? Environment.GetEnvironmentVariable("PUBLIC_URL");
-            return Ok(new NodeDraftDto(
-                SuggestedName: GenerateNodeName(),
-                Token: NodeTokenHasher.Generate(),
-                ControlPlaneUrl: string.IsNullOrWhiteSpace(controlPlaneUrl) ? null : controlPlaneUrl.TrimEnd('/')));
+            // A node dials this URL to reach the control plane, so without it there's no compose worth
+            // showing. It must be reachable from the node's host - never localhost.
+            var serverUrl = (configuration["DockiUp:PublicUrl"]
+                ?? Environment.GetEnvironmentVariable("PUBLIC_URL") ?? "").TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(serverUrl))
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Public URL not configured",
+                    Detail = "Set PUBLIC_URL on the control plane to the URL nodes should dial (e.g. https://dockiup.example.com) - it must be reachable from the node's host, not localhost. Then reopen this dialog.",
+                    Status = StatusCodes.Status400BadRequest,
+                });
+
+            return Ok(new NodeDraftDto(GenerateNodeName(), NodeTokenHasher.Generate(), serverUrl));
         }
 
         // A simple docker-style adjective-animal suggestion (e.g. "brave-otter") the user can rename

@@ -12,6 +12,6 @@
 export interface NodeDraftDto { 
     suggestedName: string;
     token: string;
-    controlPlaneUrl: string | null;
+    serverUrl: string;
 }
 

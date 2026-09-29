@@ -47,7 +47,7 @@ public class DeployProjectCommandValidatorTests
         => Assert.False(_validator.Validate(Cmd(d => d.Compose = null)).IsValid);
 
     [Fact]
-    public void Git_RequiresGitUrlAndCompose()
+    public void Git_RequiresGitUrl()
     {
         Assert.False(_validator.Validate(Cmd(d => { d.ProjectOrigin = ProjectOriginType.Git; d.GitUrl = null; })).IsValid);
         Assert.True(_validator.Validate(Cmd(d => { d.ProjectOrigin = ProjectOriginType.Git; d.GitUrl = "file:///r.git"; d.Compose = "services: {}"; })).IsValid);
@@ -77,11 +77,45 @@ public class DeployProjectCommandValidatorTests
         => Assert.False(_validator.Validate(Cmd(d => d.ProjectUpdateMethod = (ProjectUpdateMethod)999)).IsValid);
 
     [Fact]
-    public void Webhook_RequiresWebhookUrl()
-    {
-        Assert.False(_validator.Validate(Cmd(d => d.ProjectUpdateMethod = ProjectUpdateMethod.Webhook)).IsValid);
-        Assert.True(_validator.Validate(Cmd(d => { d.ProjectUpdateMethod = ProjectUpdateMethod.Webhook; d.WebhookUrl = "https://hook"; })).IsValid);
-    }
+    public void Webhook_NeedsNoUserSuppliedUrl()
+        => Assert.True(_validator.Validate(Cmd(d => d.ProjectUpdateMethod = ProjectUpdateMethod.Webhook)).IsValid);
+
+    [Theory]
+    [InlineData("../etc")]
+    [InlineData("..")]
+    [InlineData("a/b")]
+    [InlineData(@"a\b")]
+    [InlineData(" leading-space")]
+    [InlineData("-dash-first")]
+    [InlineData("semi;colon")]
+    public void ProjectName_UnsafeForFolderOrComposeName_Fails(string name)
+        => Assert.False(_validator.Validate(Cmd(d => d.ProjectName = name)).IsValid);
+
+    [Theory]
+    [InlineData("My App_1")]
+    [InlineData("web-2")]
+    public void ProjectName_Safe_Passes(string name)
+        => Assert.True(_validator.Validate(Cmd(d => d.ProjectName = name)).IsValid);
+
+    [Theory]
+    [InlineData("../x.yml")]
+    [InlineData("deploy/../../x.yml")]
+    [InlineData("/etc/compose.yml")]
+    public void Git_ComposeFileOutsideRepo_Fails(string composeFile)
+        => Assert.False(_validator.Validate(Cmd(d =>
+        {
+            d.ProjectOrigin = ProjectOriginType.Git; d.GitUrl = "https://git/x.git"; d.Compose = null; d.ComposeFile = composeFile;
+        })).IsValid);
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("docker-compose.yml")]
+    [InlineData("deploy/compose.prod.yml")]
+    public void Git_ComposeFileInsideRepo_OrDefault_Passes_WithoutPastedCompose(string? composeFile)
+        => Assert.True(_validator.Validate(Cmd(d =>
+        {
+            d.ProjectOrigin = ProjectOriginType.Git; d.GitUrl = "https://git/x.git"; d.Compose = null; d.ComposeFile = composeFile;
+        })).IsValid);
 
     [Fact]
     public void Periodic_RequiresPositiveInterval()
@@ -90,10 +124,6 @@ public class DeployProjectCommandValidatorTests
         Assert.False(_validator.Validate(Cmd(d => { d.ProjectUpdateMethod = ProjectUpdateMethod.Periodically; d.PeriodicIntervalInMinutes = 0; })).IsValid);
         Assert.True(_validator.Validate(Cmd(d => { d.ProjectUpdateMethod = ProjectUpdateMethod.Periodically; d.PeriodicIntervalInMinutes = 5; })).IsValid);
     }
-
-    [Fact]
-    public void TooLongWebhookUrl_Fails()
-        => Assert.False(_validator.Validate(Cmd(d => { d.ProjectUpdateMethod = ProjectUpdateMethod.Webhook; d.WebhookUrl = new string('x', 2001); })).IsValid);
 
     [Fact]
     public void NonPeriodic_WithInterval_Fails()

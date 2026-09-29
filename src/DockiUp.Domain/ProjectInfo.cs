@@ -18,7 +18,10 @@ namespace DockiUp.Domain
         public required string ComposePath { get; set; }
 
         public required ProjectUpdateMethod ProjectUpdateMethod { get; set; }
-        public string? WebhookUrl { get; set; }
+        /// <summary>Git branch the checkout tracks; recorded at clone time when not chosen explicitly.</summary>
+        public string? Branch { get; set; }
+        /// <summary>Per-project webhook secret: accepted as a GitHub/Gitea HMAC key, GitLab token, or X-Webhook-Secret.</summary>
+        public string WebhookSecret { get; set; } = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
         public int? PeriodicIntervalInMinutes { get; set; }
         /// <summary>Last time periodic update ran (Komodo-style polling).</summary>
         public DateTime? LastPeriodicUpdateAt { get; set; }

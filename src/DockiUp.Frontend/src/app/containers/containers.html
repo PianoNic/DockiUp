@@ -1,1 +1,85 @@
-<p>containers works!</p>
+<div class="activity-wrapper">
+  <header class="activity-header">
+    <div>
+      <h1 class="activity-title">Containers</h1>
+      <p class="activity-subtitle">{{ runningCount() }} of {{ rows().length }} running across all projects and nodes</p>
+    </div>
+    <div class="activity-actions">
+      <div class="filter-field">
+        <mat-icon>search</mat-icon>
+        <input type="text" placeholder="Filter…" [value]="filter()" (input)="filter.set($any($event.target).value)" />
+      </div>
+      <button mat-stroked-button (click)="store.loadContainers()" [disabled]="store.loading()">
+        <mat-icon>refresh</mat-icon>
+        {{ store.loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  @if (store.loading() && rows().length === 0) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (filtered().length === 0 && !store.loading()) {
+    <p class="activity-empty">
+      @if (rows().length === 0) { No containers yet. } @else { No containers match "{{ filter() }}". }
+    </p>
+  } @else {
+    <div class="table-scroll">
+      <table class="activity-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>State</th>
+            <th>Service</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (g of groups(); track g.key) {
+            <tr class="group-row" (click)="toggle(g.key)">
+              <td colspan="5">
+                <div class="group-head">
+                  <mat-icon class="chevron">{{ collapsed().has(g.key) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+                  <a class="table-link" [routerLink]="['/project', g.name]" (click)="$event.stopPropagation()">{{ g.name }}</a>
+                  <span class="chip">{{ g.running }}/{{ g.rows.length }} running</span>
+                  <span class="chip"><mat-icon>dns</mat-icon>{{ g.node }}</span>
+                </div>
+              </td>
+            </tr>
+            @if (!collapsed().has(g.key)) {
+            @for (r of g.rows; track r.id) {
+            <tr class="clickable-row" (click)="open(r)" tabindex="0" (keydown.enter)="open(r)">
+              <td class="target mono indent">{{ r.name }}</td>
+              <td><span class="state-badge" [attr.data-state]="stateLabel(r)">{{ stateLabel(r) }}</span></td>
+              <td class="details">{{ r.serviceName }}</td>
+              <td class="when">{{ r.status }}</td>
+              <td>
+                <div class="row-actions" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+                  <button mat-icon-button (click)="act(r, 'start')" [disabled]="r.stateValue !== Stopped" matTooltip="Start" aria-label="Start">
+                    <mat-icon>play_arrow</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="act(r, 'stop')" [disabled]="r.stateValue === Stopped" matTooltip="Stop" aria-label="Stop">
+                    <mat-icon>stop</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="act(r, 'restart')" [disabled]="r.stateValue === Stopped" matTooltip="Restart" aria-label="Restart">
+                    <mat-icon>restart_alt</mat-icon>
+                  </button>
+                  <a mat-icon-button [routerLink]="['/terminal', r.id]" [queryParams]="{ nodeId: r.nodeId }" [disabled]="r.stateValue !== Running" matTooltip="Terminal" aria-label="Terminal">
+                    <mat-icon>terminal</mat-icon>
+                  </a>
+                  <button mat-icon-button (click)="remove(r)" matTooltip="Remove" aria-label="Remove container">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            }
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

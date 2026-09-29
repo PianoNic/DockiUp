@@ -50,7 +50,20 @@ public class NodesControllerTests
 
         Assert.False(string.IsNullOrWhiteSpace(draft.SuggestedName));
         Assert.False(string.IsNullOrWhiteSpace(draft.Token));
-        Assert.Equal("https://cp.example", draft.ControlPlaneUrl);
+        Assert.Equal("https://cp.example", draft.ServerUrl);
+    }
+
+    [Fact]
+    public void Draft_Returns400_WhenPublicUrlMissing()
+    {
+        var original = Environment.GetEnvironmentVariable("PUBLIC_URL");
+        Environment.SetEnvironmentVariable("PUBLIC_URL", null);
+        try
+        {
+            var result = Build(TestSupport.TestDb.Create(), new Mock<INodeRegistry>()).Draft();
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+        finally { Environment.SetEnvironmentVariable("PUBLIC_URL", original); }
     }
 
     [Fact]

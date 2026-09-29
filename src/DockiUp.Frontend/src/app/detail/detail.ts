@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnInit, signal, ViewChild, ElementRef, afterNextRender, effect } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProjectStore } from '../shared/stores/project.store';
 import { MatCardModule } from '@angular/material/card';
@@ -8,13 +8,18 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
-import { ContainerDto, ContainerService, Configuration, ProjectDto } from '../api';
-import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
-import { NotificationService } from '../shared/services/notification.service';
+import { ContainerDto, ContainerService, Configuration } from '../api';
+import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
+import { NotificationService, errorMessage } from '../shared/services/notification.service';
+import { ProjectDeployments } from './project-deployments';
+import { ProjectWebhook } from './project-webhook';
+import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
+import { MatTabsModule } from '@angular/material/tabs';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 
 @Component({
   selector: 'app-detail',
@@ -25,10 +30,14 @@ import { NotificationService } from '../shared/services/notification.service';
     MatFormFieldModule,
     FormsModule,
     MatButtonModule,
-    MatMenuModule,
+    MatTooltipModule,
     MatIconModule,
     MatProgressSpinnerModule,
     RouterLink,
+    ProjectDeployments,
+    ProjectWebhook,
+    MatTabsModule,
+    LocalDatePipe,
   ],
   templateUrl: './detail.html',
   styleUrl: './detail.scss',
@@ -40,16 +49,19 @@ export class Detail implements OnInit {
   projectStore = inject(ProjectStore);
   private containerService = inject(ContainerService);
   private notifications = inject(NotificationService);
+  private confirm = inject(ConfirmService);
+  private router = inject(Router);
   readonly dockerId = this.route.snapshot.paramMap.get('id');
 
   /** Empty string = all containers, otherwise single container id. */
-  readonly selectedContainerId = signal<string>('');
+  readonly selectedContainerId = signal<string>(this.route.snapshot.queryParamMap.get('container') ?? '');
   readonly consoleLogs = signal<string>('');
   readonly logsLoading = signal<boolean>(false);
 
   @ViewChild('logContainer') logContainerRef?: ElementRef<HTMLDivElement>;
 
   UpdateMethodType = UpdateMethodType;
+  stateLabel = containerStateLabel;
 
   constructor() {
     afterNextRender(() => this.scrollLogsToBottom());
@@ -68,20 +80,61 @@ export class Detail implements OnInit {
     this.projectStore.projectDtos().find((a) => a.dockerProjectName === this.dockerId)
   );
 
-  async onStopProject() {
+  async lifecycle(action: 'start' | 'stop' | 'restart') {
     const p = this.project();
-    if (p?.dockerProjectName) await this.projectStore.stopProject(p.dockerProjectName);
+    if (p) await this.projectStore.lifecycle(p, action);
   }
 
-  async onRestartProject() {
-    const p = this.project();
-    if (p?.dockerProjectName) await this.projectStore.restartProject(p.dockerProjectName);
+  readonly pulling = signal(false);
+
+  async pull() {
+    const id = this.project()?.id;
+    if (!id) return;
+    this.pulling.set(true);
+    try {
+      await this.projectStore.pullImages(id);
+    } finally {
+      this.pulling.set(false);
+    }
   }
 
-  async onUpdateProject() {
+  /** Clicking a container card shows only its logs; clicking it again goes back to all containers. */
+  toggleContainerLogs(container: ContainerDto) {
+    this.selectedContainerId.set(this.selectedContainerId() === container.id ? '' : container.id);
+    void this.loadConsoleLogs();
+  }
+
+  async removeProject() {
     const p = this.project();
-    const id = (p as ProjectDto & { id?: string })?.id;
-    if (id != null) await this.projectStore.updateProject(id);
+    if (!p) return;
+    const answer = await this.confirm.askWithOption({
+      title: `Remove ${p.projectName}?`,
+      message: p.managedByDockiUp
+        ? 'Stops and deletes its containers and networks, and removes the project from DockiUp (its folder and deployment history).'
+        : 'Stops and deletes its containers and networks (docker compose down). Its compose files are not touched.',
+      option: 'Also delete its volumes (this deletes their data)',
+      confirmText: 'Remove',
+      destructive: true,
+    });
+    if (answer && (await this.projectStore.removeProject(p, answer.checked))) await this.router.navigate(['/dashboard']);
+  }
+
+  async onRemoveContainer(container: ContainerDto) {
+    const ok = await this.confirm.ask({
+      title: `Remove ${container.name}?`,
+      message: 'The container is force-removed. A compose project recreates it on its next deploy or start.',
+      confirmText: 'Remove',
+      destructive: true,
+    });
+    if (ok) await this.projectStore.removeContainer(container, this.nodeId);
+  }
+
+  /** 0 Containers, 1 Deployments, 2 Webhook. */
+  readonly tab = signal(0);
+
+  async deployNow() {
+    const id = this.project()?.id;
+    if (id && (await this.projectStore.deployNow(id))) this.tab.set(1); // watch it run
   }
 
   /** The node the current project runs on (undefined = local control-plane host). */
@@ -147,10 +200,8 @@ export class Detail implements OnInit {
     }
   }
 
-  canUpdateProject(): boolean {
-    const p = this.project();
-    return !!(p?.managedByDockiUp && (p as ProjectDto & { id?: string }).id != null);
-  }
+  /** Managed projects have a DockiUp id: deploy pipeline, history and webhook. */
+  readonly managedId = computed(() => (this.project()?.managedByDockiUp ? this.project()?.id ?? null : null));
 
   async loadConsoleLogs(): Promise<void> {
     const containerId = this.selectedContainerId();
@@ -183,7 +234,7 @@ export class Detail implements OnInit {
               return { name: c.name, logs: logs ?? '' };
             } catch (err) {
               this.notifications.showError(`Failed to load logs for ${c.name}`, err);
-              return { name: c.name, logs: `(failed: ${err instanceof Error ? err.message : String(err)})` };
+              return { name: c.name, logs: `(failed: ${errorMessage(err)})` };
             }
           })
         );
@@ -205,7 +256,7 @@ export class Detail implements OnInit {
         this.consoleLogs.set(logs || '(no output)');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       this.consoleLogs.set('Failed to load logs. ' + msg);
       this.notifications.showError('Failed to load logs', err);
     } finally {

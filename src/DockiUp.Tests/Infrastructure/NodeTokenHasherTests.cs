@@ -24,7 +24,7 @@ public class NodeTokenHasherTests
         var hash = NodeTokenHasher.Hash("anything");
         // SHA-256 = 32 bytes -> 44 base64 chars (with padding).
         Assert.Equal(44, hash.Length);
-        Assert.Equal(Convert.FromBase64String(hash).Length, 32);
+        Assert.Equal(32, Convert.FromBase64String(hash).Length);
     }
 
     [Fact]

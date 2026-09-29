@@ -9,6 +9,10 @@ namespace DockiUp.Application.Dtos
 
         public required ProjectOriginType ProjectOrigin { get; set; }
         public string? GitUrl { get; set; }
+        /// <summary>Git: branch to track (the repo's default branch when empty).</summary>
+        public string? Branch { get; set; }
+        /// <summary>Git: compose file path inside the repo (default docker-compose.yml).</summary>
+        public string? ComposeFile { get; set; }
         public string? Compose { get; set; }
         public string? Path { get; set; }
 
@@ -17,7 +21,7 @@ namespace DockiUp.Application.Dtos
         public Guid? NodeId { get; set; }
 
         public required ProjectUpdateMethod ProjectUpdateMethod { get; set; }
-        public string? WebhookUrl { get; set; }
+
         public int? PeriodicIntervalInMinutes { get; set; }
     }
 }

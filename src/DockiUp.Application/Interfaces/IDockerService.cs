@@ -17,13 +17,31 @@ namespace DockiUp.Application.Interfaces
         Task<ProjectDto?> GetProjectByDockerNameAsync(string dockerProjectName);
         Task<ContainerDto?> InspectContainerAsync(string containerId, CancellationToken cancellationToken = default);
 
-        Task StartProjectAsync(string folderPath);
-        Task StopProjectAsync(string folderPath);
-        Task RestartProjectAsync(string folderPath);
+        // Lifecycle by compose project name (`docker compose -p`): needs no compose files, so it works for
+        // every project on the host, managed by DockiUp or not.
+        Task StartProjectAsync(string dockerProjectName);
+        Task StopProjectAsync(string dockerProjectName);
+        Task RestartProjectAsync(string dockerProjectName);
+        /// <summary>`docker compose -p NAME down` (containers + networks); volumes only when asked, they hold data.</summary>
+        Task RemoveProjectAsync(string dockerProjectName, bool removeVolumes);
+        /// <summary>Deletes a project folder DockiUp created under the projects root (runs where it lives).</summary>
+        Task DeleteProjectFilesAsync(string projectPath);
+
+        /// <summary>Deploy pipeline step 1 (git projects): sync the checkout. Runs where the checkout lives.</summary>
+        Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default);
+
+        /// <summary>Deploy pipeline step 2: `compose pull` then `compose up -d --build --remove-orphans`,
+        /// streaming output to <paramref name="log"/>. Throws with compose's output when it fails.</summary>
+        /// <summary>`compose pull` only: downloads newer images without touching running containers.</summary>
+        Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default);
+
+        Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default);
 
         Task StartContainerAsync(string containerId);
         Task StopContainerAsync(string containerId);
         Task RestartContainerAsync(string containerId);
+        /// <summary>Force-removes one container (compose recreates it on the next deploy).</summary>
+        Task RemoveContainerAsync(string containerId);
 
         /// <summary>
         /// Get container logs (stdout + stderr). Returns decoded text.

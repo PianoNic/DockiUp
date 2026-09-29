@@ -1,31 +1,18 @@
-using DockiUp.Application.Commands;
+using DockiUp.Application.Deployments;
 using DockiUp.Application.Interfaces;
 using DockiUp.Domain;
 using DockiUp.Domain.Enums;
-using Mediator;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.API.HostedServices
 {
-    /// <summary>Runs periodic project updates (Komodo-style resource poll interval).</summary>
-    // Timer-driven background loop; exercised by the running app rather than unit-mocked.
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    public class PeriodicUpdateHostedService : BackgroundService
+    /// <summary>Queues a periodic check for every project whose interval has elapsed. The check itself
+    /// (git sync / image pull, redeploy only on change) runs in the deploy queue.</summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage] // timer loop; the work it queues is unit-tested
+    public class PeriodicUpdateHostedService(IServiceScopeFactory scopeFactory, IDeploymentQueue queue, ILogger<PeriodicUpdateHostedService> logger)
+        : BackgroundService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<PeriodicUpdateHostedService> _logger;
-        private readonly TimeSpan _pollInterval;
-
-        public PeriodicUpdateHostedService(
-            IServiceScopeFactory scopeFactory,
-            ILogger<PeriodicUpdateHostedService> logger,
-            IOptions<PeriodicUpdateOptions> options)
-        {
-            _scopeFactory = scopeFactory;
-            _logger = logger;
-            _pollInterval = options.Value.PollInterval;
-        }
+        private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(1);
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -33,48 +20,24 @@ namespace DockiUp.API.HostedServices
             {
                 try
                 {
-                    using var scope = _scopeFactory.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<IDockiUpDbContext>();
-                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
-                    var projects = dbContext.ProjectInfo
+                    using var scope = scopeFactory.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<IDockiUpDbContext>();
+                    var now = DateTime.UtcNow;
+                    var projects = await db.ProjectInfo
                         .Where(p => p.ProjectUpdateMethod == ProjectUpdateMethod.Periodically && p.PeriodicIntervalInMinutes != null)
-                        .ToList();
+                        .Select(p => new { p.Id, p.PeriodicIntervalInMinutes, p.LastPeriodicUpdateAt })
+                        .ToListAsync(stoppingToken);
 
-                    foreach (var project in projects)
-                    {
-                        if (stoppingToken.IsCancellationRequested) break;
-                        var interval = TimeSpan.FromMinutes(project.PeriodicIntervalInMinutes!.Value);
-                        var due = project.LastPeriodicUpdateAt == null ||
-                                  DateTime.UtcNow - project.LastPeriodicUpdateAt.Value >= interval;
-                        if (!due) continue;
-
-                        try
-                        {
-                            await mediator.Send(new UpdateProjectCommand(project.Id), stoppingToken);
-                            project.LastPeriodicUpdateAt = DateTime.UtcNow;
-                            await dbContext.SaveChangesAsync(stoppingToken);
-                            _logger.LogInformation("Periodic update completed for project {ProjectName} (id {Id})", project.ProjectName, project.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Periodic update failed for project {ProjectName} (id {Id})", project.ProjectName, project.Id);
-                        }
-                    }
+                    foreach (var p in projects.Where(p => p.LastPeriodicUpdateAt is null
+                                 || now - p.LastPeriodicUpdateAt.Value >= TimeSpan.FromMinutes(p.PeriodicIntervalInMinutes!.Value)))
+                        queue.TryEnqueue(new DeploymentRequest(p.Id, DeploymentTrigger.Periodic));
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogError(ex, "Error in periodic update cycle");
+                    logger.LogError(ex, "Error in periodic update cycle");
                 }
-
-                await Task.Delay(_pollInterval, stoppingToken);
+                await Task.Delay(PollInterval, stoppingToken);
             }
         }
-    }
-
-    public class PeriodicUpdateOptions
-    {
-        /// <summary>How often to check for due projects. Default 1 minute.</summary>
-        public TimeSpan PollInterval { get; set; } = TimeSpan.FromMinutes(1);
     }
 }

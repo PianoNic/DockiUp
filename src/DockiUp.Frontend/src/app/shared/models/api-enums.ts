@@ -50,3 +50,15 @@ export function normalizeContainerState(state: number | string | undefined | nul
     default: return UpdateMethodType.Unknown;
   }
 }
+
+/** Lower-case display label for a container state; also the `data-state` value the global .state-badge colours. */
+export function containerStateLabel(state: number | string | undefined): string {
+  switch (normalizeContainerState(state)) {
+    case UpdateMethodType.Created: return 'created';
+    case UpdateMethodType.Stopped: return 'stopped';
+    case UpdateMethodType.Running: return 'running';
+    case UpdateMethodType.Updating: return 'updating';
+    case UpdateMethodType.Crashed: return 'crashed';
+    default: return 'unknown';
+  }
+}

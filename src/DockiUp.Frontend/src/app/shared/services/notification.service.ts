@@ -64,7 +64,20 @@ export class NotificationService {
    * Show a toast from a caught error (extracts message from Error or string).
    */
   showError(contextMessage: string, err: unknown): void {
-    const detail = err instanceof Error ? err.message : String(err);
-    this.error(contextMessage, detail);
+    this.error(contextMessage, errorMessage(err));
   }
+}
+
+/** Best human-readable message from an HttpErrorResponse (ProblemDetails or text body), Error, or string. */
+export function errorMessage(err: unknown): string {
+  const e = err as { error?: unknown; message?: string; statusText?: string } | null;
+  const body = e?.error;
+  if (typeof body === 'string' && body.trim()) return body;
+  if (body && typeof body === 'object') {
+    const problem = body as { detail?: string; title?: string };
+    if (problem.detail) return problem.detail;
+    if (problem.title) return problem.title;
+  }
+  if (typeof err === 'string') return err;
+  return e?.message ?? e?.statusText ?? 'Unknown error';
 }

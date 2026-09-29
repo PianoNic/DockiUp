@@ -74,7 +74,8 @@ export class CreateProjectModal implements OnInit {
   constructor() {
     // Initialize forms
     this.projectInformationFormGroup = this.fb.group({
-      projectName: ['', [Validators.required, Validators.maxLength(20)]],
+      // Mirrors the server rule: it becomes a folder name and the compose project name.
+      projectName: ['', [Validators.required, Validators.maxLength(100), Validators.pattern(/^[A-Za-z0-9][A-Za-z0-9 _-]*$/)]],
       description: [''],
       // Empty string = deploy on the local control-plane host; a node id = deploy to that node.
       nodeId: ['']
@@ -83,13 +84,14 @@ export class CreateProjectModal implements OnInit {
     this.projectOriginFormGroup = this.fb.group({
       originType: [ProjectOriginType.Compose, Validators.required],
       gitUrl: [''],
+      branch: [''],
+      composeFile: [''],
       composeContent: ['', Validators.required],
       path: ['']
     });
 
     this.updateMethodFormGroup = this.fb.group({
       updateMethod: [ProjectUpdateMethod.Webhook, Validators.required],
-      webhookUrl: [''],
       periodicInterval: ['']
     });
   }
@@ -152,7 +154,6 @@ export class CreateProjectModal implements OnInit {
 
     // Reset update method form when origin type changes, but keep webhook preselected
     this.updateMethodFormGroup.get('updateMethod')?.setValue(ProjectUpdateMethod.Webhook, { emitEvent: false });
-    this.updateMethodFormGroup.get('webhookUrl')?.setValue('', { emitEvent: false });
     this.updateMethodFormGroup.get('periodicInterval')?.setValue('', { emitEvent: false });
 
     // Apply validators based on origin type
@@ -167,7 +168,6 @@ export class CreateProjectModal implements OnInit {
 
       case ProjectOriginType.Git:
         originControls['gitUrl'].setValidators([Validators.required]);
-        originControls['composeContent'].setValidators([Validators.required]);
         break;
     }
 
@@ -188,23 +188,16 @@ export class CreateProjectModal implements OnInit {
   }
 
   private updateValidationForUpdateMethod(updateMethod: ProjectUpdateMethod) {
-    const webhookControl = this.updateMethodFormGroup.get('webhookUrl');
     const intervalControl = this.updateMethodFormGroup.get('periodicInterval');
 
     // Clear validators
-    webhookControl?.clearValidators();
     intervalControl?.clearValidators();
 
     // Reset values
-    webhookControl?.setValue('', { emitEvent: false });
     intervalControl?.setValue('', { emitEvent: false });
 
     // Apply validators based on update method
     switch (updateMethod) {
-      case ProjectUpdateMethod.Webhook:
-        webhookControl?.setValidators([Validators.required, Validators.pattern('https?://.+')]);
-        break;
-
       case ProjectUpdateMethod.Periodically:
         intervalControl?.setValidators([Validators.required, Validators.min(1)]);
         break;
@@ -215,7 +208,6 @@ export class CreateProjectModal implements OnInit {
     }
 
     // Update validity
-    webhookControl?.updateValueAndValidity();
     intervalControl?.updateValueAndValidity();
 
     // Update validation states
@@ -256,7 +248,7 @@ export class CreateProjectModal implements OnInit {
     } else {
       switch (updateMethod) {
         case ProjectUpdateMethod.Webhook:
-          step3Valid = !!this.updateMethodFormGroup.get('webhookUrl')?.valid;
+          step3Valid = true; // DockiUp generates the webhook URL and secret
           break;
         case ProjectUpdateMethod.Periodically:
           step3Valid = !!this.updateMethodFormGroup.get('periodicInterval')?.valid;
@@ -290,13 +282,12 @@ export class CreateProjectModal implements OnInit {
       nodeId: info.nodeId || null,
       projectOrigin: origin.originType,
       gitUrl: origin.originType === ProjectOriginType.Git ? origin.gitUrl ?? null : null,
-      // Set compose for both Git and Compose origin types
-      compose: (origin.originType === ProjectOriginType.Compose || origin.originType === ProjectOriginType.Git)
-        ? origin.composeContent ?? null
-        : null,
+      // Git projects use the repo's own compose file; compose projects send the pasted content.
+      branch: origin.originType === ProjectOriginType.Git ? origin.branch?.trim() || null : null,
+      composeFile: origin.originType === ProjectOriginType.Git ? origin.composeFile?.trim() || null : null,
+      compose: origin.originType === ProjectOriginType.Compose ? origin.composeContent ?? null : null,
       path: origin.originType === ProjectOriginType.Import ? origin.path ?? null : null,
       projectUpdateMethod: update.updateMethod,
-      webhookUrl: update.updateMethod === ProjectUpdateMethod.Webhook ? update.webhookUrl ?? null : null,
       periodicIntervalInMinutes: update.updateMethod === ProjectUpdateMethod.Periodically
         ? (update.periodicInterval ? Number(update.periodicInterval) : null)
         : null

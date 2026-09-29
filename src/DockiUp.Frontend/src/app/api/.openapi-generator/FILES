@@ -22,7 +22,13 @@ model/containerDto.ts
 model/createNodeRequest.ts
 model/dashboardStatsDto.ts
 model/dashboardStatsDtoTotalProjects.ts
+model/deploymentDto.ts
+model/deploymentStatus.ts
+model/deploymentTaskDto.ts
+model/deploymentTrigger.ts
 model/generatedSecretDto.ts
+model/listDeploymentTasksRecentParameter.ts
+model/listDeploymentsLimitParameter.ts
 model/models.ts
 model/nodeDraftDto.ts
 model/nodeDto.ts
@@ -30,8 +36,10 @@ model/nodePingResultDto.ts
 model/problemDetails.ts
 model/problemDetailsStatus.ts
 model/projectDto.ts
+model/pullResultDto.ts
 model/secretDto.ts
 model/setupProjectDto.ts
 model/storeSecretRequest.ts
+model/webhookInfoDto.ts
 param.ts
 variables.ts

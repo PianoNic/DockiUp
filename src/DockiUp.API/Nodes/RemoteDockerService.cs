@@ -8,7 +8,7 @@ namespace DockiUp.API.Nodes
     /// the matching handler on the node's live SignalR connection; the node executes it against its own
     /// Docker daemon (and its own project folders) and returns the result. Void operations map to a
     /// bool result because SignalR client-result invocations must return a value.</summary>
-    public class RemoteDockerService(Guid nodeId, IHubContext<NodeHub> hub, INodeRegistry registry) : IDockerService
+    public class RemoteDockerService(Guid nodeId, IHubContext<NodeHub> hub, INodeRegistry registry, DeployLogRelay logRelay) : IDockerService
     {
         private ISingleClientProxy Node()
         {
@@ -31,14 +31,40 @@ namespace DockiUp.API.Nodes
         public Task<ContainerDto?> InspectContainerAsync(string containerId, CancellationToken cancellationToken = default)
             => Node().InvokeAsync<ContainerDto?>("InspectContainer", containerId, cancellationToken);
 
-        public Task StartProjectAsync(string folderPath)
-            => Node().InvokeAsync<bool>("StartProject", folderPath, CancellationToken.None);
+        public Task StartProjectAsync(string dockerProjectName)
+            => Node().InvokeAsync<bool>("StartProject", dockerProjectName, CancellationToken.None);
 
-        public Task StopProjectAsync(string folderPath)
-            => Node().InvokeAsync<bool>("StopProject", folderPath, CancellationToken.None);
+        public Task StopProjectAsync(string dockerProjectName)
+            => Node().InvokeAsync<bool>("StopProject", dockerProjectName, CancellationToken.None);
 
-        public Task RestartProjectAsync(string folderPath)
-            => Node().InvokeAsync<bool>("RestartProject", folderPath, CancellationToken.None);
+        public Task RestartProjectAsync(string dockerProjectName)
+            => Node().InvokeAsync<bool>("RestartProject", dockerProjectName, CancellationToken.None);
+
+        public Task RemoveProjectAsync(string dockerProjectName, bool removeVolumes)
+            => Node().InvokeAsync<bool>("RemoveProject", dockerProjectName, removeVolumes, CancellationToken.None);
+
+        public Task DeleteProjectFilesAsync(string projectPath)
+            => Node().InvokeAsync<bool>("DeleteProjectFiles", projectPath, CancellationToken.None);
+
+        public Task RemoveContainerAsync(string containerId)
+            => Node().InvokeAsync<bool>("RemoveContainer", containerId, CancellationToken.None);
+
+        // Pipeline steps run on the node; it streams output lines back via NodeHub.DeployLog(runId, line).
+        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default)
+            => WithLog(log, runId => Node().InvokeAsync<GitSyncResult>("SyncRepository", projectPath, branch, commit, runId, cancellationToken));
+
+        public Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
+            => WithLog(log, runId => Node().InvokeAsync<bool>("ComposePull", target, runId, cancellationToken));
+
+        public Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
+            => WithLog(log, runId => Node().InvokeAsync<ComposeUpResult>("ComposeUp", target, runId, cancellationToken));
+
+        private async Task<T> WithLog<T>(Func<string, Task> log, Func<string, Task<T>> call)
+        {
+            var runId = logRelay.Register(log);
+            try { return await call(runId); }
+            finally { logRelay.Remove(runId); }
+        }
 
         public Task StartContainerAsync(string containerId)
             => Node().InvokeAsync<bool>("StartContainer", containerId, CancellationToken.None);

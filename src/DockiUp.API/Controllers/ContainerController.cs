@@ -51,6 +51,14 @@ namespace DockiUp.API.Controllers
             return NoContent();
         }
 
+        [HttpPost("RemoveContainer", Name = "RemoveContainer")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult> RemoveContainer([FromQuery] string containerId, [FromQuery] Guid? nodeId = null)
+        {
+            await _mediator.Send(new RemoveContainerCommand(containerId, nodeId), HttpContext.RequestAborted);
+            return NoContent();
+        }
+
         [HttpPost("RestartContainer", Name = "RestartContainer")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

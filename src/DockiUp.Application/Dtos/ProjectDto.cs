@@ -18,5 +18,9 @@ namespace DockiUp.Application.Dtos
         public string? ProjectPath { get; set; }
         /// <summary>Update method: Webhook, Manual, Periodically.</summary>
         public string? UpdateMethod { get; set; }
+        /// <summary>What the last successful deployment shipped (DockiUp projects only).</summary>
+        public string? DeployedCommit { get; set; }
+        public string? DeployedCommitMessage { get; set; }
+        public DateTime? DeployedAt { get; set; }
     }
 }

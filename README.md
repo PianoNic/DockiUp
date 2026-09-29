@@ -8,9 +8,9 @@
     You commit, we pull, build, and deploy.
 </p>
 <p align="center">
-    <a href="/docs/docs.md"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
-    <a href="/docs/installation_guide.md"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
-    <a href="/docs/dev_setup.md"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
+    <a href="#-technical-details"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
+    <a href="#run-full-stack-with-docker-db--api"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
+    <a href="#frontend-dockiupfrontend"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
 </p>
 
 ---
@@ -51,7 +51,7 @@ DockiUp runs as a service that:
 
 ## 📋 Getting Started
 
-1. **Installation**: [Documentation](docs/docs.md) for setup instructions
+1. **Installation**: See [Run full stack with Docker](#run-full-stack-with-docker-db--api) for setup instructions
 2. **Configuration**: Add your Git repositories and Docker settings
 3. **Scripts**: Use the `scripts/` folder for DB and migration helpers (`Db-Script.ps1`, `Db-Script-GUI.ps1`).
 4. **Monitor**: Watch your containers stay up-to-date automatically

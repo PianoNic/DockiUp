@@ -82,6 +82,12 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 }
 
 /* Toast / notification panel classes */
+// Coloured toasts: white message and action text (the default action colour is the theme primary).
+.mat-mdc-snack-bar-container:is(.notification-error, .notification-success, .notification-warning, .notification-info) {
+  --mat-snack-bar-button-color: #fff;
+  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-supporting-text-color: #fff;
+}
 .mat-mdc-snack-bar-container.notification-error .mdc-snackbar__surface {
   background-color: #b71c1c;
   color: #fff;
@@ -100,4 +106,54 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 .mat-mdc-snack-bar-container.notification-info .mdc-snackbar__surface {
   background-color: #1565c0;
   color: #fff;
+}
+
+// Each routed page fills the content area and owns its scrolling, so the shell never scrolls.
+// Table pages narrow this further: header fixed, table body scrolls (see activity.scss).
+.content-wrapper > :not(router-outlet) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+// In a flex column, a page wrapper's `margin: 0 auto` would shrink it to its content; keep it full width.
+.content-wrapper > :not(router-outlet) > * {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+// Container / node state badge (Containers, Nodes, project detail). Same palette as the dashboard's status dots.
+.state-badge {
+  --state: var(--mat-sys-on-surface-variant);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 88px; // same width for every state, so whatever follows lines up
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--state) 16%, transparent);
+  color: var(--state);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+
+
+  &[data-state='running'], &[data-state='online'] { --state: #43a047; }
+  &[data-state='stopped'], &[data-state='offline'] { --state: #9e9e9e; }
+  &[data-state='crashed'] { --state: #e53935; }
+  &[data-state='updating'], &[data-state='created'] { --state: #1e88e5; }
+  &[data-state='pending'] { --state: #fb8c00; }
+}
+
+// In-content links (tables, dashboard panels): primary colour, underline on hover only.
+.table-link {
+  color: var(--mat-sys-primary);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible { text-decoration: underline; }
 }

@@ -9,7 +9,7 @@
  */
 
 
-export interface AppInfoDto {
+export interface AppInfoDto { 
     version: string;
     environment: string;
     authority?: string;

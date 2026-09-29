@@ -15,11 +15,4 @@ namespace DockiUp.API.Nodes
         }
     }
 
-    /// <summary>Registered in the node role, where dispatching to a node makes no sense. It never runs
-    /// in practice (node-side targets carry no NodeId) but keeps the resolvers satisfiable.</summary>
-    public class OfflineNodeRpc : INodeRpc
-    {
-        public Task<T> InvokeAsync<T>(Guid nodeId, string method, object?[] args, CancellationToken cancellationToken)
-            => throw new NotSupportedException("Node RPC is only available on the control plane.");
-    }
 }

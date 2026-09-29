@@ -64,7 +64,11 @@
       </div>
       <div class="panel-body">
         <div class="node-row">
-          <span class="node-name"><i class="status-dot online"></i> Local host</span>
+          <span class="node-name">
+            <i class="status-dot online"></i>
+            Local host
+            @if (localDockerVersion(); as v) { <span class="node-ver">docker {{ v }}</span> }
+          </span>
           <span class="node-meta">{{ localProjectCount() }} projects</span>
         </div>
         @for (node of nodes(); track node.id) {
@@ -75,12 +79,12 @@
               @if (node.dockerVersion) { <span class="node-ver">docker {{ node.dockerVersion }}</span> }
             </span>
             <span class="node-meta">
-              {{ node.online ? 'online' : 'offline' }} · {{ projectCountForNode(node.id) }} projects
+              {{ projectCountForNode(node.id) }} projects
             </span>
           </div>
         }
         @if (nodes().length === 0) {
-          <p class="panel-empty">No remote nodes. Add one to deploy across multiple hosts.</p>
+          <p class="panel-empty">No remote nodes. <a class="table-link" routerLink="/nodes">Add one</a> to deploy across multiple hosts.</p>
         }
       </div>
     </mat-card>
@@ -94,7 +98,7 @@
           <div class="activity-row">
             <mat-icon class="activity-icon">{{ activityIcon(a.action) }}</mat-icon>
             <span class="activity-text">{{ activityLabel(a) }}</span>
-            <span class="activity-time" [matTooltip]="a.createdAt">{{ relativeTime(a.createdAt) }}</span>
+            <span class="activity-time" [matTooltip]="a.createdAt | localDate">{{ relativeTime(a.createdAt) }}</span>
           </div>
         }
         @if (recentActivity().length === 0) {
@@ -109,7 +113,8 @@
   @if (projects().length !== 0) {
     <div class="container-list">
       @for (project of projects(); track project.dockerProjectName) {
-        <mat-card appearance="outlined" class="project-card" [attr.data-status]="getProjectStatusClass(project)">
+        <mat-card appearance="outlined" class="project-card clickable" [attr.data-status]="getProjectStatusClass(project)"
+          [routerLink]="['/project', project.dockerProjectName]" tabindex="0" role="link" [attr.aria-label]="'Open ' + project.projectName">
           <mat-card-header>
             <mat-icon mat-card-avatar class="status-avatar" [attr.data-status]="getProjectStatusClass(project)">
               {{ getProjectStatusIcon(project) }}
@@ -122,36 +127,29 @@
           <mat-card-content>
             <div class="project-meta">
               <span class="chip running-chip">{{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</span>
+              @if (project.deployedCommit; as sha) {
+                <span class="chip commit-chip" [matTooltip]="project.deployedCommitMessage ?? ''"><mat-icon>commit</mat-icon>{{ sha.slice(0, 7) }}</span>
+              }
               @if (projectNodeName(project); as nodeName) {
                 <span class="chip node-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
               }
             </div>
           </mat-card-content>
-          <mat-card-actions>
+          <!-- Buttons act on the project; they must not also open it. -->
+          <mat-card-actions (click)="$event.stopPropagation()">
             <button mat-button [routerLink]="['/project', project.dockerProjectName]">View</button>
-            <button mat-icon-button [matMenuTriggerFor]="projectMenu">
-              <mat-icon>more_vert</mat-icon>
+            <span class="spacer"></span>
+            <button mat-icon-button (click)="onStopProject(project)" [disabled]="projectStore.loading()" matTooltip="Stop project" aria-label="Stop project">
+              <mat-icon>stop</mat-icon>
             </button>
-            <mat-menu #projectMenu="matMenu">
-              <a mat-menu-item [routerLink]="['/project', project.dockerProjectName]">
-                <mat-icon>visibility</mat-icon>
-                <span>View</span>
-              </a>
-              <button mat-menu-item (click)="onStopProject(project)" [disabled]="projectStore.loading()">
-                <mat-icon>stop</mat-icon>
-                <span>Stop project</span>
+            <button mat-icon-button (click)="onRestartProject(project)" [disabled]="projectStore.loading()" matTooltip="Restart project" aria-label="Restart project">
+              <mat-icon>restart_alt</mat-icon>
+            </button>
+            @if (canDeploy(project)) {
+              <button mat-icon-button (click)="onDeployProject(project)" matTooltip="Deploy now (pull &amp; up)" aria-label="Deploy now">
+                <mat-icon>rocket_launch</mat-icon>
               </button>
-              <button mat-menu-item (click)="onRestartProject(project)" [disabled]="projectStore.loading()">
-                <mat-icon>refresh</mat-icon>
-                <span>Restart project</span>
-              </button>
-              @if (canUpdateProject(project)) {
-                <button mat-menu-item (click)="onUpdateProject(project)" [disabled]="projectStore.loading()">
-                  <mat-icon>system_update</mat-icon>
-                  <span>Update (pull &amp; restart)</span>
-                </button>
-              }
-            </mat-menu>
+            }
           </mat-card-actions>
         </mat-card>
       }

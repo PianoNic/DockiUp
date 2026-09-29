@@ -283,6 +283,23 @@ public class InfraServicesTests : IDisposable
     }
 
     [Fact]
+    public async Task LogAsync_RecordsSignedInUser_AndSystemWhenAnonymous()
+    {
+        var db = TestDb.Create();
+        var user = new Moq.Mock<Toamaisutaa.Abstractions.ICurrentUser>();
+        user.SetupGet(u => u.IsAuthenticated).Returns(true);
+        user.SetupGet(u => u.Name).Returns("Ada");
+        await new ActivityLogger(db, user.Object).LogAsync("Deploy", "web");
+
+        user.SetupGet(u => u.IsAuthenticated).Returns(false);
+        await new ActivityLogger(db, user.Object).LogAsync("Stop", "web");
+
+        var byAction = await db.ActivityEntries.ToDictionaryAsync(e => e.Action, e => e.ActorName);
+        Assert.Equal("Ada", byAction["Deploy"]);
+        Assert.Null(byAction["Stop"]);
+    }
+
+    [Fact]
     public async Task LogAsync_MultipleCalls_PersistOneRowEach()
     {
         var db = TestDb.Create();

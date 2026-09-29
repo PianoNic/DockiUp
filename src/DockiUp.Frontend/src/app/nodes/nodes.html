@@ -1,0 +1,76 @@
+<div class="activity-wrapper">
+  <header class="activity-header">
+    <div>
+      <h1 class="activity-title">Nodes</h1>
+      <p class="activity-subtitle">Remote Docker hosts this DockiUp deploys to</p>
+    </div>
+    <div class="activity-actions">
+      <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+      <button mat-flat-button (click)="addNode()">
+        <mat-icon>add</mat-icon>
+        Add node
+      </button>
+    </div>
+  </header>
+
+  @if (loading() && nodes().length === 0) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (nodes().length === 0 && !loading()) {
+    <p class="activity-empty">
+      No nodes yet. Press <strong>Add node</strong> to get a ready-to-deploy compose with a fresh token,
+      then run it on the host you want to add.
+    </p>
+  } @else {
+    <div class="table-scroll">
+      <table class="activity-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Machine</th>
+            <th>OS</th>
+            <th>Docker</th>
+            <th>Last seen</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (n of nodes(); track n.id) {
+            <tr>
+              <td class="target" style="white-space: nowrap">{{ n.name }}</td>
+              <td>
+                <span class="state-badge" [attr.data-state]="n.online ? 'online' : n.pending ? 'pending' : 'offline'">{{ n.online ? 'online' : n.pending ? 'pending' : 'offline' }}</span>
+              </td>
+              <td>{{ n.machineName }}</td>
+              <td class="details" [title]="n.os">{{ n.os }}</td>
+              <td class="mono">{{ n.dockerVersion }}</td>
+              <td class="when">{{ n.pending ? '—' : (n.lastSeenAt | localDate) }}</td>
+              <td>
+                <div class="row-actions">
+                  @if (pingResults()[n.id]; as result) {
+                    <span class="when">{{ result }}</span>
+                  }
+                  <button mat-stroked-button (click)="ping(n.id)" [disabled]="pinging()[n.id] || !n.online">
+                    {{ pinging()[n.id] ? '…' : 'Ping' }}
+                  </button>
+                  <button mat-icon-button (click)="remove(n)" [disabled]="deleting()[n.id]" title="Remove node">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (error(); as err) {
+    <p class="activity-empty" style="color: var(--mat-sys-error)">{{ err }}</p>
+  }
+</div>

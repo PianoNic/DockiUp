@@ -44,7 +44,7 @@
         <tbody>
           @for (e of filtered(); track e.id) {
             <tr>
-              <td class="mono when">{{ e.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td class="when">{{ e.createdAt | localDate: 'short' }}</td>
               <td>
                 @if (e.actorName) {
                   <span class="who">{{ e.actorName }}</span>

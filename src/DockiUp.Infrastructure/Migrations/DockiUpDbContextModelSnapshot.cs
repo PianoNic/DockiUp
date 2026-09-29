@@ -56,6 +56,64 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("ActivityEntries");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.Deployment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CommitAfter")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CommitBefore")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CommitMessage")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Log")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetCommit")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "CreatedAt");
+
+                    b.ToTable("Deployments");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.Node", b =>
                 {
                     b.Property<Guid>("Id")
@@ -103,6 +161,9 @@ namespace DockiUp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Branch")
+                        .HasColumnType("text");
+
                     b.Property<string>("ComposePath")
                         .IsRequired()
                         .HasColumnType("text");
@@ -146,7 +207,8 @@ namespace DockiUp.Infrastructure.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("WebhookUrl")
+                    b.Property<string>("WebhookSecret")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");

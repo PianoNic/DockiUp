@@ -1,5 +1,5 @@
 import { signalStore, withHooks, withMethods, withState, withComputed, patchState } from '@ngrx/signals';
-import { ProjectDto, ProjectService, SetupProjectDto } from '../../api';
+import { ContainerDto, ContainerService, DeploymentDto, ProjectDto, ProjectService, SetupProjectDto } from '../../api';
 import { inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { NotificationService } from '../services/notification.service';
@@ -20,6 +20,7 @@ export const ProjectStore = signalStore(
   withComputed((store) => ({})),
   withMethods((store) => {
     const projectService = inject(ProjectService);
+    const containerService = inject(ContainerService);
     const notifications = inject(NotificationService);
 
     const loadContainers = async () => {
@@ -39,45 +40,77 @@ export const ProjectStore = signalStore(
       patchState(store, { projectDtos: projects ?? [] });
     };
 
-    const deployProject = async (setupProjectDto: SetupProjectDto) => {
+    /** Creates the project and queues its first deployment. Resolves true on success. */
+    const deployProject = async (setupProjectDto: SetupProjectDto): Promise<boolean> => {
       patchState(store, { loading: true });
       try {
         await firstValueFrom(projectService.deployProject(setupProjectDto));
         await loadContainers();
+        return true;
       } catch (err) {
-        notifications.showError('Failed to deploy project', err);
+        notifications.showError('Failed to create project', err);
+        return false;
       } finally {
         patchState(store, { loading: false });
       }
     };
 
-    const stopProject = async (dockerProjectName: string) => {
+    // Start/stop/restart work for every compose project (managed or not): by id when DockiUp knows it,
+    // otherwise by docker name + the node it runs on.
+    const lifecycle = async (project: ProjectDto, action: 'start' | 'stop' | 'restart') => {
+      const call = { start: projectService.startProject, stop: projectService.stopProject, restart: projectService.restartProject }[action];
       try {
-        await firstValueFrom(projectService.stopProject(undefined, dockerProjectName));
+        await firstValueFrom(call.call(projectService, project.id ?? undefined, project.dockerProjectName, project.nodeId ?? undefined));
         await loadContainers();
       } catch (err) {
-        notifications.showError('Failed to stop project', err);
+        notifications.showError(`Failed to ${action} ${project.projectName}`, err);
       }
     };
 
-    const restartProject = async (dockerProjectName: string) => {
+    /** `compose down` (+ volumes if asked); a DockiUp project is also forgotten. Resolves true on success. */
+    const removeProject = async (project: ProjectDto, removeVolumes: boolean): Promise<boolean> => {
       try {
-        await firstValueFrom(projectService.restartProject(undefined, dockerProjectName));
+        await firstValueFrom(projectService.removeProject(project.id ?? undefined, project.dockerProjectName, project.nodeId ?? undefined, removeVolumes));
+        notifications.success(`${project.projectName} removed`);
         await loadContainers();
+        return true;
       } catch (err) {
-        notifications.showError('Failed to restart project', err);
+        notifications.showError(`Failed to remove ${project.projectName}`, err);
+        return false;
       }
     };
 
-    const updateProject = async (projectId: string) => {
-      patchState(store, { loading: true });
+    const removeContainer = async (container: ContainerDto, nodeId?: string | null) => {
       try {
-        await firstValueFrom(projectService.updateProject(projectId));
+        await firstValueFrom(containerService.removeContainer(container.id, nodeId ?? undefined));
+        notifications.success(`${container.name} removed`);
         await loadContainers();
       } catch (err) {
-        notifications.showError('Failed to update project', err);
-      } finally {
-        patchState(store, { loading: false });
+        notifications.showError(`Failed to remove ${container.name}`, err);
+      }
+    };
+
+    /** Downloads newer images without restarting; the next deploy applies them. */
+    const pullImages = async (projectId: string) => {
+      try {
+        const { output } = await firstValueFrom(projectService.pullProjectImages(projectId));
+        // compose prints "Pulled" per service either way; only new layers mean something changed.
+        const newer = /Download complete|Pull complete|Downloaded newer image/i.test(output);
+        notifications.success(newer ? 'Newer images downloaded. Deploy to apply them.' : 'Images are already up to date.');
+      } catch (err) {
+        notifications.showError('Failed to pull images', err);
+      }
+    };
+
+    /** Queues a deployment (git sync + compose pull/up); progress arrives live over SignalR. */
+    const deployNow = async (projectId: string): Promise<DeploymentDto | null> => {
+      try {
+        const deployment = await firstValueFrom(projectService.queueDeployment(projectId));
+        notifications.success('Deployment queued');
+        return deployment;
+      } catch (err) {
+        notifications.showError('Failed to queue deployment', err);
+        return null;
       }
     };
 
@@ -85,9 +118,11 @@ export const ProjectStore = signalStore(
       loadContainers,
       setProjectDtos,
       deployProject,
-      stopProject,
-      restartProject,
-      updateProject,
+      lifecycle,
+      deployNow,
+      removeProject,
+      removeContainer,
+      pullImages,
     };
   }),
   withHooks((store) => ({}))

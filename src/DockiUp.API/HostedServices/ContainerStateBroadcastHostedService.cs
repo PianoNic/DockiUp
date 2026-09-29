@@ -34,8 +34,10 @@ public class ContainerStateBroadcastHostedService : BackgroundService
                 if (stoppingToken.IsCancellationRequested) break;
 
                 using var scope = _scopeFactory.CreateScope();
-                var docker = scope.ServiceProvider.GetRequiredService<IDockerService>();
-                var projects = await docker.GetProjectsAsync();
+                // The same full view the API serves (nodes, container-less DockiUp projects, deployed versions);
+                // the local daemon's raw list alone would make those vanish from every browser on each change.
+                var mediator = scope.ServiceProvider.GetRequiredService<Mediator.IMediator>();
+                var projects = await mediator.Send(new DockiUp.Application.Queries.GetProjectsQuery(), stoppingToken);
 
                 var snapshot = BuildStateSnapshot(projects);
                 if (snapshot != _lastStateSnapshot)
@@ -68,7 +70,7 @@ public class ContainerStateBroadcastHostedService : BackgroundService
                 (p.Containers ?? Array.Empty<ContainerDto>())
                 .OrderBy(c => c.Id)
                 .Select(c => $"{c.Id}:{c.State}"));
-            parts.Add($"{p.DockerProjectName}=[{containerPart}]");
+            parts.Add($"{p.NodeId}/{p.DockerProjectName}@{p.DeployedCommit}=[{containerPart}]");
         }
         return string.Join(";", parts);
     }

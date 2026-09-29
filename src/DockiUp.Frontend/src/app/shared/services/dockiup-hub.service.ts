@@ -1,9 +1,9 @@
 import { Injectable, inject, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { firstValueFrom } from 'rxjs';
+import { Subject, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ProjectDto } from '../../api';
+import { DeploymentDto, ProjectDto } from '../../api';
 import { ProjectStore } from '../stores/project.store';
 
 const HUB_METHOD_CONTAINERS_CHANGED = 'ContainersChanged';
@@ -15,6 +15,11 @@ export class DockiUpHubService implements OnDestroy {
   private readonly projectStore = inject(ProjectStore);
   private readonly oidc = inject(OidcSecurityService);
   private hub: signalR.HubConnection | null = null;
+
+  /** A deployment was queued, started or finished (any project). */
+  readonly deploymentChanged$ = new Subject<DeploymentDto>();
+  /** One live log line of a running deployment. */
+  readonly deploymentLog$ = new Subject<{ deploymentId: string; line: string }>();
 
   constructor() {
     this.connect();
@@ -45,6 +50,13 @@ export class DockiUpHubService implements OnDestroy {
     this.hub.on(HUB_METHOD_CONTAINERS_CHANGED, (projects: ProjectDto[]) => {
       this.projectStore.setProjectDtos(projects ?? []);
     });
+
+    this.hub.on('DeploymentChanged', (d: DeploymentDto) => {
+      this.deploymentChanged$.next(d);
+      // A finished deployment changes what's live (deployed commit, containers): refresh the projects.
+      if (d.status === 'Succeeded' || d.status === 'Failed') void this.projectStore.loadContainers();
+    });
+    this.hub.on('DeploymentLog', (deploymentId: string, line: string) => this.deploymentLog$.next({ deploymentId, line }));
 
     try {
       await this.hub.start();

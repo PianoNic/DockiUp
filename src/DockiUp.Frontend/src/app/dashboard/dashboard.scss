@@ -227,6 +227,19 @@
 
 .project-card {
   border-radius: 14px;
+
+  &.clickable {
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease;
+
+    &:hover, &:focus-visible {
+      border-color: var(--mat-sys-primary);
+      background: var(--mat-sys-surface-container-low);
+      outline: none;
+    }
+  }
+
+  .spacer { flex: 1; }
 }
 
 .status-avatar {
@@ -289,3 +302,5 @@
 }
 
 .loading-state { padding: 24px 0; }
+
+.commit-chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

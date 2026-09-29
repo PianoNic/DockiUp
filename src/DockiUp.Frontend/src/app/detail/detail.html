@@ -1,99 +1,141 @@
-<h1>{{ project()?.projectName ?? 'Project' }} – {{ project()?.projectDescription ?? '' }}</h1>
+<h1>
+  {{ project()?.projectName ?? 'Project' }}
+  @if (project()?.projectDescription; as description) {
+    <span class="description">– {{ description }}</span>
+  }
+</h1>
+@if (project()?.deployedAt; as deployedAt) {
+  <p class="deployed">
+    <mat-icon>verified</mat-icon>
+    Deployed
+    @if (project()?.deployedCommit; as sha) {
+      <code>{{ sha.slice(0, 7) }}</code>
+      @if (project()?.deployedCommitMessage; as message) { <span class="message">{{ message }}</span> }
+    }
+    <span class="when">· {{ deployedAt | localDate: 'short' }}</span>
+  </p>
+}
 
 @if (project(); as p) {
   <div class="project-actions">
-    <button mat-raised-button color="warn" (click)="onStopProject()" [disabled]="projectStore.loading()">
-      Stop project
-    </button>
-    <button mat-raised-button color="accent" (click)="onRestartProject()" [disabled]="projectStore.loading()">
-      Restart project
-    </button>
-    @if (canUpdateProject()) {
-      <button mat-raised-button color="primary" (click)="onUpdateProject()" [disabled]="projectStore.loading()">
-        Update (pull &amp; restart)
+    @if (managedId()) {
+      <button mat-flat-button (click)="deployNow()">
+        <mat-icon>rocket_launch</mat-icon>
+        Deploy now
+      </button>
+      <button mat-stroked-button (click)="pull()" [disabled]="pulling()" matTooltip="Download newer images without restarting; Deploy applies them">
+        <mat-icon>cloud_download</mat-icon>
+        {{ pulling() ? 'Pulling...' : 'Pull' }}
       </button>
     }
+    <button mat-stroked-button (click)="lifecycle('start')" [disabled]="projectStore.loading()">
+      <mat-icon>play_arrow</mat-icon>
+      Start
+    </button>
+    <button mat-stroked-button (click)="lifecycle('stop')" [disabled]="projectStore.loading()">
+      <mat-icon>stop</mat-icon>
+      Stop
+    </button>
+    <button mat-stroked-button (click)="lifecycle('restart')" [disabled]="projectStore.loading()">
+      <mat-icon>restart_alt</mat-icon>
+      Restart
+    </button>
     @if (projectStore.loading()) {
       <mat-spinner diameter="24"></mat-spinner>
     }
+    <span class="spacer"></span>
+    <button mat-stroked-button class="danger" (click)="removeProject()">
+      <mat-icon>delete</mat-icon>
+      Remove
+    </button>
   </div>
 
-  <mat-card appearance="outlined" class="main-card">
-    <mat-card-subtitle class="project-description">
-      Containers: {{ getRunningCount() }}/{{ p.containers.length }} running
-    </mat-card-subtitle>
-    <div class="card-content-flex">
-      <div class="containers-list">
-        @for (container of p.containers; track container.id) {
-          <mat-card appearance="outlined">
-            <mat-card-header>
-              <mat-icon mat-card-avatar class="centered-logo">{{ getStatusIcon(container.state) }}</mat-icon>
-              <mat-card-title-group>
-                <mat-card-title>{{ container.name }}</mat-card-title>
-              </mat-card-title-group>
-            </mat-card-header>
-            <mat-card-content class="content-flex">
-              <div class="status">
-                <div>Status: {{ container.status }}</div>
-                <div>State: {{ container.state }}</div>
-              </div>
-              <div>
-                <button mat-icon-button [matMenuTriggerFor]="containerMenu" class="container-menu-btn">
-                  <mat-icon>more_vert</mat-icon>
-                </button>
-                <mat-menu #containerMenu="matMenu">
-                  <button mat-menu-item (click)="onStartContainer(container)" [disabled]="getContainerState(container) !== UpdateMethodType.Stopped">
-                    <mat-icon>play_arrow</mat-icon>
-                    <span>Start</span>
-                  </button>
-                  <button mat-menu-item (click)="onStopContainer(container)" [disabled]="getContainerState(container) === UpdateMethodType.Stopped">
-                    <mat-icon>stop</mat-icon>
-                    <span>Stop</span>
-                  </button>
-                  <button mat-menu-item (click)="onRestartContainer(container)" [disabled]="getContainerState(container) === UpdateMethodType.Stopped">
-                    <mat-icon>refresh</mat-icon>
-                    <span>Restart</span>
-                  </button>
-                  <button mat-menu-item [routerLink]="['/terminal', container.id]" [queryParams]="{ nodeId: project()?.nodeId }" [disabled]="getContainerState(container) !== UpdateMethodType.Running">
-                    <mat-icon>terminal</mat-icon>
-                    <span>Terminal</span>
-                  </button>
-                </mat-menu>
-              </div>
-            </mat-card-content>
-          </mat-card>
-        }
-      </div>
-
-      <div class="console-area">
-        <div class="console-toolbar">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="console-select">
-            <mat-label>Container logs</mat-label>
-            <mat-select
-              [value]="selectedContainerId()"
-              (selectionChange)="selectedContainerId.set($event.value); loadConsoleLogs()"
-              placeholder="Select container">
-              <mat-option value="">All containers</mat-option>
+  <!-- Tabs instead of stacked sections, so the page itself never scrolls. -->
+  <mat-tab-group class="detail-tabs" animationDuration="0ms" preserveContent mat-stretch-tabs="false"
+    [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)">
+    <mat-tab label="Containers">
+      <div class="tab-fill">
+        <mat-card appearance="outlined" class="main-card">
+          <h2 class="section-title">
+            Containers
+            <span class="count-chip">{{ getRunningCount() }}/{{ p.containers.length }} running</span>
+          </h2>
+          <div class="card-content-flex">
+            <div class="containers-list">
               @for (container of p.containers; track container.id) {
-                <mat-option [value]="container.id">{{ container.name }}</mat-option>
+                <div class="container-card" [class.selected]="selectedContainerId() === container.id" role="button" tabindex="0"
+            (click)="toggleContainerLogs(container)" (keydown.enter)="toggleContainerLogs(container)"
+            [attr.aria-pressed]="selectedContainerId() === container.id" [matTooltip]="selectedContainerId() === container.id ? 'Show all logs' : 'Show only this container\'s logs'" matTooltipShowDelay="600">
+                  <div class="container-title">
+                    <mat-icon class="state-icon" [attr.data-state]="stateLabel(container.state)">{{ getStatusIcon(container.state) }}</mat-icon>
+                    <span class="name" [title]="container.name">{{ container.name }}</span>
+                  </div>
+                  <div class="container-meta">
+                    <span class="state-badge" [attr.data-state]="stateLabel(container.state)">{{ stateLabel(container.state) }}</span>
+                    <span class="status">{{ container.status }}</span>
+                  </div>
+                  <div class="container-actions" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+                    <button mat-icon-button (click)="onStartContainer(container)" [disabled]="getContainerState(container) !== UpdateMethodType.Stopped" matTooltip="Start" aria-label="Start">
+                      <mat-icon>play_arrow</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="onStopContainer(container)" [disabled]="getContainerState(container) === UpdateMethodType.Stopped" matTooltip="Stop" aria-label="Stop">
+                      <mat-icon>stop</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="onRestartContainer(container)" [disabled]="getContainerState(container) === UpdateMethodType.Stopped" matTooltip="Restart" aria-label="Restart">
+                      <mat-icon>restart_alt</mat-icon>
+                    </button>
+                    <a mat-icon-button [routerLink]="['/terminal', container.id]" [queryParams]="{ nodeId: project()?.nodeId }" [disabled]="getContainerState(container) !== UpdateMethodType.Running" matTooltip="Terminal" aria-label="Terminal">
+                      <mat-icon>terminal</mat-icon>
+                    </a>
+              <button mat-icon-button (click)="onRemoveContainer(container)" matTooltip="Remove container" aria-label="Remove container">
+                <mat-icon>delete</mat-icon>
+              </button>
+                  </div>
+                </div>
               }
-            </mat-select>
-          </mat-form-field>
-          <button mat-raised-button color="primary" (click)="loadConsoleLogs()" [disabled]="logsLoading()">
-            <mat-icon>refresh</mat-icon>
-            Refresh
-          </button>
-        </div>
-        <div class="console-output" #logContainer>
-          @if (logsLoading()) {
-            <mat-spinner diameter="24"></mat-spinner>
-          } @else {
-            <pre>{{ consoleLogs() || 'Select "All containers" or a container and click Refresh to view logs.' }}</pre>
-          }
-        </div>
+            </div>
+
+            <div class="console-area">
+              <div class="console-toolbar">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="console-select">
+                  <mat-label>Container logs</mat-label>
+                  <mat-select
+                    [value]="selectedContainerId()"
+                    (selectionChange)="selectedContainerId.set($event.value); loadConsoleLogs()"
+                    placeholder="Select container">
+                    <mat-option value="">All containers</mat-option>
+                    @for (container of p.containers; track container.id) {
+                      <mat-option [value]="container.id">{{ container.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <button mat-stroked-button (click)="loadConsoleLogs()" [disabled]="logsLoading()">
+                  <mat-icon>refresh</mat-icon>
+                  Refresh
+                </button>
+              </div>
+              <div class="console-output" #logContainer>
+                @if (logsLoading()) {
+                  <mat-spinner diameter="24"></mat-spinner>
+                } @else {
+                  <pre>{{ consoleLogs() || 'Select "All containers" or a container and click Refresh to view logs.' }}</pre>
+                }
+              </div>
+            </div>
+          </div>
+        </mat-card>
       </div>
-    </div>
-  </mat-card>
+    </mat-tab>
+    @if (managedId(); as id) {
+      <mat-tab label="Deployments">
+        <div class="tab-fill"><app-project-deployments [projectId]="id" [deployedCommit]="project()?.deployedCommit ?? null" /></div>
+      </mat-tab>
+      <mat-tab label="Webhook">
+        <div class="tab-fill"><app-project-webhook [projectId]="id" /></div>
+      </mat-tab>
+    }
+  </mat-tab-group>
+
 } @else {
   <p>Project not found.</p>
 }

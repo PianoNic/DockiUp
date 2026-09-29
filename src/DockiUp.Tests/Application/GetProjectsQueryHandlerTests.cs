@@ -56,6 +56,54 @@ public class GetProjectsQueryHandlerTests
     }
 
     [Fact]
+    public async Task ManagedProjectWithoutContainers_StillListed_SoItsDeploymentLogIsReachable()
+    {
+        var db = TestDb.Create();
+        var project = new ProjectInfo { ProjectName = "Fresh", DockerProjectName = "fresh", ProjectOrigin = ProjectOriginType.Git, ProjectPath = "/f", ComposePath = "/f/c", ProjectUpdateMethod = ProjectUpdateMethod.Webhook };
+        db.ProjectInfo.Add(project);
+        db.SaveChanges();
+
+        var local = new Mock<IDockerService>();
+        local.Setup(d => d.GetProjectsAsync()).ReturnsAsync(new[] { Dto("other") }); // "fresh" has no containers yet
+        var directory = new Mock<INodeDirectory>();
+        directory.Setup(d => d.GetOnlineNodeIds()).Returns(Array.Empty<Guid>());
+
+        var result = await new GetProjectsQueryHandler(local.Object, new Mock<IDockerServiceResolver>().Object, directory.Object, db)
+            .Handle(new GetProjectsQuery(), CancellationToken.None);
+
+        var fresh = Assert.Single(result, p => p.DockerProjectName == "fresh");
+        Assert.Equal(project.Id, fresh.Id);
+        Assert.True(fresh.ManagedByDockiUp);
+        Assert.Empty(fresh.Containers);
+        Assert.Equal(2, result.Length);
+    }
+
+    [Fact]
+    public async Task ManagedProject_ReportsLatestSuccessfulDeployment_AsDeployedVersion()
+    {
+        var db = TestDb.Create();
+        var project = new ProjectInfo { ProjectName = "App", DockerProjectName = "app", ProjectOrigin = ProjectOriginType.Git, ProjectPath = "/a", ComposePath = "/a/c", ProjectUpdateMethod = ProjectUpdateMethod.Webhook };
+        db.ProjectInfo.Add(project);
+        var t = DateTime.UtcNow;
+        db.Deployments.AddRange(
+            new Deployment { ProjectId = project.Id, Trigger = DeploymentTrigger.Manual, Status = DeploymentStatus.Succeeded, CommitAfter = "old", FinishedAt = t.AddMinutes(-5) },
+            new Deployment { ProjectId = project.Id, Trigger = DeploymentTrigger.Webhook, Status = DeploymentStatus.Succeeded, CommitAfter = "new", CommitMessage = "fix login", FinishedAt = t },
+            new Deployment { ProjectId = project.Id, Trigger = DeploymentTrigger.Manual, Status = DeploymentStatus.Failed, CommitAfter = "broken", FinishedAt = t.AddMinutes(1) });
+        db.SaveChanges();
+
+        var local = new Mock<IDockerService>();
+        local.Setup(d => d.GetProjectsAsync()).ReturnsAsync(Array.Empty<ProjectDto>());
+        var directory = new Mock<INodeDirectory>();
+        directory.Setup(d => d.GetOnlineNodeIds()).Returns(Array.Empty<Guid>());
+
+        var app = Assert.Single(await new GetProjectsQueryHandler(local.Object, new Mock<IDockerServiceResolver>().Object, directory.Object, db)
+            .Handle(new GetProjectsQuery(), CancellationToken.None));
+
+        Assert.Equal("new", app.DeployedCommit); // a later failure doesn't change what's running
+        Assert.Equal("fix login", app.DeployedCommitMessage);
+    }
+
+    [Fact]
     public async Task OfflineNode_Throwing_DoesNotFailWholeListing()
     {
         var db = TestDb.Create();

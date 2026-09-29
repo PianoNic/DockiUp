@@ -24,7 +24,7 @@ namespace DockiUp.API.Nodes
 
     /// <summary>A not-yet-saved node: a freshly generated token + the control-plane URL the node
     /// should dial. The UI builds the node compose from these and only persists on save.</summary>
-    public record NodeDraftDto(string SuggestedName, string Token, string? ControlPlaneUrl);
+    public record NodeDraftDto(string SuggestedName, string Token, string ServerUrl);
 
     /// <summary>Persist a node from the Add-node modal. The token is the one shown in the draft;
     /// only its hash is stored.</summary>

@@ -111,7 +111,8 @@ public class DtosDomainTests
             ProjectPath = "/srv/myapp",
             ComposePath = "/srv/myapp/compose.yml",
             ProjectUpdateMethod = ProjectUpdateMethod.Webhook,
-            WebhookUrl = "https://hook",
+            Branch = "main",
+            WebhookSecret = "s3cr3t",
             PeriodicIntervalInMinutes = 15,
             LastPeriodicUpdateAt = last,
         };
@@ -127,7 +128,8 @@ public class DtosDomainTests
         Assert.Equal("/srv/myapp", p.ProjectPath);
         Assert.Equal("/srv/myapp/compose.yml", p.ComposePath);
         Assert.Equal(ProjectUpdateMethod.Webhook, p.ProjectUpdateMethod);
-        Assert.Equal("https://hook", p.WebhookUrl);
+        Assert.Equal("main", p.Branch);
+        Assert.Equal("s3cr3t", p.WebhookSecret);
         Assert.Equal(15, p.PeriodicIntervalInMinutes);
         Assert.Equal(last, p.LastPeriodicUpdateAt);
     }
@@ -148,8 +150,15 @@ public class DtosDomainTests
         Assert.Null(p.Description);
         Assert.Null(p.GitUrl);
         Assert.Null(p.NodeId);
-        Assert.Null(p.WebhookUrl);
+        Assert.Null(p.Branch);
         Assert.Null(p.PeriodicIntervalInMinutes);
+        // Every project gets its own random webhook secret (24 bytes, hex), never empty or shared.
+        Assert.Matches("^[0-9a-f]{48}$", p.WebhookSecret);
+        Assert.NotEqual(p.WebhookSecret, new ProjectInfo
+        {
+            ProjectName = "B", DockerProjectName = "b", ProjectOrigin = ProjectOriginType.Compose,
+            ProjectPath = "/b", ComposePath = "/b/c.yml", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        }.WebhookSecret);
         Assert.Null(p.LastPeriodicUpdateAt);
     }
 
@@ -290,14 +299,6 @@ public class DtosDomainTests
     }
 
     [Fact]
-    public void DockiUpWebhookOptions_RoundTrips()
-    {
-        var opts = new DockiUpWebhookOptions { WebhookSecret = "s3cr3t" };
-        Assert.Equal("s3cr3t", opts.WebhookSecret);
-        Assert.Null(new DockiUpWebhookOptions().WebhookSecret);
-    }
-
-    [Fact]
     public void DockiUpProjectConfig_Defaults_AreUnknownAndMinValue()
     {
         var cfg = new DockiUpProjectConfig();
@@ -352,18 +353,6 @@ public class DtosDomainTests
         Assert.Equal("ok", dto.Details);
         Assert.Equal("niclas", dto.ActorName);
         Assert.Equal(created, dto.CreatedAt);
-    }
-
-    [Fact]
-    public void NodeDeployResultDto_RoundTrips_AndHasValueEquality()
-    {
-        var dto = new NodeDeployResultDto("/n/proj", "/n/proj/compose.yml");
-        Assert.Equal("/n/proj", dto.ProjectPath);
-        Assert.Equal("/n/proj/compose.yml", dto.ComposePath);
-
-        var same = new NodeDeployResultDto("/n/proj", "/n/proj/compose.yml");
-        Assert.Equal(dto, same);
-        Assert.NotEqual(dto, new NodeDeployResultDto("/x", "/y"));
     }
 
     [Fact]
@@ -501,7 +490,8 @@ public class DtosDomainTests
             Path = "/srv/myapp",
             NodeId = node,
             ProjectUpdateMethod = ProjectUpdateMethod.Periodically,
-            WebhookUrl = "https://hook",
+            Branch = "main",
+            ComposeFile = "deploy/compose.yml",
             PeriodicIntervalInMinutes = 30,
         };
 
@@ -513,7 +503,8 @@ public class DtosDomainTests
         Assert.Equal("/srv/myapp", dto.Path);
         Assert.Equal(node, dto.NodeId);
         Assert.Equal(ProjectUpdateMethod.Periodically, dto.ProjectUpdateMethod);
-        Assert.Equal("https://hook", dto.WebhookUrl);
+        Assert.Equal("main", dto.Branch);
+        Assert.Equal("deploy/compose.yml", dto.ComposeFile);
         Assert.Equal(30, dto.PeriodicIntervalInMinutes);
     }
 
@@ -531,7 +522,8 @@ public class DtosDomainTests
         Assert.Null(dto.Compose);
         Assert.Null(dto.Path);
         Assert.Null(dto.NodeId);
-        Assert.Null(dto.WebhookUrl);
+        Assert.Null(dto.Branch);
+        Assert.Null(dto.ComposeFile);
         Assert.Null(dto.PeriodicIntervalInMinutes);
     }
 }

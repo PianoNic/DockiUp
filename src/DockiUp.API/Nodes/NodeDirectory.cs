@@ -8,9 +8,4 @@ namespace DockiUp.API.Nodes
         public IReadOnlyList<Guid> GetOnlineNodeIds() => registry.OnlineLastSeen().Keys.ToList();
     }
 
-    /// <summary>Node-role stub: a node never fans out to other nodes.</summary>
-    public class EmptyNodeDirectory : INodeDirectory
-    {
-        public IReadOnlyList<Guid> GetOnlineNodeIds() => [];
-    }
 }

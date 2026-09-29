@@ -28,28 +28,28 @@ namespace DockiUp.API.Nodes
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            var controlPlaneUrl = configuration["Node:ControlPlaneUrl"];
+            var serverUrl = configuration["Node:ServerUrl"];
             var token = configuration["Node:Token"];
 
-            if (string.IsNullOrWhiteSpace(controlPlaneUrl) || string.IsNullOrWhiteSpace(token))
+            if (string.IsNullOrWhiteSpace(serverUrl) || string.IsNullOrWhiteSpace(token))
             {
-                logger.LogError("Node role is active but Node:ControlPlaneUrl and/or Node:Token are not set. The agent will not connect.");
+                logger.LogError("Node role is active but Node:ServerUrl and/or Node:Token are not set. The agent will not connect.");
                 return Task.CompletedTask;
             }
 
-            // A stable id identifies this node across reconnects so deployed projects keep pointing at
-            // it. Pin it via Node:Id; if unset we generate one but it won't survive a restart.
+            // Nodes added in the UI are identified by their token on the server, which ignores this id.
+            // Only legacy Node:Tokens allow-list nodes rely on a self-reported, stable Node:Id.
             if (!Guid.TryParse(configuration["Node:Id"], out var nodeId))
             {
                 nodeId = Guid.NewGuid();
-                logger.LogWarning("Node:Id is not set; generated {NodeId} for this run. Set Node:Id to keep a stable identity across restarts.", nodeId);
+                logger.LogDebug("Node:Id not set; reporting {NodeId} (only used by legacy Node:Tokens nodes).", nodeId);
             }
             _nodeId = nodeId.ToString();
 
             var name = configuration["Node:Name"];
             if (string.IsNullOrWhiteSpace(name)) name = Environment.MachineName;
 
-            var hubUrl = $"{controlPlaneUrl.TrimEnd('/')}/hubs/node?access_token={Uri.EscapeDataString(token)}";
+            var hubUrl = $"{serverUrl.TrimEnd('/')}/hubs/node?access_token={Uri.EscapeDataString(token)}";
 
             _connection = new HubConnectionBuilder()
                 .WithUrl(hubUrl)
@@ -67,7 +67,7 @@ namespace DockiUp.API.Nodes
             _connection.Reconnected += async _ => await RegisterAsync(name, CancellationToken.None);
 
             // Kick off the connect loop in the background so app startup isn't blocked on the control plane.
-            _ = ConnectLoopAsync(name, hubUrl);
+            _ = ConnectLoopAsync(name, serverUrl);
             _ = HeartbeatLoopAsync(_shutdown.Token);
             return Task.CompletedTask;
         }
@@ -90,7 +90,8 @@ namespace DockiUp.API.Nodes
             catch (OperationCanceledException) { /* shutting down */ }
         }
 
-        private async Task ConnectLoopAsync(string name, string hubUrl)
+        // Takes the bare server URL for logging only: the hub URL carries the node token and must never be logged.
+        private async Task ConnectLoopAsync(string name, string serverUrl)
         {
             var delay = TimeSpan.FromSeconds(2);
             while (_connection is not null)
@@ -98,13 +99,13 @@ namespace DockiUp.API.Nodes
                 try
                 {
                     await _connection.StartAsync();
-                    logger.LogInformation("Node agent connected to control plane at {Url}.", hubUrl);
+                    logger.LogInformation("Node agent connected to server at {Url}.", serverUrl);
                     await RegisterAsync(name, CancellationToken.None);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning("Node agent could not reach the control plane ({Message}); retrying in {Delay}s.", ex.Message, delay.TotalSeconds);
+                    logger.LogWarning("Node agent could not reach the server at {Url} ({Message}); retrying in {Delay}s.", serverUrl, ex.Message, delay.TotalSeconds);
                     await Task.Delay(delay);
                     delay = TimeSpan.FromSeconds(Math.Min(30, delay.TotalSeconds * 2));
                 }
@@ -157,9 +158,19 @@ namespace DockiUp.API.Nodes
                 (await d.GetRawProjectsAsync()).FirstOrDefault(p =>
                     string.Equals(p.DockerProjectName, name, StringComparison.OrdinalIgnoreCase))));
             c.On<string, ContainerDto?>("InspectContainer", id => WithDocker(d => d.InspectContainerAsync(id)));
-            c.On<string, bool>("StartProject", path => WithDocker(async d => { await d.StartProjectAsync(path); return true; }));
-            c.On<string, bool>("StopProject", path => WithDocker(async d => { await d.StopProjectAsync(path); return true; }));
-            c.On<string, bool>("RestartProject", path => WithDocker(async d => { await d.RestartProjectAsync(path); return true; }));
+            c.On<string, bool>("StartProject", name => WithDocker(async d => { await d.StartProjectAsync(name); return true; }));
+            c.On<string, bool>("StopProject", name => WithDocker(async d => { await d.StopProjectAsync(name); return true; }));
+            c.On<string, bool>("RestartProject", name => WithDocker(async d => { await d.RestartProjectAsync(name); return true; }));
+            c.On<string, bool, bool>("RemoveProject", (name, volumes) => WithDocker(async d => { await d.RemoveProjectAsync(name, volumes); return true; }));
+            c.On<string, bool>("DeleteProjectFiles", path => WithDocker(async d => { await d.DeleteProjectFilesAsync(path); return true; }));
+            c.On<string, bool>("RemoveContainer", id => WithDocker(async d => { await d.RemoveContainerAsync(id); return true; }));
+            // Deploy pipeline steps: output lines stream back to the server as DeployLog(runId, line).
+            c.On<string, string?, string?, string, GitSyncResult>("SyncRepository", (path, branch, commit, runId) =>
+                WithDocker(d => d.SyncRepositoryAsync(path, branch, commit, line => c.SendAsync("DeployLog", runId, line))));
+            c.On<ComposeTarget, string, bool>("ComposePull", (target, runId) =>
+                WithDocker(async d => { await d.ComposePullAsync(target, line => c.SendAsync("DeployLog", runId, line)); return true; }));
+            c.On<ComposeTarget, string, ComposeUpResult>("ComposeUp", (target, runId) =>
+                WithDocker(d => d.ComposeUpAsync(target, line => c.SendAsync("DeployLog", runId, line))));
             c.On<string, bool>("StartContainer", id => WithDocker(async d => { await d.StartContainerAsync(id); return true; }));
             c.On<string, bool>("StopContainer", id => WithDocker(async d => { await d.StopContainerAsync(id); return true; }));
             c.On<string, bool>("RestartContainer", id => WithDocker(async d => { await d.RestartContainerAsync(id); return true; }));
@@ -170,26 +181,16 @@ namespace DockiUp.API.Nodes
         // clones/writes/composes locally and reports the paths it used back to the control plane.
         private void RegisterProjectHandlers(HubConnection c)
         {
-            c.On<SetupProjectDto, NodeDeployResultDto>("DeployProject", DeployLocallyAsync);
-            c.On<string, bool>("PullRepository", path => WithConfig(async cfg => { await cfg.UpdateRepositoryAsync(path); return true; }));
+            c.On<SetupProjectDto, PreparedProject>("PrepareProject", PrepareLocallyAsync);
         }
 
-        private async Task<NodeDeployResultDto> DeployLocallyAsync(SetupProjectDto dto)
+        // Clone / write the project's files on this node; the server then runs the deploy pipeline here.
+        private async Task<PreparedProject> PrepareLocallyAsync(SetupProjectDto dto)
         {
             using var scope = services.CreateScope();
             var paths = scope.ServiceProvider.GetRequiredService<IOptions<SystemPaths>>().Value;
-            var config = scope.ServiceProvider.GetRequiredService<IDockiUpProjectConfigurationService>();
-            var docker = scope.ServiceProvider.GetRequiredService<IDockerService>();
-
-            var projectPath = Path.Combine(paths.ProjectsPath, dto.ProjectName);
-            Directory.CreateDirectory(projectPath);
-
-            if (dto.ProjectOrigin == ProjectOriginType.Git)
-                await config.CloneRepositoryAsync(projectPath, dto.GitUrl!);
-            var composePath = await config.WriteComposeFileAsync(projectPath, dto.Compose!);
-            await docker.StartProjectAsync(projectPath);
-
-            return new NodeDeployResultDto(projectPath, composePath);
+            var files = scope.ServiceProvider.GetRequiredService<IDockiUpProjectConfigurationService>();
+            return await DockiUp.Application.ProjectPreparer.PrepareAsync(dto, paths.ProjectsPath, files);
         }
 
         // Interactive console: run the exec on this node's daemon and bridge its TTY over the connection.
@@ -239,12 +240,6 @@ namespace DockiUp.API.Nodes
         {
             using var scope = services.CreateScope();
             return await work(scope.ServiceProvider.GetRequiredService<IDockerService>());
-        }
-
-        private async Task<T> WithConfig<T>(Func<IDockiUpProjectConfigurationService, Task<T>> work)
-        {
-            using var scope = services.CreateScope();
-            return await work(scope.ServiceProvider.GetRequiredService<IDockiUpProjectConfigurationService>());
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

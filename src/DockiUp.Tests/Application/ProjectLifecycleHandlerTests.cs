@@ -7,125 +7,89 @@ using Moq;
 
 namespace DockiUp.Tests.Application;
 
+/// <summary>Start/stop/restart by compose project name, for DockiUp projects (routed by their row) and
+/// for projects DockiUp didn't create (routed by the caller's node id).</summary>
 public class ProjectLifecycleHandlerTests
 {
-    private static ProjectInfo SeedProject(DockiUp.Infrastructure.DockiUpDbContext db, Guid? nodeId = null, string path = "/p", string dockerName = "proj")
+    private readonly DockiUp.Infrastructure.DockiUpDbContext _db = TestDb.Create();
+    private readonly Mock<IDockerService> _docker = new();
+    private readonly Mock<IDockerServiceResolver> _resolver = new();
+    private readonly Mock<IActivityLogger> _activity = new();
+
+    public ProjectLifecycleHandlerTests()
+    {
+        _resolver.Setup(r => r.Resolve(It.IsAny<Guid?>())).Returns(_docker.Object);
+    }
+
+    private ProjectLifecycleCommandHandler Handler() => new(_resolver.Object, _db, _activity.Object);
+
+    private ProjectInfo SeedProject(Guid? nodeId = null, string dockerName = "proj")
     {
         var p = new ProjectInfo
         {
             ProjectName = "Proj",
             DockerProjectName = dockerName,
             ProjectOrigin = ProjectOriginType.Compose,
-            ProjectPath = path,
-            ComposePath = path + "/dockiup_compose.yml",
+            ProjectPath = "/p",
+            ComposePath = "/p/dockiup_compose.yml",
             ProjectUpdateMethod = ProjectUpdateMethod.Manual,
             NodeId = nodeId,
         };
-        db.ProjectInfo.Add(p);
-        db.SaveChanges();
+        _db.ProjectInfo.Add(p);
+        _db.SaveChanges();
         return p;
     }
 
     [Fact]
-    public async Task Stop_ByProjectId_RoutesToOwningNode()
+    public async Task ById_UsesProjectsNodeAndDockerName()
     {
-        var db = TestDb.Create();
         var node = Guid.NewGuid();
-        var p = SeedProject(db, nodeId: node, path: "/n/proj");
-        var docker = new Mock<IDockerService>();
-        var resolver = new Mock<IDockerServiceResolver>();
-        resolver.Setup(r => r.Resolve(node)).Returns(docker.Object);
+        var p = SeedProject(node, "web");
 
-        await new StopProjectCommandHandler(resolver.Object, db)
-            .Handle(new StopProjectCommand(p.Id), CancellationToken.None);
+        await Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Stop, p.Id, null, NodeId: Guid.NewGuid()), CancellationToken.None);
 
-        resolver.Verify(r => r.Resolve(node), Times.Once);
-        docker.Verify(d => d.StopProjectAsync("/n/proj"), Times.Once);
+        _resolver.Verify(r => r.Resolve(node), Times.Once); // the row's node wins over the request's
+        _docker.Verify(d => d.StopProjectAsync("web"), Times.Once);
+        _activity.Verify(a => a.LogAsync("stop", "web", p.Id, null, It.IsAny<CancellationToken>(), null), Times.Once);
     }
 
     [Fact]
-    public async Task Restart_ByDockerName_RoutesLocally_WhenNoNode()
+    public async Task ByName_ManagedProject_UsesItsOwnNode()
     {
-        var db = TestDb.Create();
-        SeedProject(db, nodeId: null, path: "/local/proj", dockerName: "web");
-        var docker = new Mock<IDockerService>();
-        var resolver = new Mock<IDockerServiceResolver>();
-        resolver.Setup(r => r.Resolve(null)).Returns(docker.Object);
+        var node = Guid.NewGuid();
+        SeedProject(node, "web");
 
-        await new RestartProjectCommandHandler(resolver.Object, db)
-            .Handle(new RestartProjectCommand(null, "web"), CancellationToken.None);
+        await Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Restart, null, "web", NodeId: null), CancellationToken.None);
 
-        docker.Verify(d => d.RestartProjectAsync("/local/proj"), Times.Once);
+        _resolver.Verify(r => r.Resolve(node), Times.Once);
+        _docker.Verify(d => d.RestartProjectAsync("web"), Times.Once);
     }
 
     [Fact]
-    public async Task Stop_UnknownProject_Throws()
+    public async Task ByName_UnmanagedProject_UsesRequestNode_NoAdoptionNeeded()
     {
-        var db = TestDb.Create();
-        var resolver = new Mock<IDockerServiceResolver>();
+        var node = Guid.NewGuid();
+
+        await Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Start, null, "someone-elses-stack", node), CancellationToken.None);
+
+        _resolver.Verify(r => r.Resolve(node), Times.Once);
+        _docker.Verify(d => d.StartProjectAsync("someone-elses-stack"), Times.Once);
+        _activity.Verify(a => a.LogAsync("start", "someone-elses-stack", null, null, It.IsAny<CancellationToken>(), null), Times.Once);
+    }
+
+    [Fact]
+    public async Task UnknownProjectId_Throws()
+    {
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            new StopProjectCommandHandler(resolver.Object, db)
-                .Handle(new StopProjectCommand(Guid.NewGuid()), CancellationToken.None).AsTask());
+            Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Stop, Guid.NewGuid(), null), CancellationToken.None).AsTask());
+        _docker.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task Stop_NoIdentifier_Throws()
+    public async Task NoIdentifier_Throws()
     {
-        var db = TestDb.Create();
-        var resolver = new Mock<IDockerServiceResolver>();
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            new StopProjectCommandHandler(resolver.Object, db)
-                .Handle(new StopProjectCommand(null, null), CancellationToken.None).AsTask());
-    }
-
-    [Fact]
-    public async Task Update_GitOnNode_PullsViaRpc_ThenRestartsViaResolver()
-    {
-        var db = TestDb.Create();
-        var node = Guid.NewGuid();
-        var p = new ProjectInfo
-        {
-            ProjectName = "g", DockerProjectName = "g", ProjectOrigin = ProjectOriginType.Git,
-            ProjectPath = "/n/g", ComposePath = "/n/g/c.yml", ProjectUpdateMethod = ProjectUpdateMethod.Manual, NodeId = node,
-        };
-        db.ProjectInfo.Add(p); db.SaveChanges();
-
-        var docker = new Mock<IDockerService>();
-        var resolver = new Mock<IDockerServiceResolver>();
-        resolver.Setup(r => r.Resolve(node)).Returns(docker.Object);
-        var config = new Mock<IDockiUpProjectConfigurationService>();
-        var rpc = new Mock<INodeRpc>();
-        rpc.Setup(r => r.InvokeAsync<bool>(node, "PullRepository", It.IsAny<object?[]>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        await new UpdateProjectCommandHandler(resolver.Object, db, config.Object, rpc.Object)
-            .Handle(new UpdateProjectCommand(p.Id), CancellationToken.None);
-
-        rpc.Verify(r => r.InvokeAsync<bool>(node, "PullRepository", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
-        config.Verify(c => c.UpdateRepositoryAsync(It.IsAny<string>()), Times.Never); // node pulls, not us
-        docker.Verify(d => d.RestartProjectAsync("/n/g"), Times.Once);
-    }
-
-    [Fact]
-    public async Task Update_GitLocal_PullsLocally_ThenRestarts()
-    {
-        var db = TestDb.Create();
-        var p = new ProjectInfo
-        {
-            ProjectName = "g", DockerProjectName = "g", ProjectOrigin = ProjectOriginType.Git,
-            ProjectPath = "/g", ComposePath = "/g/c.yml", ProjectUpdateMethod = ProjectUpdateMethod.Manual, NodeId = null,
-        };
-        db.ProjectInfo.Add(p); db.SaveChanges();
-
-        var docker = new Mock<IDockerService>();
-        var resolver = new Mock<IDockerServiceResolver>();
-        resolver.Setup(r => r.Resolve(null)).Returns(docker.Object);
-        var config = new Mock<IDockiUpProjectConfigurationService>();
-        var rpc = new Mock<INodeRpc>();
-
-        await new UpdateProjectCommandHandler(resolver.Object, db, config.Object, rpc.Object)
-            .Handle(new UpdateProjectCommand(p.Id), CancellationToken.None);
-
-        config.Verify(c => c.UpdateRepositoryAsync("/g"), Times.Once);
-        docker.Verify(d => d.RestartProjectAsync("/g"), Times.Once);
+            Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Stop, null, " "), CancellationToken.None).AsTask());
+        _docker.VerifyNoOtherCalls();
     }
 }

@@ -15,11 +15,12 @@ export interface SetupProjectDto {
     description?: string | null;
     projectOrigin: number;
     gitUrl?: string | null;
+    branch?: string | null;
+    composeFile?: string | null;
     compose?: string | null;
     path?: string | null;
     nodeId?: string | null;
     projectUpdateMethod: number;
-    webhookUrl?: string | null;
     periodicIntervalInMinutes?: ProblemDetailsStatus | null;
 }
 

@@ -1,4 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
 using DockiUp.API.Controllers;
+using DockiUp.Application.Deployments;
+using DockiUp.Domain;
+using DockiUp.Tests.TestSupport;
+using Microsoft.Extensions.Configuration;
 using DockiUp.Application.Commands;
 using DockiUp.Application.Dtos;
 using DockiUp.Application.Enums;
@@ -284,12 +290,19 @@ public class ControllerTests
 
     // ----------------------------------------------------------------- ProjectController
 
+    private static ProjectController ProjectCtl(Mock<IMediator> mediator, DockiUp.Infrastructure.DockiUpDbContext? db = null)
+        => WithHttp(new ProjectController(mediator.Object, db ?? TestDb.Create(), new ConfigurationBuilder().Build()));
+
+    private static DeploymentDto QueuedDto(Guid projectId, DeploymentTrigger trigger) => new(
+        Guid.NewGuid(), projectId, trigger, DeploymentStatus.Queued, null, null, null, null, null, DateTime.UtcNow, null, null, null);
+
     [Fact]
-    public async Task Project_DeployProject_ReturnsNoContent_AndSendsCommandWithDto()
+    public async Task Project_DeployProject_ReturnsOk_WithQueuedDeployment()
     {
         var mediator = new Mock<IMediator>();
+        var queued = QueuedDto(Guid.NewGuid(), DeploymentTrigger.Create);
         mediator.Setup(m => m.Send(It.IsAny<DeployProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
+            .Returns(new ValueTask<DeploymentDto?>(queued));
         var dto = new SetupProjectDto
         {
             ProjectName = "My App",
@@ -298,11 +311,10 @@ public class ControllerTests
             ProjectUpdateMethod = DockiUp.Domain.Enums.ProjectUpdateMethod.Manual,
         };
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
+        var result = await ProjectCtl(mediator).DeployProject(dto);
 
-        var result = await controller.DeployProject(dto);
-
-        Assert.IsType<NoContentResult>(result.Result);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Same(queued, ok.Value);
         mediator.Verify(m => m.Send(It.Is<DeployProjectCommand>(c => c.SetupContainerDto == dto), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -314,44 +326,35 @@ public class ControllerTests
         mediator.Setup(m => m.Send(It.IsAny<GetProjectsQuery>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<ProjectDto[]>(projects));
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
-
-        var result = await controller.GetContainers();
+        var result = await ProjectCtl(mediator).GetContainers();
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(projects, ok.Value);
-        mediator.Verify(m => m.Send(It.IsAny<GetProjectsQuery>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task Project_StopProject_ReturnsNoContent_AndSendsCommand()
+    [Theory]
+    [InlineData(ProjectAction.Start)]
+    [InlineData(ProjectAction.Stop)]
+    [InlineData(ProjectAction.Restart)]
+    public async Task Project_Lifecycle_ReturnsNoContent_AndSendsLifecycleCommand(ProjectAction action)
     {
         var mediator = new Mock<IMediator>();
-        var id = Guid.NewGuid();
-        mediator.Setup(m => m.Send(It.IsAny<StopProjectCommand>(), It.IsAny<CancellationToken>()))
+        mediator.Setup(m => m.Send(It.IsAny<ProjectLifecycleCommand>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<Unit>(Unit.Value));
+        var node = Guid.NewGuid();
+        var controller = ProjectCtl(mediator);
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
-
-        var result = await controller.StopProject(id, null);
+        var result = action switch
+        {
+            ProjectAction.Start => await controller.StartProject(null, "myapp", node),
+            ProjectAction.Stop => await controller.StopProject(null, "myapp", node),
+            _ => await controller.RestartProject(null, "myapp", node),
+        };
 
         Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.Is<StopProjectCommand>(c => c.ProjectId == id), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Project_RestartProject_ReturnsNoContent_AndSendsCommandByDockerName()
-    {
-        var mediator = new Mock<IMediator>();
-        mediator.Setup(m => m.Send(It.IsAny<RestartProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
-
-        var controller = WithHttp(new ProjectController(mediator.Object));
-
-        var result = await controller.RestartProject(null, "myapp");
-
-        Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.Is<RestartProjectCommand>(c => c.ProjectId == null && c.DockerProjectName == "myapp"), It.IsAny<CancellationToken>()), Times.Once);
+        mediator.Verify(m => m.Send(
+            It.Is<ProjectLifecycleCommand>(c => c.Action == action && c.ProjectId == null && c.DockerProjectName == "myapp" && c.NodeId == node),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -363,13 +366,10 @@ public class ControllerTests
         mediator.Setup(m => m.Send(It.IsAny<GetProjectQuery>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<ProjectDto?>(project));
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
-
-        var result = await controller.GetProject(id, null);
+        var result = await ProjectCtl(mediator).GetProject(id, null);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(project, ok.Value);
-        mediator.Verify(m => m.Send(It.Is<GetProjectQuery>(q => q.ProjectId == id), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -379,27 +379,68 @@ public class ControllerTests
         mediator.Setup(m => m.Send(It.IsAny<GetProjectQuery>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<ProjectDto?>((ProjectDto?)null));
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
-
-        var result = await controller.GetProject(null, "unknown");
+        var result = await ProjectCtl(mediator).GetProject(null, "unknown");
 
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
     [Fact]
-    public async Task Project_UpdateProject_ReturnsNoContent_AndSendsCommand()
+    public async Task Project_QueueDeployment_ReturnsAccepted_WithManualTrigger()
     {
         var mediator = new Mock<IMediator>();
         var id = Guid.NewGuid();
-        mediator.Setup(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
+        var queued = QueuedDto(id, DeploymentTrigger.Manual);
+        mediator.Setup(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<DeploymentDto>(queued));
 
-        var controller = WithHttp(new ProjectController(mediator.Object));
+        var result = await ProjectCtl(mediator).QueueDeployment(id);
 
-        var result = await controller.UpdateProject(id);
+        var accepted = Assert.IsType<AcceptedResult>(result.Result);
+        Assert.Same(queued, accepted.Value);
+        mediator.Verify(m => m.Send(It.Is<QueueDeploymentCommand>(c => c.ProjectId == id && c.Trigger == DeploymentTrigger.Manual),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 
-        Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.Is<UpdateProjectCommand>(c => c.ProjectId == id), It.IsAny<CancellationToken>()), Times.Once);
+    [Fact]
+    public async Task Project_GetWebhook_ReturnsUrlAndSecret_ForKnownProject_AndNotFoundOtherwise()
+    {
+        var db = TestDb.Create();
+        var project = SeedProject(db, branch: "main");
+        var controller = ProjectCtl(new Mock<IMediator>(), db);
+        controller.HttpContext.Request.Scheme = "https";
+        controller.HttpContext.Request.Host = new HostString("dockiup.example.com");
+
+        var original = Environment.GetEnvironmentVariable("PUBLIC_URL");
+        Environment.SetEnvironmentVariable("PUBLIC_URL", null);
+        try
+        {
+            var ok = Assert.IsType<OkObjectResult>((await controller.GetWebhook(project.Id)).Result);
+            var info = Assert.IsType<WebhookInfoDto>(ok.Value);
+            Assert.Equal($"https://dockiup.example.com/api/Webhook/{project.Id}", info.Url);
+            Assert.Equal(project.WebhookSecret, info.Secret);
+            Assert.Equal("main", info.Branch);
+
+            Assert.IsType<NotFoundResult>((await controller.GetWebhook(Guid.NewGuid())).Result);
+        }
+        finally { Environment.SetEnvironmentVariable("PUBLIC_URL", original); }
+    }
+
+    private static DockiUp.Domain.ProjectInfo SeedProject(DockiUp.Infrastructure.DockiUpDbContext db, string? branch = null, string secret = "topsecret")
+    {
+        var project = new DockiUp.Domain.ProjectInfo
+        {
+            ProjectName = "app",
+            DockerProjectName = "app",
+            ProjectOrigin = DockiUp.Domain.Enums.ProjectOriginType.Git,
+            ProjectPath = "/p/app",
+            ComposePath = "/p/app/docker-compose.yml",
+            ProjectUpdateMethod = DockiUp.Domain.Enums.ProjectUpdateMethod.Webhook,
+            Branch = branch,
+            WebhookSecret = secret,
+        };
+        db.ProjectInfo.Add(project);
+        db.SaveChanges();
+        return project;
     }
 
     // ----------------------------------------------------------------- SecretsController
@@ -506,70 +547,140 @@ public class ControllerTests
 
     // ----------------------------------------------------------------- WebhookController
 
-    private static WebhookController Webhook(Mock<IMediator> mediator, string? configuredSecret)
-        => WithHttp(new WebhookController(mediator.Object, Options.Create(new DockiUpWebhookOptions { WebhookSecret = configuredSecret })));
+    private static WebhookController Webhook(Mock<IMediator> mediator, DockiUp.Infrastructure.DockiUpDbContext db,
+        string body, params (string Name, string Value)[] headers)
+    {
+        var controller = WithHttp(new WebhookController(mediator.Object, db));
+        var request = controller.HttpContext.Request;
+        request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+        foreach (var (name, value) in headers) request.Headers[name] = value;
+        return controller;
+    }
 
-    [Fact]
-    public async Task Webhook_Trigger_NoSecretConfigured_SendsUpdate_AndReturnsNoContent()
+    private static string GitHubSignature(string secret, string body)
+        => "sha256=" + Convert.ToHexString(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(body))).ToLowerInvariant();
+
+    private static Mock<IMediator> QueueingMediator()
     {
         var mediator = new Mock<IMediator>();
-        mediator.Setup(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
-        var id = Guid.NewGuid();
+        mediator.Setup(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()))
+            .Returns((QueueDeploymentCommand c, CancellationToken _) => new ValueTask<DeploymentDto>(QueuedDto(c.ProjectId, c.Trigger)));
+        return mediator;
+    }
 
-        var result = await Webhook(mediator, null).Trigger(id, null, null);
+    private const string PushToMain = "{\"ref\":\"refs/heads/main\"}";
 
-        Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.Is<UpdateProjectCommand>(c => c.ProjectId == id), It.IsAny<CancellationToken>()), Times.Once);
+    [Fact]
+    public async Task Webhook_Trigger_UnknownProject_ReturnsNotFound()
+    {
+        var mediator = QueueingMediator();
+
+        var result = await Webhook(mediator, TestDb.Create(), PushToMain, ("X-Webhook-Secret", "topsecret")).Trigger(Guid.NewGuid());
+
+        Assert.IsType<NotFoundResult>(result);
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("X-Webhook-Secret", "wrong")]
+    [InlineData("X-Gitlab-Token", "wrong")]
+    [InlineData("X-Hub-Signature-256", "sha256=deadbeef")]
+    [InlineData("X-Gitea-Signature", "deadbeef")]
+    [InlineData("X-Unrelated", "topsecret")]
+    public async Task Webhook_Trigger_BadOrMissingCredential_ReturnsUnauthorized(string header, string value)
+    {
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main");
+        var mediator = QueueingMediator();
+
+        var result = await Webhook(mediator, db, PushToMain, (header, value)).Trigger(project.Id);
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Webhook_Trigger_MatchingHeaderSecret_SendsUpdate_AndReturnsNoContent()
+    public async Task Webhook_Trigger_EmptyStoredSecret_IsRejectedEvenWithEmptyKeyHmac()
     {
-        var mediator = new Mock<IMediator>();
-        mediator.Setup(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
-        var id = Guid.NewGuid();
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main", secret: "");
+        var mediator = QueueingMediator();
 
-        var result = await Webhook(mediator, "s3cr3t").Trigger(id, "s3cr3t", null);
+        var result = await Webhook(mediator, db, PushToMain, ("X-Hub-Signature-256", GitHubSignature("", PushToMain))).Trigger(project.Id);
 
-        Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.Is<UpdateProjectCommand>(c => c.ProjectId == id), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.IsType<UnauthorizedObjectResult>(result);
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("GitHub")]
+    [InlineData("Gitea")]
+    [InlineData("GiteaHex")]
+    [InlineData("GitLab")]
+    [InlineData("Custom")]
+    public async Task Webhook_Trigger_ValidCredential_QueuesWebhookDeployment_NamedAfterProvider(string provider)
+    {
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main");
+        var mediator = QueueingMediator();
+        (string, string)[] headers = provider switch
+        {
+            "GitHub" => [("X-Hub-Signature-256", GitHubSignature("topsecret", PushToMain))],
+            "Gitea" => [("X-Hub-Signature-256", GitHubSignature("topsecret", PushToMain)), ("X-Gitea-Event", "push")],
+            "GiteaHex" => [("X-Gitea-Signature", GitHubSignature("topsecret", PushToMain)["sha256=".Length..])],
+            "GitLab" => [("X-Gitlab-Token", "topsecret")],
+            _ => [("X-Webhook-Secret", "topsecret")],
+        };
+        var expectedActor = (provider == "GiteaHex" ? "Gitea" : provider) + " webhook";
+
+        var result = await Webhook(mediator, db, PushToMain, headers).Trigger(project.Id);
+
+        var accepted = Assert.IsType<AcceptedResult>(result);
+        Assert.IsType<DeploymentDto>(accepted.Value);
+        mediator.Verify(m => m.Send(
+            It.Is<QueueDeploymentCommand>(c => c.ProjectId == project.Id && c.Trigger == DeploymentTrigger.Webhook && c.ActorName == expectedActor),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task Webhook_Trigger_MatchingQuerySecret_WhenHeaderMissing_SendsUpdate()
+    public async Task Webhook_Trigger_PushToOtherBranch_IsAcceptedButIgnored()
     {
-        var mediator = new Mock<IMediator>();
-        mediator.Setup(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<Unit>(Unit.Value));
-        var id = Guid.NewGuid();
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main");
+        var mediator = QueueingMediator();
 
-        var result = await Webhook(mediator, "s3cr3t").Trigger(id, null, "s3cr3t");
+        var result = await Webhook(mediator, db, "{\"ref\":\"refs/heads/feature/x\"}", ("X-Webhook-Secret", "topsecret")).Trigger(project.Id);
 
-        Assert.IsType<NoContentResult>(result);
-        mediator.Verify(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        var accepted = Assert.IsType<AcceptedResult>(result);
+        Assert.Contains("ignored", System.Text.Json.JsonSerializer.Serialize(accepted.Value));
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Webhook_Trigger_MissingSecret_ReturnsBadRequest_AndDoesNotSend()
+    public async Task Webhook_Trigger_GitHubPing_ReturnsPong_WithoutDeploying()
     {
-        var mediator = new Mock<IMediator>();
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main");
+        var mediator = QueueingMediator();
+        const string ping = "{\"zen\":\"hi\"}";
 
-        var result = await Webhook(mediator, "s3cr3t").Trigger(Guid.NewGuid(), null, null);
+        var result = await Webhook(mediator, db, ping,
+            ("X-Hub-Signature-256", GitHubSignature("topsecret", ping)), ("X-GitHub-Event", "ping")).Trigger(project.Id);
 
-        Assert.IsType<BadRequestObjectResult>(result);
-        mediator.Verify(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.IsType<OkObjectResult>(result);
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Webhook_Trigger_WrongSecret_ReturnsBadRequest_AndDoesNotSend()
+    public async Task Webhook_Trigger_NonJsonBody_StillDeploys()
     {
-        var mediator = new Mock<IMediator>();
+        var db = TestDb.Create();
+        var project = SeedProject(db, "main");
+        var mediator = QueueingMediator();
 
-        var result = await Webhook(mediator, "s3cr3t").Trigger(Guid.NewGuid(), "wrong", null);
+        var result = await Webhook(mediator, db, "not json", ("X-Webhook-Secret", "topsecret")).Trigger(project.Id);
 
-        Assert.IsType<BadRequestObjectResult>(result);
-        mediator.Verify(m => m.Send(It.IsAny<UpdateProjectCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.IsType<AcceptedResult>(result);
+        mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

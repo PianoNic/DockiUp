@@ -16,12 +16,15 @@
       <form [formGroup]="projectInformationFormGroup" class="form-content">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Project Name</mat-label>
-          <input matInput placeholder="Project Name" formControlName="projectName" required maxlength="20">
+          <input matInput placeholder="Project Name" formControlName="projectName" required maxlength="100">
           @if (projectInformationFormGroup.get('projectName')?.hasError('required')) {
           <mat-error>Project name is required</mat-error>
           }
+          @if (projectInformationFormGroup.get('projectName')?.hasError('pattern')) {
+          <mat-error>Letters, digits, spaces, - and _ only; start with a letter or digit</mat-error>
+          }
           @if (projectInformationFormGroup.get('projectName')?.hasError('maxlength')) {
-          <mat-error>Project name must be 20 characters or less</mat-error>
+          <mat-error>Project name must be 100 characters or less</mat-error>
           }
         </mat-form-field>
 
@@ -81,13 +84,18 @@
           <mat-error>Git URL is required</mat-error>
           }
         </mat-form-field>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Compose File</mat-label>
-          <textarea matInput placeholder="Paste compose file content here" rows="12" formControlName="composeContent" required></textarea>
-          @if (projectOriginFormGroup.get('composeContent')?.hasError('required')) {
-          <mat-error>Compose file content is required</mat-error>
-          }
-        </mat-form-field>
+        <div class="field-row">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Branch</mat-label>
+            <input matInput placeholder="Repository default" formControlName="branch">
+            <mat-hint>Leave empty to track the repository's default branch</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Compose file in repository</mat-label>
+            <input matInput placeholder="docker-compose.yml" formControlName="composeFile">
+            <mat-hint>Relative to the repository root</mat-hint>
+          </mat-form-field>
+        </div>
         }
 
         <!-- Compose Content Input -->
@@ -129,7 +137,7 @@
           <mat-radio-button [value]="ProjectUpdateMethod.Webhook" class="update-method-option">
             <div class="radio-content">
               <h3>Use Webhook (Recommended)</h3>
-              <p>Create a webhook in your Git repository to notify the system about new changes immediately.</p>
+              <p>Your git provider notifies DockiUp on every push, and it redeploys right away.</p>
               <p class="note">This option requires admin access to the repository.</p>
             </div>
           </mat-radio-button>
@@ -144,27 +152,17 @@
           <mat-radio-button [value]="ProjectUpdateMethod.Periodically" class="update-method-option">
             <div class="radio-content">
               <h3>Check Periodically</h3>
-              <p>The system will check for changes in the repository at regular intervals.</p>
+              <p>DockiUp checks for new commits (or newer images) at an interval and redeploys only when something changed.</p>
             </div>
           </mat-radio-button>
         </mat-radio-group>
 
-        <!-- Webhook URL input -->
         @if (updateMethodFormGroup.get('updateMethod')?.value === ProjectUpdateMethod.Webhook) {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Webhook URL</mat-label>
-          <input matInput placeholder="Enter webhook URL" formControlName="webhookUrl" required type="url">
-          @if (updateMethodFormGroup.get('webhookUrl')?.hasError('required')) {
-          <mat-error>Webhook URL is required</mat-error>
-          }
-          @if (updateMethodFormGroup.get('webhookUrl')?.hasError('pattern')) {
-          <mat-error>Please enter a valid URL</mat-error>
-          }
-        </mat-form-field>
+        <p class="hint">After creating, the project page shows the webhook URL and secret to add in your git provider.</p>
         }
 
         <!-- Periodic interval input -->
-        @else if (updateMethodFormGroup.get('updateMethod')?.value === ProjectUpdateMethod.Periodically) {
+        @if (updateMethodFormGroup.get('updateMethod')?.value === ProjectUpdateMethod.Periodically) {
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Check Interval (minutes)</mat-label>
           <input matInput placeholder="Interval in minutes" formControlName="periodicInterval" required type="number"

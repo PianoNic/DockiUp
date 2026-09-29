@@ -11,6 +11,7 @@ namespace DockiUp.Infrastructure
         public DbSet<Node> Nodes { get; set; }
         public DbSet<ActivityEntry> ActivityEntries { get; set; }
         public DbSet<Secret> Secrets { get; set; }
+        public DbSet<Deployment> Deployments { get; set; }
 
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 
@@ -21,6 +22,13 @@ namespace DockiUp.Infrastructure
             modelBuilder.Entity<ProjectInfo>(e =>
             {
                 e.Property(p => p.LastPeriodicUpdateAt);
+            });
+
+            modelBuilder.Entity<Deployment>(e =>
+            {
+                e.HasIndex(d => new { d.ProjectId, d.CreatedAt });
+                e.Property(d => d.Status).HasConversion<string>();
+                e.Property(d => d.Trigger).HasConversion<string>();
             });
 
             modelBuilder.Entity<Node>(e =>

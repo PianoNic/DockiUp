@@ -19,6 +19,7 @@ namespace DockiUp.API.Nodes
         IServiceScopeFactory scopeFactory,
         IHubContext<DockiUpHub> containerHub,
         IExecRelay execRelay,
+        DeployLogRelay deployLogRelay,
         ILogger<NodeHub> logger) : Hub
     {
         // Key under which a token-resolved node Id is stashed on the connection, so Register can use
@@ -134,6 +135,9 @@ namespace DockiUp.API.Nodes
             execRelay.RemoveExec(sessionId);
             return Task.CompletedTask;
         }
+
+        /// <summary>A line of deploy-pipeline output from a node - hand it to the server call awaiting it.</summary>
+        public Task DeployLog(string runId, string line) => deployLogRelay.WriteAsync(runId, line);
 
         public override Task OnDisconnectedAsync(Exception? exception)
         {

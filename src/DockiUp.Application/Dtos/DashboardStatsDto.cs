@@ -8,5 +8,7 @@ namespace DockiUp.Application.Dtos
         public required int TotalContainers { get; set; }
         public required int RunningContainers { get; set; }
         public required IReadOnlyList<ActivityEntryDto> RecentActivity { get; set; }
+        /// <summary>Docker engine version on the server's own host (nodes report theirs on register).</summary>
+        public string? LocalDockerVersion { get; set; }
     }
 }

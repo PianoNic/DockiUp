@@ -7,5 +7,6 @@ export interface NavigationItem {
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
   { label: 'Containers', icon: 'view_list', route: '/containers' },
+  { label: 'Nodes', icon: 'dns', route: '/nodes' },
   { label: 'Activity', icon: 'history', route: '/activity' },
 ];

@@ -1,0 +1,8 @@
+# Host build output and deps must not leak into the image build (Windows node_modules breaks ng on Linux).
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/.angular
+**/test-results
+.git

@@ -115,7 +115,7 @@ public class NodeHubTests
         Mock<IHubContext<DockiUpHub>> containerHub, HubCallerContext context, IConfiguration? config = null)
     {
         return new NodeHub(registry, config ?? new ConfigurationBuilder().Build(), scopeFactory,
-            containerHub.Object, relay, NullLogger<NodeHub>.Instance)
+            containerHub.Object, relay, new DeployLogRelay(), NullLogger<NodeHub>.Instance)
         { Context = context };
     }
 
@@ -127,7 +127,7 @@ public class NodeHubTests
         ctx.Setup(c => c.ConnectionId).Returns("c1");
         var hub = new NodeHub(registry.Object, new ConfigurationBuilder().Build(),
             TestSupport.TestDb.ScopeFactory(Guid.NewGuid().ToString()), new Mock<IHubContext<DockiUpHub>>().Object,
-            new ExecRelay(), NullLogger<NodeHub>.Instance) { Context = ctx.Object };
+            new ExecRelay(), new DeployLogRelay(), NullLogger<NodeHub>.Instance) { Context = ctx.Object };
 
         hub.Heartbeat();
 

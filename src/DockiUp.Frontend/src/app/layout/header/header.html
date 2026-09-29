@@ -9,6 +9,8 @@
 
   <app-create-project-button />
 
+  <app-task-center />
+
   @if (authEnabled() && !isAuthenticated()) {
     <button mat-button class="user-button" (click)="login()">
       <span>Login</span>
@@ -18,7 +20,11 @@
     <div class="user-menu-container">
       <button mat-button class="user-button" (click)="toggleUserMenu()">
         <span>{{ displayName() }}</span>
-        <mat-icon>account_circle</mat-icon>
+        @if (picture() && !pictureFailed()) {
+          <img class="user-picture" [src]="picture()" alt="" referrerpolicy="no-referrer" (error)="pictureFailed.set(true)" />
+        } @else {
+          <mat-icon>account_circle</mat-icon>
+        }
       </button>
       @if (userMenuOpen()) {
         <div class="user-dropdown">
@@ -27,7 +33,7 @@
             <div class="user-email">{{ email() }}</div>
           </div>
           <div class="dropdown-divider"></div>
-          <a mat-button class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
+          <a class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
             <mat-icon>account_circle</mat-icon>
             <span>Profile</span>
           </a>
@@ -35,7 +41,7 @@
           <app-theme-toggle />
           @if (authEnabled() && isAuthenticated()) {
             <div class="dropdown-divider"></div>
-            <a mat-button class="dropdown-link" (click)="logout()">
+            <a class="dropdown-link" (click)="logout()">
               <mat-icon>logout</mat-icon>
               <span>Logout</span>
             </a>
