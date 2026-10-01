@@ -75,6 +75,7 @@
                     <span class="state-badge" [attr.data-state]="stateLabel(container.state)">{{ stateLabel(container.state) }}</span>
                     <span class="status">{{ container.status }}</span>
                   </div>
+                  <app-container-stats-meter [containerId]="container.id" />
                   <div class="container-actions" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
                     <button mat-icon-button (click)="onStartContainer(container)" [disabled]="getContainerState(container) !== UpdateMethodType.Stopped" matTooltip="Start" aria-label="Start">
                       <mat-icon>play_arrow</mat-icon>
@@ -92,37 +93,15 @@
                 <mat-icon>delete</mat-icon>
               </button>
                   </div>
+                  @if (selectedContainerId() === container.id) {
+                    <app-container-stats-history (click)="$event.stopPropagation()" [containerName]="container.name" [nodeId]="p.nodeId" />
+                  }
                 </div>
               }
             </div>
 
-            <div class="console-area">
-              <div class="console-toolbar">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="console-select">
-                  <mat-label>Container logs</mat-label>
-                  <mat-select
-                    [value]="selectedContainerId()"
-                    (selectionChange)="selectedContainerId.set($event.value); loadConsoleLogs()"
-                    placeholder="Select container">
-                    <mat-option value="">All containers</mat-option>
-                    @for (container of p.containers; track container.id) {
-                      <mat-option [value]="container.id">{{ container.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <button mat-stroked-button (click)="loadConsoleLogs()" [disabled]="logsLoading()">
-                  <mat-icon>refresh</mat-icon>
-                  Refresh
-                </button>
-              </div>
-              <div class="console-output" #logContainer>
-                @if (logsLoading()) {
-                  <mat-spinner diameter="24"></mat-spinner>
-                } @else {
-                  <pre>{{ consoleLogs() || 'Select "All containers" or a container and click Refresh to view logs.' }}</pre>
-                }
-              </div>
-            </div>
+            <app-container-logs class="console-area" [containers]="p.containers" [nodeId]="p.nodeId" [projectName]="p.dockerProjectName"
+              [(selected)]="selectedContainerId" />
           </div>
         </mat-card>
       </div>

@@ -57,6 +57,101 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("ActivityEntries");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.CleanupSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DayOfWeekUtc")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("HourUtc")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LastRunAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastRunResult")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("NodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("PruneVolumes")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodeId")
+                        .IsUnique();
+
+                    b.ToTable("CleanupSchedules");
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.ContainerStatSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ContainerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContainerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("CpuPercent")
+                        .HasColumnType("double precision");
+
+                    b.Property<long>("MemoryLimit")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MemoryUsage")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("NetworkRx")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("NetworkTx")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("NodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProjectName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("ContainerName", "Timestamp");
+
+                    b.ToTable("ContainerStatSamples");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.Deployment", b =>
                 {
                     b.Property<Guid>("Id")

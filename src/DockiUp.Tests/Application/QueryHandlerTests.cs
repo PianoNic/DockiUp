@@ -300,7 +300,7 @@ public class QueryHandlerTests
     {
         var node = Guid.NewGuid();
         var docker = new Mock<IDockerService>();
-        docker.Setup(d => d.GetContainerLogsAsync("cid", 50, It.IsAny<CancellationToken>())).ReturnsAsync("log output");
+        docker.Setup(d => d.GetContainerLogsAsync("cid", new ContainerLogOptions(50, true, true, false), It.IsAny<CancellationToken>())).ReturnsAsync("log output");
         var resolver = new Mock<IDockerServiceResolver>();
         resolver.Setup(r => r.Resolve(node)).Returns(docker.Object);
 
@@ -309,14 +309,14 @@ public class QueryHandlerTests
 
         Assert.Equal("log output", result);
         resolver.Verify(r => r.Resolve(node), Times.Once);
-        docker.Verify(d => d.GetContainerLogsAsync("cid", 50, It.IsAny<CancellationToken>()), Times.Once);
+        docker.Verify(d => d.GetContainerLogsAsync("cid", new ContainerLogOptions(50, true, true, false), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetContainerLogs_NullTail_RoutesLocally()
     {
         var docker = new Mock<IDockerService>();
-        docker.Setup(d => d.GetContainerLogsAsync("cid", null, It.IsAny<CancellationToken>())).ReturnsAsync("");
+        docker.Setup(d => d.GetContainerLogsAsync("cid", new ContainerLogOptions(null, true, true, false), It.IsAny<CancellationToken>())).ReturnsAsync("");
         var resolver = new Mock<IDockerServiceResolver>();
         resolver.Setup(r => r.Resolve(null)).Returns(docker.Object);
 
@@ -325,7 +325,7 @@ public class QueryHandlerTests
 
         Assert.Equal("", result);
         resolver.Verify(r => r.Resolve(null), Times.Once);
-        docker.Verify(d => d.GetContainerLogsAsync("cid", null, It.IsAny<CancellationToken>()), Times.Once);
+        docker.Verify(d => d.GetContainerLogsAsync("cid", new ContainerLogOptions(null, true, true, false), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ---- GetDashboardStatsQuery ---------------------------------------------

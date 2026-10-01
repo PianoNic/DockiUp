@@ -1,0 +1,233 @@
+<div class="activity-wrapper">
+  <header class="activity-header">
+    <div>
+      <h1 class="activity-title">Resources</h1>
+      <p class="activity-subtitle">Images, volumes and networks on {{ hostName() }}</p>
+    </div>
+    <div class="activity-actions">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="host-select">
+        <mat-label>Host</mat-label>
+        <mat-select [value]="host()" (selectionChange)="host.set($event.value)">
+          <mat-option value="">Local host</mat-option>
+          @for (n of nodes(); track n.id) {
+            <mat-option [value]="n.id" [disabled]="!n.online">{{ n.name }}{{ n.online ? '' : ' (offline)' }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  @if (loading() || busy()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @if (error(); as e) {
+    <p class="activity-empty">{{ e }}</p>
+  }
+
+  @if (data(); as d) {
+    <div class="usage" aria-label="Disk usage">
+      <div class="tile">
+        <span class="tile-label">Images</span>
+        <span class="tile-value">{{ size(d.diskUsage.imagesSize) }}</span>
+        <span class="tile-sub">{{ size(d.diskUsage.imagesReclaimable) }} reclaimable</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Containers</span>
+        <span class="tile-value">{{ size(d.diskUsage.containersSize) }}</span>
+        <span class="tile-sub">writable layers</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Volumes</span>
+        <span class="tile-value">{{ size(d.diskUsage.volumesSize) }}</span>
+        <span class="tile-sub">{{ size(d.diskUsage.volumesReclaimable) }} reclaimable</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Build cache</span>
+        <span class="tile-value">{{ size(d.diskUsage.buildCacheSize) }}</span>
+        <span class="tile-sub">&nbsp;</span>
+      </div>
+    </div>
+  }
+
+  <mat-tab-group class="tabs" animationDuration="0ms" mat-stretch-tabs="false" [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)">
+    <mat-tab [label]="'Images (' + (data()?.images?.length ?? 0) + ')'">
+      <div class="tab-fill">
+        <div class="tab-toolbar">
+          <div class="filter-field">
+            <mat-icon>search</mat-icon>
+            <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
+          </div>
+          <span class="spacer"></span>
+          <button mat-stroked-button (click)="pruneImages(false)" [disabled]="busy() || !unused().dangling">Prune dangling ({{ unused().dangling }})</button>
+          <button mat-stroked-button class="danger" (click)="pruneImages(true)" [disabled]="busy() || !unused().images">Prune all unused ({{ unused().images }})</button>
+        </div>
+        <div class="table-scroll">
+          <table class="activity-table">
+            <thead><tr><th>Repository:tag</th><th>ID</th><th>Size</th><th>Created</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              @for (i of images(); track i.id) {
+                <tr>
+                  <td class="target wrap">
+                    {{ imageName(i) }}
+                    @if (i.dangling) { <span class="chip">dangling</span> }
+                  </td>
+                  <td class="mono details">{{ shortId(i.id) }}</td>
+                  <td class="when">{{ bytes(i.size) }}</td>
+                  <td class="when">{{ i.created | localDate: 'short' }}</td>
+                  <td>
+                    @if (i.inUse) { <span class="state-badge" data-state="running">In use</span> }
+                    @else { <span class="state-badge" data-state="pending">Unused</span> }
+                  </td>
+                  <td><div class="row-actions">
+                    <button mat-icon-button (click)="removeImage(i)" [disabled]="i.inUse || busy()"
+                      [matTooltip]="i.inUse ? 'In use by ' + count(i.containers) + ' container(s)' : 'Delete image'" aria-label="Delete image">
+                      <mat-icon>delete</mat-icon>
+                    </button></div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="details">{{ loading() ? 'Loading…' : 'No images.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab [label]="'Volumes (' + (data()?.volumes?.length ?? 0) + ')'">
+      <div class="tab-fill">
+        <div class="tab-toolbar">
+          <div class="filter-field">
+            <mat-icon>search</mat-icon>
+            <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
+          </div>
+          <span class="spacer"></span>
+          <button mat-stroked-button class="danger" (click)="pruneVolumesNow()" [disabled]="busy() || !unused().volumes">Prune unused ({{ unused().volumes }})</button>
+        </div>
+        <div class="table-scroll">
+          <table class="activity-table">
+            <thead><tr><th>Name</th><th>Driver</th><th>Size</th><th>Created</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              @for (v of volumes(); track v.name) {
+                <tr>
+                  <td class="target mono ellipsis" [title]="v.name">{{ v.name }}</td>
+                  <td class="details">{{ v.driver }}</td>
+                  <td class="when">{{ size(v.size) }}</td>
+                  <td class="when">{{ v.created ? (v.created | localDate: 'short') : '–' }}</td>
+                  <td>
+                    @if (v.inUse) { <span class="state-badge" data-state="running">In use</span> }
+                    @else { <span class="state-badge" data-state="pending">Unused</span> }
+                  </td>
+                  <td><div class="row-actions">
+                    <button mat-icon-button (click)="removeVolume(v)" [disabled]="v.inUse || busy()"
+                      [matTooltip]="v.inUse ? 'In use by ' + count(v.containers) + ' container(s)' : 'Delete volume and its data'" aria-label="Delete volume">
+                      <mat-icon>delete</mat-icon>
+                    </button></div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="details">{{ loading() ? 'Loading…' : 'No volumes.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab [label]="'Networks (' + (data()?.networks?.length ?? 0) + ')'">
+      <div class="tab-fill">
+        <div class="tab-toolbar">
+          <div class="filter-field">
+            <mat-icon>search</mat-icon>
+            <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
+          </div>
+          <span class="spacer"></span>
+          <button mat-stroked-button (click)="pruneNetworks()" [disabled]="busy() || !unused().networks">Prune unused ({{ unused().networks }})</button>
+        </div>
+        <div class="table-scroll">
+          <table class="activity-table">
+            <thead><tr><th>Name</th><th>Driver</th><th>Scope</th><th>Containers</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              @for (n of networks(); track n.id) {
+                <tr>
+                  <td class="target wrap">{{ n.name }} @if (n.builtin) { <span class="chip">built-in</span> }</td>
+                  <td class="details">{{ n.driver }}</td>
+                  <td class="details">{{ n.scope }}</td>
+                  <td class="when">{{ count(n.containers) }}</td>
+                  <td>
+                    @if (n.inUse) { <span class="state-badge" data-state="running">In use</span> }
+                    @else { <span class="state-badge" data-state="pending">Unused</span> }
+                  </td>
+                  <td><div class="row-actions">
+                    <button mat-icon-button (click)="removeNetwork(n)" [disabled]="n.inUse || n.builtin || busy()"
+                      [matTooltip]="n.builtin ? 'Built-in networks cannot be removed' : n.inUse ? 'Containers are attached' : 'Delete network'" aria-label="Delete network">
+                      <mat-icon>delete</mat-icon>
+                    </button></div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="details">{{ loading() ? 'Loading…' : 'No networks.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Scheduled cleanup">
+      <div class="tab-fill">
+        <div class="schedule">
+          <p class="details">
+            Prunes {{ hostName() }} on a schedule: stopped containers that belong to no compose project, unused networks,
+            and images no container uses. Containers of compose projects are kept even when stopped, so every project's
+            images - including the ones its latest deployment runs - and its volumes stay in use and are never pruned.
+            Each run is logged in Activity with the space it freed.
+          </p>
+          <div class="schedule-row">
+            <mat-button-toggle-group [value]="frequency()" (change)="frequency.set($event.value)" aria-label="Frequency">
+              <mat-button-toggle value="Off">Off</mat-button-toggle>
+              <mat-button-toggle value="Daily">Daily</mat-button-toggle>
+              <mat-button-toggle value="Weekly">Weekly</mat-button-toggle>
+            </mat-button-toggle-group>
+            @if (frequency() === 'Weekly') {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Day</mat-label>
+                <mat-select [value]="day()" (selectionChange)="day.set($event.value)">
+                  @for (d of days; track $index) { <mat-option [value]="$index">{{ d }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (frequency() !== 'Off') {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="hour">
+                <mat-label>At (local time)</mat-label>
+                <mat-select [value]="hour()" (selectionChange)="hour.set($event.value)">
+                  @for (h of hours; track h) { <mat-option [value]="h">{{ h < 10 ? '0' + h : h }}:00</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
+          </div>
+          <mat-checkbox [checked]="pruneVolumes()" (change)="pruneVolumes.set($event.checked)">
+            Also delete unused volumes (their data is lost)
+          </mat-checkbox>
+          <div class="schedule-row">
+            <button mat-flat-button (click)="saveSchedule()" [disabled]="busy()">
+              <mat-icon>save</mat-icon>
+              Save schedule
+            </button>
+            <button mat-stroked-button (click)="runCleanupNow()" [disabled]="busy()">
+              <mat-icon>cleaning_services</mat-icon>
+              Run now
+            </button>
+          </div>
+          @if (schedule()?.lastRunAt; as last) {
+            <p class="details">Last run {{ last | localDate: 'short' }}: {{ schedule()?.lastRunResult }}</p>
+          }
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

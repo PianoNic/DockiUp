@@ -260,21 +260,8 @@ namespace DockiUp.Infrastructure.Services
             await _dockiUpDockerClient.DockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters());
         }
 
-        public async Task<string> GetContainerLogsAsync(string containerId, int? tail = null, CancellationToken cancellationToken = default)
-        {
-            var parameters = new ContainerLogsParameters
-            {
-                ShowStdout = true,
-                ShowStderr = true,
-                Timestamps = false,
-                Tail = tail?.ToString() ?? "100"
-            };
-
-#pragma warning disable CS0618 // Type or member is obsolete - we decode the multiplexed stream ourselves
-            using var stream = await _dockiUpDockerClient.DockerClient.Containers.GetContainerLogsAsync(containerId, parameters, cancellationToken);
-#pragma warning restore CS0618
-            return DecodeDockerMultiplexedStream(stream);
-        }
+        public Task<string> GetContainerLogsAsync(string containerId, int? tail = null, CancellationToken cancellationToken = default)
+            => GetContainerLogsAsync(containerId, new ContainerLogOptions(tail), cancellationToken);
 
         #region Vault secrets -> env file (#76)
         public async Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
@@ -636,5 +623,254 @@ namespace DockiUp.Infrastructure.Services
                 throw new ArgumentException($"'{projectPath}' is not a project folder.");
             return Path.Combine(full, ComposeOverrideFile.FileName);
         }
+
+        // ---- Monitoring and housekeeping (stats, filtered logs, images/volumes/networks, prune) ----
+
+        public async Task<string> GetContainerLogsAsync(string containerId, ContainerLogOptions options, CancellationToken cancellationToken = default)
+        {
+            // The daemon rejects a request for neither stream; that is simply an empty log.
+            if (!options.Stdout && !options.Stderr)
+                return string.Empty;
+
+#pragma warning disable CS0618 // Type or member is obsolete - we decode the multiplexed stream ourselves
+            using var stream = await _dockiUpDockerClient.DockerClient.Containers.GetContainerLogsAsync(containerId, BuildLogParameters(options), cancellationToken);
+#pragma warning restore CS0618
+            return DecodeDockerMultiplexedStream(stream);
+        }
+
+        /// <summary>Tail null keeps the historical default of 100 lines; 0 or less reads the whole log.</summary>
+        public static ContainerLogsParameters BuildLogParameters(ContainerLogOptions options) => new()
+        {
+            ShowStdout = options.Stdout,
+            ShowStderr = options.Stderr,
+            Timestamps = options.Timestamps,
+            Tail = options.Tail is null ? "100" : options.Tail <= 0 ? "all" : options.Tail.Value.ToString(),
+        };
+
+        public async Task<ContainerStatsDto[]> GetContainerStatsAsync(CancellationToken cancellationToken = default)
+        {
+            var docker = _dockiUpDockerClient.DockerClient;
+            var running = await docker.Containers.ListContainersAsync(new ContainersListParameters { All = false }, cancellationToken);
+            // Stream=false makes the daemon wait for a second reading (~1s) so precpu is filled and CPU % is
+            // computable; run them side by side, a few at a time.
+            using var gate = new SemaphoreSlim(8);
+            var samples = await Task.WhenAll(running.Select(async container =>
+            {
+                await gate.WaitAsync(cancellationToken);
+                try
+                {
+                    var capture = new StatsCapture();
+                    await docker.Containers.GetContainerStatsAsync(container.ID, new ContainerStatsParameters { Stream = false }, capture, cancellationToken);
+                    if (capture.Value is null) return null;
+                    string? project = null;
+                    container.Labels?.TryGetValue("com.docker.compose.project", out project);
+                    var name = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID;
+                    return DockerStatsMath.ToDto(container.ID, name, project ?? string.Empty, capture.Value, DateTime.UtcNow);
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    return null; // stopped between listing and sampling
+                }
+                finally { gate.Release(); }
+            }));
+            return samples.OfType<ContainerStatsDto>().ToArray();
+        }
+
+        // Progress<T> would post the report to the thread pool, possibly after the call returned; this keeps it synchronous.
+        private sealed class StatsCapture : IProgress<ContainerStatsResponse>
+        {
+            public ContainerStatsResponse? Value { get; private set; }
+            public void Report(ContainerStatsResponse value) => Value = value;
+        }
+
+        private static readonly HashSet<string> BuiltinNetworks = ["bridge", "host", "none"];
+
+        public async Task<DockerResourcesDto> GetResourcesAsync(CancellationToken cancellationToken = default)
+        {
+            var docker = _dockiUpDockerClient.DockerClient;
+            var containersTask = docker.Containers.ListContainersAsync(new ContainersListParameters { All = true }, cancellationToken);
+            var imagesTask = docker.Images.ListImagesAsync(new ImagesListParameters { All = false }, cancellationToken);
+            var volumesTask = docker.Volumes.ListAsync(cancellationToken);
+            var networksTask = docker.Networks.ListNetworksAsync(new NetworksListParameters(), cancellationToken);
+            var diskTask = ReadDiskUsageAsync(cancellationToken);
+            await Task.WhenAll(containersTask, imagesTask, volumesTask, networksTask, diskTask);
+
+            // The list endpoints don't say what uses what, so count it from the containers (running or stopped:
+            // either keeps an image/volume/network from being pruned).
+            var containers = containersTask.Result;
+            var imageUse = containers.Where(c => c.ImageID is not null).GroupBy(c => c.ImageID).ToDictionary(g => g.Key, g => g.Count());
+            var volumeUse = containers
+                .SelectMany(c => (c.Mounts ?? []).Where(m => m.Type == "volume" && m.Name is not null).Select(m => (m.Name, c.ID)))
+                .Distinct().GroupBy(x => x.Name).ToDictionary(g => g.Key, g => g.Count());
+            var networkUse = containers
+                .SelectMany(c => (c.NetworkSettings?.Networks?.Values ?? []).Select(n => n.NetworkID))
+                .Where(id => !string.IsNullOrEmpty(id))
+                .GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+            var (disk, volumeSizes) = diskTask.Result;
+
+            var images = imagesTask.Result.Select(i =>
+            {
+                var tags = (i.RepoTags ?? []).Where(t => t != "<none>:<none>").ToArray();
+                var used = imageUse.GetValueOrDefault(i.ID);
+                return new DockerImageDto(i.ID, tags, i.Size, i.Created.ToUniversalTime(), used, used > 0, tags.Length == 0);
+            }).OrderByDescending(i => i.Created).ToArray();
+
+            var volumes = (volumesTask.Result.Volumes ?? []).Select(v =>
+            {
+                var used = volumeUse.GetValueOrDefault(v.Name);
+                DateTime? created = DateTime.TryParse(v.CreatedAt, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal, out var c) ? c : null;
+                long? size = volumeSizes.TryGetValue(v.Name, out var s) ? s : v.UsageData is { Size: >= 0 } usage ? usage.Size : null;
+                return new DockerVolumeDto(v.Name, v.Driver, size, created, used, used > 0);
+            }).OrderBy(v => v.Name).ToArray();
+
+            var networks = networksTask.Result.Select(n =>
+            {
+                var used = networkUse.GetValueOrDefault(n.ID);
+                return new DockerNetworkDto(n.ID, n.Name, n.Driver, n.Scope, used, used > 0, BuiltinNetworks.Contains(n.Name));
+            }).OrderBy(n => n.Name).ToArray();
+
+            return new DockerResourcesDto(images, volumes, networks, disk);
+        }
+
+        // Volume sizes and the disk summary are only exposed by /system/df, which Docker.DotNet doesn't wrap;
+        // the CLI is already required for compose. Best effort: without it the page still lists everything.
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process
+        private async Task<(DiskUsageDto, Dictionary<string, long>)> ReadDiskUsageAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var summary = RunDockerCliAsync(["system", "df", "--format", "json"], cancellationToken);
+                var verbose = RunDockerCliAsync(["system", "df", "-v", "--format", "json"], cancellationToken);
+                await Task.WhenAll(summary, verbose);
+                return (DockerStatsMath.ParseDiskUsage(summary.Result), DockerStatsMath.ParseVolumeSizes(verbose.Result));
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                return (new DiskUsageDto(null, null, null, null, null, null), []);
+            }
+        }
+
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process
+        private async Task<string> RunDockerCliAsync(string[] args, CancellationToken cancellationToken)
+        {
+            var startInfo = new ProcessStartInfo("docker")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var arg in args) startInfo.ArgumentList.Add(arg);
+            if (!string.IsNullOrWhiteSpace(_systemPaths.DockerSocket))
+                startInfo.Environment["DOCKER_HOST"] = _systemPaths.DockerSocket;
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            using var process = Process.Start(startInfo)!;
+            var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException($"docker {string.Join(' ', args)} failed: {await stderr}");
+            return await stdout;
+        }
+
+        public async Task RemoveResourceAsync(ResourceKind kind, string id, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("A resource id is required.");
+            var docker = _dockiUpDockerClient.DockerClient;
+            try
+            {
+                switch (kind)
+                {
+                    case ResourceKind.Image:
+                        await docker.Images.DeleteImageAsync(id, new ImageDeleteParameters { Force = false }, cancellationToken);
+                        break;
+                    case ResourceKind.Volume:
+                        await docker.Volumes.RemoveAsync(id, false, cancellationToken);
+                        break;
+                    case ResourceKind.Network:
+                        await docker.Networks.DeleteNetworkAsync(id, cancellationToken);
+                        break;
+                }
+            }
+            catch (Docker.DotNet.DockerApiException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Conflict or System.Net.HttpStatusCode.Forbidden)
+            {
+                // "in use" and similar refusals are the user's to fix; pass the daemon's reason on as a 400.
+                throw new ArgumentException(DockerErrorMessage(ex), ex);
+            }
+            catch (Docker.DotNet.DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new KeyNotFoundException($"{kind} '{id}' no longer exists.", ex);
+            }
+        }
+
+        private static string DockerErrorMessage(Docker.DotNet.DockerApiException ex)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(ex.ResponseBody);
+                if (doc.RootElement.TryGetProperty("message", out var message) && message.GetString() is { Length: > 0 } text)
+                    return text;
+            }
+            catch (System.Text.Json.JsonException) { }
+            return ex.Message;
+        }
+
+        public async Task<PruneResultDto> PruneAsync(PruneRequest request, CancellationToken cancellationToken = default)
+        {
+            var docker = _dockiUpDockerClient.DockerClient;
+            int containers = 0, images = 0, volumes = 0, networks = 0;
+            ulong reclaimed = 0;
+
+            // Containers first: what they held (images, networks, volumes) only becomes unused afterwards.
+            if (request.Containers)
+            {
+                var result = await docker.Containers.PruneContainersAsync(new ContainersPruneParameters { Filters = ContainerPruneFilters(request.KeepProjectContainers) }, cancellationToken);
+                containers = result.ContainersDeleted?.Count ?? 0;
+                reclaimed += result.SpaceReclaimed;
+            }
+            if (request.Networks)
+            {
+                var result = await docker.Networks.PruneNetworksAsync(new NetworksDeleteUnusedParameters(), cancellationToken);
+                networks = result.NetworksDeleted?.Count ?? 0;
+            }
+            if (request.Images)
+            {
+                var result = await docker.Images.PruneImagesAsync(new ImagesPruneParameters { Filters = ImagePruneFilters(request.AllImages) }, cancellationToken);
+                images = result.ImagesDeleted?.Count(i => !string.IsNullOrEmpty(i.Deleted)) ?? 0;
+                reclaimed += result.SpaceReclaimed;
+            }
+            if (request.Volumes)
+            {
+                VolumesPruneResponse result;
+                try
+                {
+                    // Since API 1.42 a plain prune only takes anonymous volumes; "all" includes named ones.
+                    result = await docker.Volumes.PruneAsync(new VolumesPruneParameters { Filters = new Dictionary<string, IDictionary<string, bool>> { ["all"] = new Dictionary<string, bool> { ["true"] = true } } }, cancellationToken);
+                }
+                catch (Docker.DotNet.DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    result = await docker.Volumes.PruneAsync(new VolumesPruneParameters(), cancellationToken); // older daemon: no "all" filter
+                }
+                volumes = result.VolumesDeleted?.Count ?? 0;
+                reclaimed += result.SpaceReclaimed;
+            }
+            return new PruneResultDto(containers, images, volumes, networks, (long)reclaimed);
+        }
+
+        /// <summary>The keep-rule: a stopped container that belongs to a compose project survives, so its
+        /// project can start again and its images and volumes stay "in use" (and thus unpruned).</summary>
+        public static IDictionary<string, IDictionary<string, bool>>? ContainerPruneFilters(bool keepProjectContainers)
+            => keepProjectContainers
+                ? new Dictionary<string, IDictionary<string, bool>> { ["label!"] = new Dictionary<string, bool> { ["com.docker.compose.project"] = true } }
+                : null;
+
+        /// <summary>dangling=true: only untagged images; dangling=false: every image no container uses.</summary>
+        public static IDictionary<string, IDictionary<string, bool>> ImagePruneFilters(bool allUnused)
+            => new Dictionary<string, IDictionary<string, bool>> { ["dangling"] = new Dictionary<string, bool> { [allUnused ? "false" : "true"] = true } };
+
     }
 }

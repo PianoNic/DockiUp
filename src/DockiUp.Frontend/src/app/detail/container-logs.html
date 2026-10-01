@@ -1,0 +1,56 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="select">
+    <mat-label>Container logs</mat-label>
+    <mat-select [value]="selected()" (selectionChange)="selected.set($event.value)">
+      <mat-option value="">All containers</mat-option>
+      @for (container of containers(); track container.id) {
+        <mat-option [value]="container.id">{{ container.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tail">
+    <mat-label>Lines</mat-label>
+    <mat-select [value]="tail()" (selectionChange)="tail.set($event.value)">
+      @for (t of tailOptions; track t) {
+        <mat-option [value]="t">{{ t === 0 ? 'All' : 'Last ' + t }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-button-toggle-group multiple [value]="streams()" (change)="streams.set($event.value)" aria-label="Streams">
+    <mat-button-toggle value="stdout" matTooltip="Standard output">stdout</mat-button-toggle>
+    <mat-button-toggle value="stderr" matTooltip="Standard error">stderr</mat-button-toggle>
+  </mat-button-toggle-group>
+  <mat-checkbox [checked]="timestamps()" (change)="timestamps.set($event.checked)">Timestamps</mat-checkbox>
+  <span class="spacer"></span>
+  <button mat-icon-button (click)="load()" [disabled]="loading()" matTooltip="Refresh" aria-label="Refresh logs">
+    <mat-icon>refresh</mat-icon>
+  </button>
+  <button mat-icon-button (click)="download()" [disabled]="!visible().length" matTooltip="Download the lines shown" aria-label="Download log">
+    <mat-icon>download</mat-icon>
+  </button>
+</div>
+
+<div class="toolbar">
+  <div class="search">
+    <mat-icon>search</mat-icon>
+    <input type="text" placeholder='Search: words or "a phrase" (any matches)' aria-label="Search logs"
+      [value]="search()" (input)="search.set($any($event.target).value)" />
+    @if (search()) {
+      <button mat-icon-button class="clear" (click)="search.set('')" matTooltip="Clear search" aria-label="Clear search">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </div>
+  <mat-checkbox [checked]="invert()" (change)="invert.set($event.checked)" matTooltip="Show the lines that match none of the terms">Exclude matches</mat-checkbox>
+  <span class="count">{{ visible().length }} of {{ lines().length }} lines</span>
+</div>
+
+<div class="output" #output>
+  @if (loading() && !lines().length) {
+    <mat-spinner diameter="24"></mat-spinner>
+  } @else if (message()) {
+    <pre>{{ message() }}</pre>
+  } @else {
+    <pre>{{ visible().join('\n') }}</pre>
+  }
+</div>

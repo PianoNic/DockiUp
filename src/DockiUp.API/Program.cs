@@ -105,6 +105,13 @@ Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorE
 builder.Services.AddSingleton<DockiUp.Application.ImageUpdates.IImageUpdateEvents, DockiUp.API.HostedServices.ImageUpdateEvents>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.ImageUpdateHostedService>();
 #endregion
+
+#region Monitoring and housekeeping
+// Container stats sampler (live values in memory, 1-minute history in the db) and the scheduled cleanup.
+builder.Services.AddSingleton<DockiUp.Application.Monitoring.ContainerStatsStore>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStatsHostedService>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.CleanupScheduleHostedService>();
+#endregion
 #endregion
 
 #region Database Configuration

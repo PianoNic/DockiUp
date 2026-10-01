@@ -198,6 +198,13 @@ namespace DockiUp.API.Nodes
             c.On<string, Dictionary<string, string>>("GetImageOverrides", path => WithDocker(d => d.GetImageOverridesAsync(path)));
             c.On<string, string, string?, bool>("SetImageOverride", (path, service, image) =>
                 WithDocker(async d => { await d.SetImageOverrideAsync(path, service, image); return true; }));
+
+            // Monitoring and housekeeping (stats, filtered logs, images/volumes/networks, prune).
+            c.On<string, ContainerLogOptions, string>("GetContainerLogsWithOptions", (id, options) => WithDocker(d => d.GetContainerLogsAsync(id, options)));
+            c.On("GetContainerStats", () => WithDocker(d => d.GetContainerStatsAsync()));
+            c.On("GetResources", () => WithDocker(d => d.GetResourcesAsync()));
+            c.On<ResourceKind, string, bool>("RemoveResource", (kind, id) => WithDocker(async d => { await d.RemoveResourceAsync(kind, id); return true; }));
+            c.On<PruneRequest, PruneResultDto>("PruneResources", request => WithDocker(d => d.PruneAsync(request)));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node

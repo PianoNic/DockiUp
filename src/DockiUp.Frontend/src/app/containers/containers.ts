@@ -5,7 +5,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { firstValueFrom } from 'rxjs';
-import { ContainerDto, ContainerService, NodeDto, NodesService } from '../api';
+import { ContainerDto, ContainerService, ContainerStatsDto, NodeDto, NodesService } from '../api';
+import { ContainerStatsStore, formatBytes, num } from '../shared/stores/container-stats.store';
 import { ProjectStore } from '../shared/stores/project.store';
 import { NotificationService } from '../shared/services/notification.service';
 import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
@@ -30,6 +31,7 @@ export class Containers {
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
   protected readonly imageUpdates = inject(ImageUpdateStore);
+  protected readonly stats = inject(ContainerStatsStore);
 
   protected readonly Running = UpdateMethodType.Running;
   protected readonly Stopped = UpdateMethodType.Stopped;
@@ -88,7 +90,16 @@ export class Containers {
 
   constructor() {
     void this.store.loadContainers();
+    void this.stats.ensureLoaded();
     inject(NodesService).apiNodesGet().subscribe({ next: (n) => this.nodes.set(n) });
+  }
+
+  protected cpu(s: ContainerStatsDto): string {
+    return `${num(s.cpuPercent).toFixed(1)}%`;
+  }
+
+  protected memory(s: ContainerStatsDto): string {
+    return formatBytes(s.memoryUsage);
   }
 
   protected stateLabel(r: Row): string {

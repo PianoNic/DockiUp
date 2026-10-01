@@ -127,5 +127,26 @@ namespace DockiUp.API.Nodes
 
         public Task SetImageOverrideAsync(string projectPath, string service, string? image)
             => Node().InvokeAsync<bool>("SetImageOverride", projectPath, service, image, CancellationToken.None);
+
+        // ---- Monitoring and housekeeping (stats, filtered logs, images/volumes/networks, prune) ----
+
+        // Plain options go through the original handler, so a node on an older image keeps serving logs.
+        public Task<string> GetContainerLogsAsync(string containerId, ContainerLogOptions options, CancellationToken cancellationToken = default)
+            => options is { Stdout: true, Stderr: true, Timestamps: false }
+                ? Node().InvokeAsync<string>("GetContainerLogs", containerId, options.Tail, cancellationToken)
+                : Node().InvokeAsync<string>("GetContainerLogsWithOptions", containerId, options, cancellationToken);
+
+        public async Task<ContainerStatsDto[]> GetContainerStatsAsync(CancellationToken cancellationToken = default)
+            => (await Node().InvokeAsync<ContainerStatsDto[]>("GetContainerStats", cancellationToken))
+                .Select(s => s with { NodeId = nodeId }).ToArray();
+
+        public Task<DockerResourcesDto> GetResourcesAsync(CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<DockerResourcesDto>("GetResources", cancellationToken);
+
+        public Task RemoveResourceAsync(ResourceKind kind, string id, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<bool>("RemoveResource", kind, id, cancellationToken);
+
+        public Task<PruneResultDto> PruneAsync(PruneRequest request, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<PruneResultDto>("PruneResources", request, cancellationToken);
     }
 }

@@ -71,11 +71,13 @@ namespace DockiUp.API.Controllers
         [HttpGet("GetContainerLogs", Name = "GetContainerLogs")]
         [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<string>> GetContainerLogs([FromQuery] string containerId, [FromQuery] int? tail = 200, [FromQuery] Guid? nodeId = null)
+        public async Task<ActionResult<string>> GetContainerLogs([FromQuery] string containerId, [FromQuery] int? tail = 200, [FromQuery] Guid? nodeId = null,
+            [FromQuery] bool stdout = true, [FromQuery] bool stderr = true, [FromQuery] bool timestamps = false)
         {
             try
             {
-                var logs = await _mediator.Send(new GetContainerLogsQuery(containerId, tail, nodeId), HttpContext.RequestAborted);
+                // tail 0 (or less) = the whole log.
+                var logs = await _mediator.Send(new GetContainerLogsQuery(containerId, tail, nodeId, stdout, stderr, timestamps), HttpContext.RequestAborted);
                 return Ok(logs);
             }
             catch (KeyNotFoundException)

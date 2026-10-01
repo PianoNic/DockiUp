@@ -102,13 +102,16 @@ export class ContainerService extends BaseService {
      * @param containerId 
      * @param tail 
      * @param nodeId 
+     * @param stdout 
+     * @param stderr 
+     * @param timestamps 
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      */
-    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<string>;
-    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<string>>;
-    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<string>>;
-    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, stdout?: boolean, stderr?: boolean, timestamps?: boolean, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<string>;
+    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, stdout?: boolean, stderr?: boolean, timestamps?: boolean, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<string>>;
+    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, stdout?: boolean, stderr?: boolean, timestamps?: boolean, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<string>>;
+    public getContainerLogs(containerId?: string, tail?: ApiActivityGetLimitParameter, nodeId?: string, stdout?: boolean, stderr?: boolean, timestamps?: boolean, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
 
         let localVarQueryParameters = new HttpParams({encoder: this.encoder});
         localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,
@@ -117,6 +120,12 @@ export class ContainerService extends BaseService {
           <any>tail, 'tail');
         localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,
           <any>nodeId, 'nodeId');
+        localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,
+          <any>stdout, 'stdout');
+        localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,
+          <any>stderr, 'stderr');
+        localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,
+          <any>timestamps, 'timestamps');
 
         let localVarHeaders = this.defaultHeaders;
 

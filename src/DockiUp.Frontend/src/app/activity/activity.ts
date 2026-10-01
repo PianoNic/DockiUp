@@ -51,6 +51,8 @@ export class Activity implements OnInit {
     if (action.startsWith('deploy')) return 'rocket_launch';
     if (action.startsWith('node.create')) return 'dns';
     if (action.startsWith('node.delete')) return 'delete';
+    if (action.startsWith('cleanup') || action === 'prune') return 'cleaning_services';
+    if (action.endsWith('.remove')) return 'delete';
     if (action.includes('stop')) return 'stop';
     if (action.includes('restart')) return 'refresh';
     if (action.includes('update')) return 'system_update';

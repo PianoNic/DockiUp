@@ -18,6 +18,9 @@ namespace DockiUp.Infrastructure
 
         public DbSet<ImageUpdateStatus> ImageUpdates { get; set; }
 
+        public DbSet<ContainerStatSample> ContainerStatSamples { get; set; }
+        public DbSet<CleanupSchedule> CleanupSchedules { get; set; }
+
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -60,6 +63,19 @@ namespace DockiUp.Infrastructure
                 e.HasIndex(s => new { s.ProjectId, s.EnvName }).IsUnique();
                 e.HasOne<ProjectInfo>().WithMany().HasForeignKey(s => s.ProjectId).OnDelete(DeleteBehavior.Cascade);
                 e.HasOne<Secret>().WithMany().HasForeignKey(s => s.SecretId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Monitoring and housekeeping: stats history is read per container over a time range, and pruned by age.
+            modelBuilder.Entity<ContainerStatSample>(e =>
+            {
+                e.HasIndex(x => new { x.ContainerName, x.Timestamp });
+                e.HasIndex(x => x.Timestamp);
+            });
+
+            modelBuilder.Entity<CleanupSchedule>(e =>
+            {
+                e.HasIndex(x => x.NodeId).IsUnique();
+                e.Property(x => x.Frequency).HasConversion<string>();
             });
         }
 

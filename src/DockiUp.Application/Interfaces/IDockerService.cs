@@ -86,5 +86,21 @@ namespace DockiUp.Application.Interfaces
         /// <summary>Pins <paramref name="service"/> to <paramref name="image"/> in dockiup.override.yml, or
         /// removes the pin when null (deleting the file once it is empty).</summary>
         Task SetImageOverrideAsync(string projectPath, string service, string? image);
+
+        // ---- Monitoring and housekeeping (stats, filtered logs, images/volumes/networks, prune) ----
+
+        /// <summary>Container logs with stream selection and timestamps (decoded text).</summary>
+        Task<string> GetContainerLogsAsync(string containerId, ContainerLogOptions options, CancellationToken cancellationToken = default);
+
+        /// <summary>One CPU/memory/network sample of every running container on this host.</summary>
+        Task<ContainerStatsDto[]> GetContainerStatsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>Images, volumes and networks on this host, with in-use state and disk usage.</summary>
+        Task<DockerResourcesDto> GetResourcesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>Removes one image (by id), volume (by name) or network (by id). Fails while it is in use.</summary>
+        Task RemoveResourceAsync(ResourceKind kind, string id, CancellationToken cancellationToken = default);
+
+        Task<PruneResultDto> PruneAsync(PruneRequest request, CancellationToken cancellationToken = default);
     }
 }
