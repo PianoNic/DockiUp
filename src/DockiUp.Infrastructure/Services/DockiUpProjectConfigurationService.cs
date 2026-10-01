@@ -93,7 +93,7 @@ namespace DockiUp.Infrastructure.Services
                 catch (LibGit2SharpException ex)
                 {
                     throw new ArgumentException(
-                        $"Could not read the repository (unreachable, misspelled, or private - only public repositories are supported for now): {ex.Message}", ex);
+                        $"Could not read the repository (unreachable, misspelled, or private - for a private repository pick a git credential): {ex.Message}", ex);
                 }
 
                 using var repo = new Repository(dir);
@@ -134,5 +134,71 @@ namespace DockiUp.Infrastructure.Services
             options.FetchOptions.CredentialsProvider = CredentialsProvider(credentials);
             return options;
         }
+
+        #region Commit edits back (#66)
+        public IReadOnlySet<string> GetTrackedFiles(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath)) return new HashSet<string>();
+            using var repo = new Repository(projectPath);
+            return repo.Index.Select(e => e.Path.Replace('\\', '/')).ToHashSet(StringComparer.Ordinal);
+        }
+
+        public Task<string> CommitAndPushFileAsync(string projectPath, string relativePath, string message, string authorName, GitCredentials? credentials = null) => Task.Run(() =>
+        {
+            using var repo = new Repository(projectPath);
+            if (repo.Info.IsHeadDetached)
+                throw new ArgumentException("The checkout is not on a branch, so the edit can't be committed. Deploy the project first.");
+
+            var parent = repo.Head.Tip;
+            Commands.Stage(repo, relativePath);
+            var signature = new Signature(authorName, "dockiup@localhost", DateTimeOffset.UtcNow);
+            Commit commit;
+            try
+            {
+                commit = repo.Commit(message, signature, signature);
+            }
+            catch (EmptyCommitException)
+            {
+                return parent.Sha; // saved without changes (possibly only line endings): nothing to push
+            }
+
+            try
+            {
+                Push(repo, CredentialsProvider(credentials));
+            }
+            catch (Exception ex)
+            {
+                // Undo the local commit (index too) so the checkout matches origin again; the caller restores the file.
+                repo.Reset(ResetMode.Mixed, parent);
+                var url = repo.Network.Remotes["origin"]?.Url;
+                // A server reports a rejected ref via OnPushStatusError; libgit2 itself refuses a non-fast-forward
+                // push up front ("...contains commits that are not present locally").
+                var rejected = ex is RejectedPushException || ex.Message.Contains("not present locally", StringComparison.OrdinalIgnoreCase)
+                    || ex.Message.Contains("fast-forward", StringComparison.OrdinalIgnoreCase);
+                var reason = ex.Message.TrimEnd('.');
+                throw new ArgumentException(rejected
+                    ? $"Pushing to {url} was rejected ({reason}). The branch has moved on upstream: deploy to sync, then edit again."
+                    : $"Could not push the change to {url}: {reason}. Committing edits back to git needs write access to the repository - add credentials for it, or edit the file in the repository instead.", ex);
+            }
+            return commit.Sha;
+        });
+
+        // Without credentials only remotes that need no auth (local paths, open servers) accept the push.
+        private static void Push(Repository repo, LibGit2Sharp.Handlers.CredentialsHandler? credentials = null)
+        {
+            string? rejected = null;
+            var options = new PushOptions
+            {
+                CredentialsProvider = credentials,
+                // libgit2 reports a rejected ref (non-fast-forward, protected branch) here, not as an exception.
+                OnPushStatusError = error => rejected = error.Message,
+            };
+            var branch = repo.Head.CanonicalName;
+            repo.Network.Push(repo.Network.Remotes["origin"], $"{branch}:{branch}", options);
+            if (rejected is not null) throw new RejectedPushException(rejected);
+        }
+
+        private sealed class RejectedPushException(string message) : Exception(message);
+        #endregion
     }
 }

@@ -323,6 +323,118 @@ namespace DockiUp.Infrastructure.Services
         }
         #endregion
 
+        #region Project files (#65/#66/#67)
+        // The project folder itself comes from the control plane (or a node's caller); it must be one of ours
+        // before any relative path is resolved inside it.
+        private string ProjectRoot(string projectPath)
+        {
+            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var full = Path.GetFullPath(projectPath);
+            if (!full.StartsWith(root, StringComparison.Ordinal))
+                throw new ArgumentException($"'{projectPath}' is outside the projects folder.");
+            if (!Directory.Exists(full))
+                throw new KeyNotFoundException("The project folder does not exist on its host.");
+            return full;
+        }
+
+        public Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default)
+        {
+            var root = ProjectRoot(projectPath);
+            return Task.FromResult(ProjectFileSystem.List(root, path, _projectFiles.GetTrackedFiles(root)));
+        }
+
+        public Task<ProjectFileContentDto> ReadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        {
+            var root = ProjectRoot(projectPath);
+            return ProjectFileSystem.ReadTextAsync(root, path, _projectFiles.GetTrackedFiles(root), cancellationToken);
+        }
+
+        public Task<byte[]> DownloadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => ProjectFileSystem.ReadBytesAsync(ProjectRoot(projectPath), path, cancellationToken);
+
+        public async Task<ProjectFileWriteResult> WriteProjectFileAsync(string projectPath, string path, byte[] content, ProjectFileCommit? commit, CancellationToken cancellationToken = default)
+        {
+            var root = ProjectRoot(projectPath);
+            var (full, previous) = await ProjectFileSystem.WriteAsync(root, path, content, cancellationToken);
+            var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
+            if (!_projectFiles.GetTrackedFiles(root).Contains(relative))
+                return new ProjectFileWriteResult(false, null);
+            if (commit is null)
+                return new ProjectFileWriteResult(true, null);
+            try
+            {
+                return new ProjectFileWriteResult(true, await _projectFiles.CommitAndPushFileAsync(root, relative, commit.Message, commit.AuthorName, commit.Credentials));
+            }
+            catch
+            {
+                // Not pushed means the next sync would silently drop the edit; better to not keep it at all.
+                await ProjectFileSystem.RestoreAsync(full, previous);
+                throw;
+            }
+        }
+
+        public Task DeleteProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        {
+            var root = ProjectRoot(projectPath);
+            var relative = Path.GetRelativePath(root, ProjectFileSystem.Resolve(root, path)).Replace('\\', '/');
+            // The next sync's hard reset would bring a tracked file back; deleting it belongs in the repository.
+            if (_projectFiles.GetTrackedFiles(root).Any(t => t == relative || t.StartsWith(relative + "/", StringComparison.Ordinal)))
+                throw new ArgumentException($"'{path}' is tracked in git; delete it in the repository instead.");
+            ProjectFileSystem.Delete(root, path);
+            return Task.CompletedTask;
+        }
+
+        public Task CreateProjectFolderAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        {
+            ProjectFileSystem.CreateFolder(ProjectRoot(projectPath), path);
+            return Task.CompletedTask;
+        }
+
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process; covered by integration/E2E
+        public async Task<ComposeValidationResult> ValidateProjectComposeAsync(ComposeTarget target, string? composeOverrideContent, CancellationToken cancellationToken = default)
+        {
+            var composeFile = target.ComposePath;
+            string? temp = null;
+            if (composeOverrideContent is not null)
+            {
+                // Next to the real file so relative paths (env_file, build contexts, bind mounts) resolve the same.
+                temp = Path.Combine(Path.GetDirectoryName(target.ComposePath)!, $".dockiup-validate-{Guid.NewGuid():N}.yml");
+                await File.WriteAllTextAsync(temp, composeOverrideContent, cancellationToken);
+                composeFile = temp;
+            }
+            try
+            {
+                var startInfo = new ProcessStartInfo("docker")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = target.ProjectPath,
+                };
+                foreach (var arg in (string[])["compose", .. ComposeProjectArgs(target with { ComposePath = composeFile }), "config", "--services"])
+                    startInfo.ArgumentList.Add(arg);
+                if (!string.IsNullOrWhiteSpace(_systemPaths.DockerSocket))
+                    startInfo.Environment["DOCKER_HOST"] = _systemPaths.DockerSocket;
+
+                using var process = Process.Start(startInfo)!;
+                var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+                var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+                await process.WaitForExitAsync(cancellationToken);
+                string[] Lines(string text) => text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                // The temp file name means nothing to the user; show the real one in errors.
+                var errors = Lines((await stderr).Replace(composeFile, Path.GetFileName(target.ComposePath)));
+                return process.ExitCode == 0
+                    ? new ComposeValidationResult(true, [], Lines(await stdout))
+                    : new ComposeValidationResult(false, errors.Length > 0 ? errors : [$"docker compose config failed (exit {process.ExitCode})."], []);
+            }
+            finally
+            {
+                if (temp is not null) File.Delete(temp);
+            }
+        }
+        #endregion
+
         private static string DecodeDockerMultiplexedStream(Stream stream)
         {
             var sb = new StringBuilder();

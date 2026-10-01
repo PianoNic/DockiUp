@@ -181,6 +181,17 @@ namespace DockiUp.API.Nodes
 
             // New project flow
             c.On<ComposeValidationRequest, ComposeValidationDto>("ValidateCompose", request => WithDocker(d => d.ValidateComposeAsync(request)));
+
+
+            // Project files: confined to this node's projects folder by DockerService itself.
+            c.On<string, string?, ProjectFileEntryDto[]>("ListProjectFiles", (root, path) => WithDocker(d => d.ListProjectFilesAsync(root, path)));
+            c.On<string, string, ProjectFileContentDto>("ReadProjectFile", (root, path) => WithDocker(d => d.ReadProjectFileAsync(root, path)));
+            c.On<string, string, byte[]>("DownloadProjectFile", (root, path) => WithDocker(d => d.DownloadProjectFileAsync(root, path)));
+            c.On<string, string, byte[], ProjectFileCommit?, ProjectFileWriteResult>("WriteProjectFile", (root, path, content, commit) =>
+                WithDocker(d => d.WriteProjectFileAsync(root, path, content, commit)));
+            c.On<string, string, bool>("DeleteProjectFile", (root, path) => WithDocker(async d => { await d.DeleteProjectFileAsync(root, path); return true; }));
+            c.On<string, string, bool>("CreateProjectFolder", (root, path) => WithDocker(async d => { await d.CreateProjectFolderAsync(root, path); return true; }));
+            c.On<ComposeTarget, string?, ComposeValidationResult>("ValidateProjectCompose", (target, content) => WithDocker(d => d.ValidateProjectComposeAsync(target, content)));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node

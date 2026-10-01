@@ -58,5 +58,20 @@ namespace DockiUp.Application.Interfaces
         /// (inline, or from a git repo cloned to a temp folder). Never throws for a bad file: the problems
         /// come back as errors.</summary>
         Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default);
+
+        // Project files (#65/#67): run where the project folder lives. Every relative path is confined to
+        // the project folder (no traversal, no absolute paths, no symlinks pointing out) and .git is off limits.
+        Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default);
+        /// <summary>Text files only (UTF-8, at most 1 MB).</summary>
+        Task<ProjectFileContentDto> ReadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default);
+        Task<byte[]> DownloadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default);
+        /// <summary>Writes (creates or replaces) a file. With <paramref name="commit"/>, a git-tracked file is
+        /// also committed and pushed to the checkout's branch; a failed push leaves the file unchanged.</summary>
+        Task<ProjectFileWriteResult> WriteProjectFileAsync(string projectPath, string path, byte[] content, ProjectFileCommit? commit, CancellationToken cancellationToken = default);
+        Task DeleteProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default);
+        Task CreateProjectFolderAsync(string projectPath, string path, CancellationToken cancellationToken = default);
+        /// <summary>`docker compose config` for the target, or for <paramref name="composeOverrideContent"/> in
+        /// place of its compose file (validated as a temp copy next to it, so relative paths still resolve).</summary>
+        Task<ComposeValidationResult> ValidateProjectComposeAsync(ComposeTarget target, string? composeOverrideContent, CancellationToken cancellationToken = default);
     }
 }

@@ -1,0 +1,73 @@
+<div class="files-grid">
+  <section class="panel" [class.dragging]="dragging()" (dragover)="$event.preventDefault(); dragging.set(true)"
+    (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
+    <div class="toolbar">
+      <nav class="crumbs" aria-label="Folder">
+        <button class="crumb" (click)="load('')" matTooltip="Project folder" aria-label="Project folder"><mat-icon>folder</mat-icon></button>
+        @for (c of crumbs(); track c.path) {
+          <span class="sep">/</span>
+          <button class="crumb" (click)="load(c.path)">{{ c.name }}</button>
+        }
+      </nav>
+      <span class="grow"></span>
+      @if (busy()) { <mat-spinner diameter="20" /> }
+      <button mat-icon-button (click)="startCreate('file')" matTooltip="New file" aria-label="New file"><mat-icon>note_add</mat-icon></button>
+      <button mat-icon-button (click)="startCreate('folder')" matTooltip="New folder" aria-label="New folder"><mat-icon>create_new_folder</mat-icon></button>
+      <button mat-icon-button (click)="picker.click()" [disabled]="busy()" matTooltip="Upload files (or drop them here)" aria-label="Upload files"><mat-icon>upload</mat-icon></button>
+      <button mat-icon-button (click)="load(path())" matTooltip="Refresh" aria-label="Refresh"><mat-icon>refresh</mat-icon></button>
+      <input #picker type="file" multiple hidden (change)="upload(picker.files); picker.value = ''" />
+    </div>
+
+    @if (creating(); as kind) {
+      <form class="create" (ngSubmit)="create()">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+          <mat-label>New {{ kind }} name</mat-label>
+          <input matInput name="newName" [(ngModel)]="newName" (keydown.escape)="creating.set(null)" autofocus />
+        </mat-form-field>
+        <button mat-flat-button type="submit" [disabled]="!newName.trim()">Create</button>
+        <button mat-button type="button" (click)="creating.set(null)">Cancel</button>
+      </form>
+    }
+
+    @if (listing()?.isGit) {
+      <p class="hint"><mat-icon>commit</mat-icon>Saving a git-tracked file commits and pushes it. Other files are kept on the server but not versioned.</p>
+    }
+
+    <div class="file-list">
+      @for (e of listing()?.entries ?? []; track e.path) {
+        <div class="file-row" [class.selected]="e.path === file()?.path" role="button" tabindex="0" (click)="open(e)" (keydown.enter)="open(e)">
+          <mat-icon class="kind">{{ e.isDirectory ? 'folder' : e.path === listing()?.composeFile ? 'layers' : 'description' }}</mat-icon>
+          <span class="name" [title]="e.path">{{ e.name }}</span>
+          @if (e.tracked && !e.isDirectory) { <mat-icon class="git" matTooltip="Tracked in git">commit</mat-icon> }
+          <span class="meta">{{ formatSize(e) }}</span>
+          <span class="meta date">{{ e.modifiedAt | localDate: 'short' }}</span>
+          <span class="actions" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+            @if (!e.isDirectory) {
+              <button mat-icon-button (click)="download(e)" matTooltip="Download" aria-label="Download"><mat-icon>download</mat-icon></button>
+            }
+            <button mat-icon-button (click)="remove(e)" matTooltip="Delete" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+          </span>
+        </div>
+      } @empty {
+        <p class="hint">This folder is empty. Drop files here to upload them.</p>
+      }
+    </div>
+  </section>
+
+  <section class="panel">
+    @if (file(); as f) {
+      <div class="toolbar">
+        <code class="path" [title]="f.path">{{ f.path }}</code>
+        @if (dirty()) { <span class="dirty" matTooltip="Unsaved changes">●</span> }
+        <span class="grow"></span>
+        <button mat-stroked-button (click)="save(false)" [disabled]="busy()"><mat-icon>save</mat-icon> Save</button>
+        <button mat-flat-button (click)="save(true)" [disabled]="busy()"><mat-icon>rocket_launch</mat-icon> Save and deploy</button>
+        <button mat-icon-button (click)="closeFile()" matTooltip="Close" aria-label="Close"><mat-icon>close</mat-icon></button>
+      </div>
+      <p class="hint">{{ saveNote(f) }}</p>
+      <app-code-editor class="editor" [(value)]="content" [language]="language()" [label]="f.path" (save)="save(false)" />
+    } @else {
+      <p class="hint">Select a text file to edit it, or create a new one. Compose and .env files are highlighted; the compose file is validated before saving.</p>
+    }
+  </section>
+</div>

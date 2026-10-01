@@ -18,5 +18,14 @@ namespace DockiUp.Application.Interfaces
         /// compose files on <paramref name="branch"/> (the default branch when null). Throws
         /// ArgumentException when the repository can't be read.</summary>
         Task<Dtos.RepositoryInspectionDto> InspectRepositoryAsync(string gitUrl, string? branch, CancellationToken cancellationToken = default, Git.GitCredentials? credentials = null);
+
+        /// <summary>Paths ('/'-separated, relative) of the files committed in the checkout; empty when
+        /// <paramref name="projectPath"/> is not a git repository.</summary>
+        IReadOnlySet<string> GetTrackedFiles(string projectPath);
+
+        /// <summary>Commits the already-written <paramref name="relativePath"/> and pushes it to the checked-out
+        /// branch on origin, so the next sync keeps it. Returns the commit sha. When the push fails the local
+        /// commit is undone (the working tree is left alone) and an <see cref="ArgumentException"/> explains why.</summary>
+        Task<string> CommitAndPushFileAsync(string projectPath, string relativePath, string message, string authorName, Git.GitCredentials? credentials = null);
     }
 }

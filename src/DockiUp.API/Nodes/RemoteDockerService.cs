@@ -86,5 +86,36 @@ namespace DockiUp.API.Nodes
         // New project flow: validate where the project will run (the node's compose version and filesystem).
         public Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default)
             => Node().InvokeAsync<ComposeValidationDto>("ValidateCompose", request, cancellationToken);
+
+        #region Project files (#65/#66/#67)
+        public Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<ProjectFileEntryDto[]>("ListProjectFiles", projectPath, path, cancellationToken));
+
+        public Task<ProjectFileContentDto> ReadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<ProjectFileContentDto>("ReadProjectFile", projectPath, path, cancellationToken));
+
+        public Task<byte[]> DownloadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<byte[]>("DownloadProjectFile", projectPath, path, cancellationToken));
+
+        public Task<ProjectFileWriteResult> WriteProjectFileAsync(string projectPath, string path, byte[] content, ProjectFileCommit? commit, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<ProjectFileWriteResult>("WriteProjectFile", projectPath, path, content, commit, cancellationToken));
+
+        public Task DeleteProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<bool>("DeleteProjectFile", projectPath, path, cancellationToken));
+
+        public Task CreateProjectFolderAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => UserFacing(() => Node().InvokeAsync<bool>("CreateProjectFolder", projectPath, path, cancellationToken));
+
+        public Task<ComposeValidationResult> ValidateProjectComposeAsync(ComposeTarget target, string? composeOverrideContent, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<ComposeValidationResult>("ValidateProjectCompose", target, composeOverrideContent, cancellationToken);
+
+        // A node's file errors (not found, too large, outside the folder, push rejected) arrive as a bare
+        // HubException; surface their message as a 400 so the UI can show why, like the local ones.
+        private static async Task<T> UserFacing<T>(Func<Task<T>> call)
+        {
+            try { return await call(); }
+            catch (HubException ex) { throw new ArgumentException(ex.Message, ex); }
+        }
+        #endregion
     }
 }

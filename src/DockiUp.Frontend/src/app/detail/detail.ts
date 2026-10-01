@@ -17,6 +17,7 @@ import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '
 import { NotificationService, errorMessage } from '../shared/services/notification.service';
 import { ProjectDeployments } from './project-deployments';
 import { ProjectSettings } from './project-settings';
+import { ProjectFiles } from './project-files';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
@@ -36,6 +37,7 @@ import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
     RouterLink,
     ProjectDeployments,
     ProjectSettings,
+    ProjectFiles,
     MatTabsModule,
     LocalDatePipe,
   ],
@@ -129,7 +131,7 @@ export class Detail implements OnInit {
     if (ok) await this.projectStore.removeContainer(container, this.nodeId);
   }
 
-  /** 0 Containers, 1 Deployments, 2 Webhook. */
+  /** 0 Containers, 1 Deployments, 2 Webhook, 3 Files. */
   readonly tab = signal(0);
 
   async deployNow() {

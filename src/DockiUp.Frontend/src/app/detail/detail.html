@@ -133,6 +133,9 @@
       <mat-tab label="Settings">
         <div class="tab-fill"><app-project-settings [projectId]="id" /></div>
       </mat-tab>
+      <mat-tab label="Files">
+        <div class="tab-fill"><app-project-files [projectId]="id" (deployed)="tab.set(1)" /></div>
+      </mat-tab>
     }
   </mat-tab-group>
 
