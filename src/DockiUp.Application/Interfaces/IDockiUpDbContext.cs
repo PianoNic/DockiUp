@@ -14,6 +14,8 @@ namespace DockiUp.Application.Interfaces
         public DbSet<GitCredential> GitCredentials { get; set; }
         public DbSet<ProjectSecret> ProjectSecrets { get; set; }
 
+        public DbSet<ImageUpdateStatus> ImageUpdates { get; set; }
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

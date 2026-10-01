@@ -13,6 +13,8 @@ import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
 import { ProjectStore } from '../shared/stores/project.store';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
+import { ImageUpdateBadge } from '../shared/components/image-update-badge/image-update-badge';
+import { ImageUpdateStore } from '../shared/stores/image-update.store';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,12 +29,14 @@ import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
     CreateProjectButton,
     MatProgressBar,
     MatProgressSpinnerModule,
+    ImageUpdateBadge,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard implements OnInit {
   projectStore = inject(ProjectStore);
+  protected readonly imageUpdates = inject(ImageUpdateStore);
   private dashboardService = inject(DashboardService);
   private nodesService = inject(NodesService);
 

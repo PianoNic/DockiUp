@@ -224,3 +224,6 @@ h1 .description {
     background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
   }
 }
+
+// "Update available" next to the project name (#68).
+h1 app-image-update-badge { margin-left: 12px; vertical-align: middle; }

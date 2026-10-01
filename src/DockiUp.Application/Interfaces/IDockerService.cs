@@ -73,5 +73,18 @@ namespace DockiUp.Application.Interfaces
         /// <summary>`docker compose config` for the target, or for <paramref name="composeOverrideContent"/> in
         /// place of its compose file (validated as a temp copy next to it, so relative paths still resolve).</summary>
         Task<ComposeValidationResult> ValidateProjectComposeAsync(ComposeTarget target, string? composeOverrideContent, CancellationToken cancellationToken = default);
+
+        // ---- Image updates (#68/#70) ----
+
+        /// <summary>Per compose service of the project: the configured image ref and the local image's
+        /// RepoDigests (one entry per service, from its first container).</summary>
+        Task<ServiceImageDto[]> GetServiceImagesAsync(string dockerProjectName, CancellationToken cancellationToken = default);
+
+        /// <summary>service -> image pinned in the project's dockiup.override.yml (empty when there is none).</summary>
+        Task<Dictionary<string, string>> GetImageOverridesAsync(string projectPath);
+
+        /// <summary>Pins <paramref name="service"/> to <paramref name="image"/> in dockiup.override.yml, or
+        /// removes the pin when null (deleting the file once it is empty).</summary>
+        Task SetImageOverrideAsync(string projectPath, string service, string? image);
     }
 }

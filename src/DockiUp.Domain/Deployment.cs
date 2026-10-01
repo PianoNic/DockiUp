@@ -7,7 +7,7 @@ namespace DockiUp.Domain
     public enum DeploymentStatus { Queued, Running, Succeeded, Failed }
 
     [JsonConverter(typeof(JsonStringEnumConverter<DeploymentTrigger>))]
-    public enum DeploymentTrigger { Create, Manual, Webhook, Periodic, Rollback }
+    public enum DeploymentTrigger { Create, Manual, Webhook, Periodic, Rollback, ImageUpdate }
 
     /// <summary>One run of the deploy pipeline (git sync, compose pull, compose up) for a project.</summary>
     public class Deployment : BaseEntity

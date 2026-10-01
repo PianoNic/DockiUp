@@ -6,6 +6,10 @@
       <p class="dash-subtitle">Your Docker stacks at a glance</p>
     </div>
     <div class="dash-actions">
+      <button mat-stroked-button (click)="imageUpdates.checkNow()" [disabled]="imageUpdates.checking()" matTooltip="Compare running images with their registries">
+        <mat-icon>update</mat-icon>
+        {{ imageUpdates.checking() ? 'Checking…' : 'Check for updates' }}
+      </button>
       @if (projectStore.loading()) {
         <mat-progress-spinner diameter="24" mode="indeterminate" color="primary" />
       }
@@ -133,6 +137,7 @@
               @if (projectNodeName(project); as nodeName) {
                 <span class="chip node-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
               }
+              <app-image-update-badge [projectId]="project.id" />
             </div>
           </mat-card-content>
           <!-- Buttons act on the project; they must not also open it. -->

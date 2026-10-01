@@ -10,13 +10,15 @@ import { ProjectStore } from '../shared/stores/project.store';
 import { NotificationService } from '../shared/services/notification.service';
 import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
+import { ImageUpdateBadge } from '../shared/components/image-update-badge/image-update-badge';
+import { ImageUpdateStore } from '../shared/stores/image-update.store';
 
-type Row = ContainerDto & { dockerProjectName: string; nodeId: string | null; stateValue: number };
+type Row = ContainerDto & { dockerProjectName: string; nodeId: string | null; stateValue: number; projectId: string | null };
 
 /** Every container across all projects and nodes, live from the project store (SignalR-fed). */
 @Component({
   selector: 'app-containers',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, ImageUpdateBadge],
   templateUrl: './containers.html',
   styleUrl: '../activity/activity.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +29,7 @@ export class Containers {
   private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
+  protected readonly imageUpdates = inject(ImageUpdateStore);
 
   protected readonly Running = UpdateMethodType.Running;
   protected readonly Stopped = UpdateMethodType.Stopped;
@@ -40,6 +43,7 @@ export class Containers {
         dockerProjectName: p.dockerProjectName,
         nodeId: (p as { nodeId?: string | null }).nodeId ?? null,
         stateValue: normalizeContainerState(c.state),
+        projectId: p.id ?? null,
       })),
     ),
   );
@@ -63,6 +67,7 @@ export class Containers {
     return [...byProject].map(([key, rows]) => ({
       key,
       name: rows[0].dockerProjectName,
+      projectId: rows[0].projectId,
       node: this.nodeName(rows[0]),
       running: rows.filter((r) => r.stateValue === UpdateMethodType.Running).length,
       rows,

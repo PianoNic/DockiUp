@@ -146,6 +146,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   &[data-state='crashed'] { --state: #e53935; }
   &[data-state='updating'], &[data-state='created'] { --state: #1e88e5; }
   &[data-state='pending'] { --state: #fb8c00; }
+  &[data-state='update'] { --state: #fb8c00; } // newer image available (#68)
 }
 
 // In-content links (tables, dashboard panels): primary colour, underline on hover only.

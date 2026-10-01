@@ -5,6 +5,8 @@ import { Subject, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { DeploymentDto, ProjectDto } from '../../api';
 import { ProjectStore } from '../stores/project.store';
+import { ImageUpdateStore } from '../stores/image-update.store';
+import { ImageUpdateDto } from '../../api';
 
 const HUB_METHOD_CONTAINERS_CHANGED = 'ContainersChanged';
 
@@ -14,6 +16,7 @@ const HUB_METHOD_CONTAINERS_CHANGED = 'ContainersChanged';
 export class DockiUpHubService implements OnDestroy {
   private readonly projectStore = inject(ProjectStore);
   private readonly oidc = inject(OidcSecurityService);
+  private readonly imageUpdates = inject(ImageUpdateStore);
   private hub: signalR.HubConnection | null = null;
 
   /** A deployment was queued, started or finished (any project). */
@@ -57,6 +60,12 @@ export class DockiUpHubService implements OnDestroy {
       if (d.status === 'Succeeded' || d.status === 'Failed') void this.projectStore.loadContainers();
     });
     this.hub.on('DeploymentLog', (deploymentId: string, line: string) => this.deploymentLog$.next({ deploymentId, line }));
+
+    // Image updates (#68): results of every check; a finished deployment may have applied some.
+    this.hub.on('ImageUpdatesChanged', (updates: ImageUpdateDto[]) => this.imageUpdates.set(updates ?? []));
+    this.hub.on('DeploymentChanged', (d: DeploymentDto) => {
+      if (d.status === 'Succeeded' || d.status === 'Failed') void this.imageUpdates.load();
+    });
 
     try {
       await this.hub.start();

@@ -1,6 +1,7 @@
 using System.Text;
 using Docker.DotNet.Models;
 using DockiUp.Application.Dtos;
+using DockiUp.Application.ImageUpdates;
 using DockiUp.Application.Interfaces;
 using DockiUp.Application.Mappers;
 using DockiUp.Application.Models;
@@ -161,18 +162,20 @@ namespace DockiUp.Infrastructure.Services
 
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
-            => RunComposeAsync([.. ComposeProjectArgs(target), "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
+            => RunComposeAsync([.. ComposeProjectArgs(target), "pull", "--ignore-buildable", .. target.Services ?? []], target.ProjectPath, log, cancellationToken);
 
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public async Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
         {
-            var project = ComposeProjectArgs(target);
+            // Includes dockiup.override.yml (tags chosen in the UI) when present; Services narrows to those.
+            string[] project = ComposeProjectArgs(target);
+            string[] services = target.Services ?? [];
             var before = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
 
             // Pull first, while the old containers still serve traffic. Buildable services are skipped here
             // and built by `up --build`.
-            await RunComposeAsync([.. project, "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
-            await RunComposeAsync([.. project, "up", "-d", "--build", "--remove-orphans"], target.ProjectPath, log, cancellationToken);
+            await RunComposeAsync([.. project, "pull", "--ignore-buildable", .. services], target.ProjectPath, log, cancellationToken);
+            await RunComposeAsync([.. project, "up", "-d", "--build", "--remove-orphans", .. services], target.ProjectPath, log, cancellationToken);
 
             var after = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
             return new ComposeUpResult(!before.SetEquals(after));
@@ -466,7 +469,8 @@ namespace DockiUp.Infrastructure.Services
 
         // ---- New project flow: compose file args, adoption labels, validation ----
 
-        /// <summary>`-p NAME -f FILE...` plus one `--env-file`: the deploy-generated one (the project's .env merged
+        /// <summary>The one place compose arguments are built, for deploy, pull and validation alike:
+        /// `-p NAME -f FILE...`, then `-f dockiup.override.yml` when tags are pinned, plus one `--env-file`: the deploy-generated one (the project's .env merged
         /// with mapped vault secrets, #76) when it exists, otherwise a .env next to the (first) compose file.
         /// Adopted projects can have several files, comma-separated as compose records them in its labels.
         /// Throws a clear message when a file isn't reachable from here (an adopted project whose folder is
@@ -482,6 +486,9 @@ namespace DockiUp.Infrastructure.Services
                         $"The compose file {file} is not reachable from DockiUp. Mount its folder into the DockiUp container (at the same path) to deploy this project from here.");
                 args.AddRange(["-f", file]);
             }
+            // Tags pinned in the UI (#70) layer over the project's own compose file(s).
+            var overridePath = Path.Combine(target.ProjectPath, ComposeOverrideFile.FileName);
+            if (File.Exists(overridePath)) args.AddRange(["-f", overridePath]);
             var generated = Path.Combine(target.ProjectPath, Application.Deployments.EnvFile.GeneratedFileName);
             var envFile = File.Exists(generated) ? generated : Application.ProjectPreparer.EnvFilePath(target.ComposePath);
             if (File.Exists(envFile)) args.AddRange(["--env-file", envFile]);
@@ -571,6 +578,63 @@ namespace DockiUp.Infrastructure.Services
             var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
             return (process.ExitCode, await stdout, await stderr);
+        }
+
+        // ---- Image updates (#68/#70) ----
+
+        public async Task<ServiceImageDto[]> GetServiceImagesAsync(string dockerProjectName, CancellationToken cancellationToken = default)
+        {
+            var containers = await _dockiUpDockerClient.DockerClient.Containers.ListContainersAsync(new ContainersListParameters
+            {
+                All = true,
+                Filters = new Dictionary<string, IDictionary<string, bool>>
+                {
+                    ["label"] = new Dictionary<string, bool> { [$"com.docker.compose.project={dockerProjectName}"] = true },
+                },
+            }, cancellationToken);
+
+            var result = new List<ServiceImageDto>();
+            foreach (var group in containers.GroupBy(c => c.Labels.TryGetValue("com.docker.compose.service", out var s) ? s : null))
+            {
+                if (group.Key is null) continue;
+                var container = group.First();
+                // The inspected config keeps the reference as written in compose; the listing shows the image
+                // id instead once the tag has moved on to a newer local image.
+                var inspected = await _dockiUpDockerClient.DockerClient.Containers.InspectContainerAsync(container.ID, cancellationToken);
+                string[] digests = [];
+                try
+                {
+                    var image = await _dockiUpDockerClient.DockerClient.Images.InspectImageAsync(inspected.Image, cancellationToken);
+                    digests = image.RepoDigests?.ToArray() ?? [];
+                }
+                catch (Docker.DotNet.DockerImageNotFoundException) { /* image removed under the container */ }
+                result.Add(new ServiceImageDto(group.Key, inspected.Config?.Image ?? container.Image, digests));
+            }
+            return result.ToArray();
+        }
+
+        public async Task<Dictionary<string, string>> GetImageOverridesAsync(string projectPath)
+        {
+            var file = OverridePath(projectPath);
+            return ComposeOverrideFile.ReadImages(File.Exists(file) ? await File.ReadAllTextAsync(file) : null);
+        }
+
+        public async Task SetImageOverrideAsync(string projectPath, string service, string? image)
+        {
+            var file = OverridePath(projectPath);
+            var content = ComposeOverrideFile.SetImage(File.Exists(file) ? await File.ReadAllTextAsync(file) : null, service, image);
+            if (content is null) File.Delete(file);
+            else await File.WriteAllTextAsync(file, content, Encoding.UTF8);
+        }
+
+        // The override lives in the project's own folder, which must be inside the projects root.
+        private string OverridePath(string projectPath)
+        {
+            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var full = Path.GetFullPath(projectPath);
+            if (!full.StartsWith(root, StringComparison.Ordinal) || !Directory.Exists(full))
+                throw new ArgumentException($"'{projectPath}' is not a project folder.");
+            return Path.Combine(full, ComposeOverrideFile.FileName);
         }
     }
 }

@@ -9,7 +9,7 @@
  */
 
 
-export type DeploymentTrigger = 'Create' | 'Manual' | 'Webhook' | 'Periodic' | 'Rollback';
+export type DeploymentTrigger = 'Create' | 'Manual' | 'Webhook' | 'Periodic' | 'Rollback' | 'ImageUpdate';
 
 export const DeploymentTrigger = {
 
@@ -21,6 +21,8 @@ export const DeploymentTrigger = {
 
     Periodic: 'Periodic' as DeploymentTrigger,
 
-    Rollback: 'Rollback' as DeploymentTrigger
+    Rollback: 'Rollback' as DeploymentTrigger,
+
+    ImageUpdate: 'ImageUpdate' as DeploymentTrigger
 };
 

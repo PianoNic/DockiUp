@@ -28,5 +28,10 @@ namespace DockiUp.Domain
 
         /// <summary>Credentials for cloning/fetching a private repository (git projects).</summary>
         public Guid? GitCredentialId { get; set; }
+
+        /// <summary>What to do when a newer image is published for one of the project's services.</summary>
+        public ImageUpdatePolicy ImageUpdatePolicy { get; set; } = ImageUpdatePolicy.Notify;
+        /// <summary>Services left out of image update checks (and so never auto-updated).</summary>
+        public List<string> ImageUpdateExcludedServices { get; set; } = [];
     }
 }

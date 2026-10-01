@@ -1,4 +1,5 @@
 using DockiUp.Domain;
+using DockiUp.Application.ImageUpdates;
 using Mediator;
 
 namespace DockiUp.Application.Notifications
@@ -12,9 +13,6 @@ namespace DockiUp.Application.Notifications
 
     /// <summary>Published when a node connects to or drops from the control plane.</summary>
     public sealed record NodeConnectionChanged(Guid NodeId, string NodeName, bool Online) : INotification;
-
-    /// <summary>Publish when newer images exist for a project's services (e.g. from an update check).</summary>
-    public sealed record ImageUpdatesFound(string ProjectName, IReadOnlyList<string> Images, Guid? ProjectId = null) : INotification;
 
     /// <summary>Publish after a cleanup (prune) run with a human-readable summary of what was removed.</summary>
     public sealed record CleanupCompleted(string Summary, long ReclaimedBytes = 0, string? NodeName = null) : INotification;
@@ -66,11 +64,14 @@ namespace DockiUp.Application.Notifications
             return ValueTask.CompletedTask;
         }
 
+        // Raised by the image update check (#68) for newly found updates, under the Notify and Auto policies.
         public ValueTask Handle(ImageUpdatesFound e, CancellationToken cancellationToken)
         {
+            var images = e.Updates.Select(u => $"{u.ServiceName} ({u.Image})").ToArray();
+            var auto = e.Policy == Domain.Enums.ImageUpdatePolicy.Auto ? " They are being deployed automatically." : "";
             dispatcher.Enqueue(new NotificationMessage(NotificationEvent.ImageUpdateAvailable, $"Image updates for {e.ProjectName}",
-                $"Newer images are available for {e.ProjectName}: {string.Join(", ", e.Images)}",
-                new Dictionary<string, string?> { ["projectId"] = e.ProjectId?.ToString(), ["projectName"] = e.ProjectName, ["images"] = string.Join(",", e.Images) }));
+                $"Newer images are available for {e.ProjectName}: {string.Join(", ", images)}.{auto}",
+                new Dictionary<string, string?> { ["projectId"] = e.ProjectId.ToString(), ["projectName"] = e.ProjectName, ["images"] = string.Join(",", images) }));
             return ValueTask.CompletedTask;
         }
 

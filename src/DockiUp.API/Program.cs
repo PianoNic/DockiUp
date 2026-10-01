@@ -96,6 +96,15 @@ builder.Services.AddSingleton<DockiUp.Application.Notifications.INotificationDis
 builder.Services.AddHostedService(sp => sp.GetRequiredService<DockiUp.API.Notifications.NotificationDispatcher>());
 builder.Services.AddScoped<DockiUp.Application.Git.IGitCredentialsProvider, DockiUp.Application.Git.GitCredentialsProvider>();
 #endregion
+
+#region Image updates (#68/#69/#70)
+// Registry client for digest checks and tag lists; anonymous unless another credentials provider is registered.
+builder.Services.AddHttpClient<IRegistryClient, RegistryClient>(http => http.Timeout = TimeSpan.FromSeconds(20));
+Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+    .TryAddSingleton<IRegistryCredentialsProvider, AnonymousRegistryCredentials>(builder.Services);
+builder.Services.AddSingleton<DockiUp.Application.ImageUpdates.IImageUpdateEvents, DockiUp.API.HostedServices.ImageUpdateEvents>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.ImageUpdateHostedService>();
+#endregion
 #endregion
 
 #region Database Configuration

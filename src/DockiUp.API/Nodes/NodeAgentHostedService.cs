@@ -192,6 +192,12 @@ namespace DockiUp.API.Nodes
             c.On<string, string, bool>("DeleteProjectFile", (root, path) => WithDocker(async d => { await d.DeleteProjectFileAsync(root, path); return true; }));
             c.On<string, string, bool>("CreateProjectFolder", (root, path) => WithDocker(async d => { await d.CreateProjectFolderAsync(root, path); return true; }));
             c.On<ComposeTarget, string?, ComposeValidationResult>("ValidateProjectCompose", (target, content) => WithDocker(d => d.ValidateProjectComposeAsync(target, content)));
+
+            // Image updates (#68/#70): service images for the registry check, and the tag override file.
+            c.On<string, ServiceImageDto[]>("GetServiceImages", name => WithDocker(d => d.GetServiceImagesAsync(name)));
+            c.On<string, Dictionary<string, string>>("GetImageOverrides", path => WithDocker(d => d.GetImageOverridesAsync(path)));
+            c.On<string, string, string?, bool>("SetImageOverride", (path, service, image) =>
+                WithDocker(async d => { await d.SetImageOverrideAsync(path, service, image); return true; }));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node

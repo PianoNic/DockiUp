@@ -21,6 +21,8 @@ import { ProjectFiles } from './project-files';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
+import { ProjectImages } from './project-images';
+import { ImageUpdateBadge } from '../shared/components/image-update-badge/image-update-badge';
 
 @Component({
   selector: 'app-detail',
@@ -40,6 +42,8 @@ import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
     ProjectFiles,
     MatTabsModule,
     LocalDatePipe,
+    ProjectImages,
+    ImageUpdateBadge,
   ],
   templateUrl: './detail.html',
   styleUrl: './detail.scss',
@@ -131,7 +135,7 @@ export class Detail implements OnInit {
     if (ok) await this.projectStore.removeContainer(container, this.nodeId);
   }
 
-  /** 0 Containers, 1 Deployments, 2 Webhook, 3 Files. */
+  /** 0 Containers, 1 Deployments, 2 Images, 3 Files, 4 Settings. */
   readonly tab = signal(0);
 
   async deployNow() {
@@ -201,6 +205,9 @@ export class Detail implements OnInit {
         return 'help';
     }
   }
+
+  /** Compose services of the project's containers, for the Images tab. */
+  readonly serviceNames = computed(() => [...new Set((this.project()?.containers ?? []).map((c) => c.serviceName).filter((s) => !!s))]);
 
   /** Managed projects have a DockiUp id: deploy pipeline, history and webhook. */
   readonly managedId = computed(() => (this.project()?.managedByDockiUp ? this.project()?.id ?? null : null));

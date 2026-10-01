@@ -175,3 +175,6 @@
   cursor: pointer;
   &:focus-visible { outline: 2px solid var(--mat-sys-primary); outline-offset: -2px; }
 }
+
+// Containers page: service name with its image update badge (#68).
+.service-cell { display: inline-flex; align-items: center; gap: 8px; }

@@ -117,5 +117,15 @@ namespace DockiUp.API.Nodes
             catch (HubException ex) { throw new ArgumentException(ex.Message, ex); }
         }
         #endregion
+
+        // ---- Image updates (#68/#70) ----
+        public Task<ServiceImageDto[]> GetServiceImagesAsync(string dockerProjectName, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<ServiceImageDto[]>("GetServiceImages", dockerProjectName, cancellationToken);
+
+        public Task<Dictionary<string, string>> GetImageOverridesAsync(string projectPath)
+            => Node().InvokeAsync<Dictionary<string, string>>("GetImageOverrides", projectPath, CancellationToken.None);
+
+        public Task SetImageOverrideAsync(string projectPath, string service, string? image)
+            => Node().InvokeAsync<bool>("SetImageOverride", projectPath, service, image, CancellationToken.None);
     }
 }

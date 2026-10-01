@@ -16,6 +16,8 @@ namespace DockiUp.Infrastructure
         public DbSet<GitCredential> GitCredentials { get; set; }
         public DbSet<ProjectSecret> ProjectSecrets { get; set; }
 
+        public DbSet<ImageUpdateStatus> ImageUpdates { get; set; }
+
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,6 +34,16 @@ namespace DockiUp.Infrastructure
                 e.HasIndex(d => new { d.ProjectId, d.CreatedAt });
                 e.Property(d => d.Status).HasConversion<string>();
                 e.Property(d => d.Trigger).HasConversion<string>();
+            });
+
+            // Image updates (#68/#69): policy string-stored like the deployment enums; one status row per service.
+            modelBuilder.Entity<ProjectInfo>(e =>
+            {
+                e.Property(p => p.ImageUpdatePolicy).HasConversion<string>();
+            });
+            modelBuilder.Entity<ImageUpdateStatus>(e =>
+            {
+                e.HasIndex(u => new { u.ProjectId, u.ServiceName }).IsUnique();
             });
 
             modelBuilder.Entity<Node>(e =>

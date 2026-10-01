@@ -3,6 +3,7 @@
   @if (project()?.projectDescription; as description) {
     <span class="description">– {{ description }}</span>
   }
+  <app-image-update-badge [projectId]="managedId()" />
 </h1>
 @if (project()?.deployedAt; as deployedAt) {
   <p class="deployed">
@@ -130,11 +131,14 @@
       <mat-tab label="Deployments">
         <div class="tab-fill"><app-project-deployments [projectId]="id" [deployedCommit]="project()?.deployedCommit ?? null" /></div>
       </mat-tab>
-      <mat-tab label="Settings">
-        <div class="tab-fill"><app-project-settings [projectId]="id" /></div>
+      <mat-tab label="Images">
+        <div class="tab-fill"><app-project-images [projectId]="id" [services]="serviceNames()" (deployed)="tab.set(1)" /></div>
       </mat-tab>
       <mat-tab label="Files">
         <div class="tab-fill"><app-project-files [projectId]="id" (deployed)="tab.set(1)" /></div>
+      </mat-tab>
+      <mat-tab label="Settings">
+        <div class="tab-fill"><app-project-settings [projectId]="id" /></div>
       </mat-tab>
     }
   </mat-tab-group>
