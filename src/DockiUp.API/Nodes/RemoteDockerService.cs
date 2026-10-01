@@ -50,8 +50,9 @@ namespace DockiUp.API.Nodes
             => Node().InvokeAsync<bool>("RemoveContainer", containerId, CancellationToken.None);
 
         // Pipeline steps run on the node; it streams output lines back via NodeHub.DeployLog(runId, line).
-        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default)
-            => WithLog(log, runId => Node().InvokeAsync<GitSyncResult>("SyncRepository", projectPath, branch, commit, runId, cancellationToken));
+        // Git credentials ride in the invocation payload (never a URL or a log line).
+        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default, DockiUp.Application.Git.GitCredentials? credentials = null)
+            => WithLog(log, runId => Node().InvokeAsync<GitSyncResult>("SyncRepository", projectPath, branch, commit, runId, credentials, cancellationToken));
 
         public Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
             => WithLog(log, runId => Node().InvokeAsync<bool>("ComposePull", target, runId, cancellationToken));
@@ -77,5 +78,9 @@ namespace DockiUp.API.Nodes
 
         public Task<string> GetContainerLogsAsync(string containerId, int? tail = null, CancellationToken cancellationToken = default)
             => Node().InvokeAsync<string>("GetContainerLogs", containerId, tail, cancellationToken);
+
+        // Secret values travel only inside the invocation payload; the node writes the file on its own disk.
+        public Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<bool>("WriteEnvFile", projectPath, composePath, new Dictionary<string, string>(secrets), cancellationToken);
     }
 }

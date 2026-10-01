@@ -70,7 +70,7 @@ public class DeployProjectCommandHandlerTests : IDisposable
     public async Task Git_ClonesRequestedBranch_UsesRepoComposeFile_AndRecordsBranch()
     {
         _files.Setup(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git", "release"))
-            .Callback((string path, string _, string? _) =>
+            .Callback((string path, string _, string? _, DockiUp.Application.Git.GitCredentials? _) =>
             {
                 Directory.CreateDirectory(Path.Combine(path, "deploy"));
                 File.WriteAllText(Path.Combine(path, "deploy", "compose.yml"), "services: {}");

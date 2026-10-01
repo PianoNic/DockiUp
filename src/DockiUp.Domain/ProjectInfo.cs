@@ -25,5 +25,8 @@ namespace DockiUp.Domain
         public int? PeriodicIntervalInMinutes { get; set; }
         /// <summary>Last time periodic update ran (Komodo-style polling).</summary>
         public DateTime? LastPeriodicUpdateAt { get; set; }
+
+        /// <summary>Credentials for cloning/fetching a private repository (git projects).</summary>
+        public Guid? GitCredentialId { get; set; }
     }
 }

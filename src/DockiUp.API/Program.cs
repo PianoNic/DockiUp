@@ -82,6 +82,17 @@ builder.Services.AddSingleton<DeployLogRelay>();
 builder.Services.AddSingleton<INodeRpc, NodeRpc>();
 builder.Services.AddSingleton<INodeDirectory, NodeDirectory>();
 #endregion
+
+#region Notifications, project secrets, git credentials (#75-#77)
+// A plain HttpClient (not IHttpClientFactory): the factory's handlers log request URLs, and webhook /
+// Telegram URLs carry the channel's credential.
+builder.Services.AddSingleton<DockiUp.Application.Notifications.INotificationSender>(_ =>
+    new NotificationSender(new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })));
+builder.Services.AddSingleton<DockiUp.API.Notifications.NotificationDispatcher>();
+builder.Services.AddSingleton<DockiUp.Application.Notifications.INotificationDispatcher>(sp => sp.GetRequiredService<DockiUp.API.Notifications.NotificationDispatcher>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DockiUp.API.Notifications.NotificationDispatcher>());
+builder.Services.AddScoped<DockiUp.Application.Git.IGitCredentialsProvider, DockiUp.Application.Git.GitCredentialsProvider>();
+#endregion
 #endregion
 
 #region Database Configuration

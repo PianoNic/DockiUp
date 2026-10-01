@@ -10,7 +10,7 @@ namespace DockiUp.Application
     {
         public const string DefaultRepoComposeFile = "docker-compose.yml";
 
-        public static async Task<PreparedProject> PrepareAsync(SetupProjectDto dto, string projectsRoot, IDockiUpProjectConfigurationService files)
+        public static async Task<PreparedProject> PrepareAsync(SetupProjectDto dto, string projectsRoot, IDockiUpProjectConfigurationService files, Git.GitCredentials? credentials = null)
         {
             var projectPath = Path.GetFullPath(Path.Combine(projectsRoot, dto.ProjectName));
             if (Directory.Exists(projectPath) && Directory.EnumerateFileSystemEntries(projectPath).Any())
@@ -19,7 +19,7 @@ namespace DockiUp.Application
 
             try
             {
-                return await PrepareFilesAsync(dto, projectPath, files);
+                return await PrepareFilesAsync(dto, projectPath, files, credentials);
             }
             catch
             {
@@ -36,12 +36,12 @@ namespace DockiUp.Application
             }
         }
 
-        private static async Task<PreparedProject> PrepareFilesAsync(SetupProjectDto dto, string projectPath, IDockiUpProjectConfigurationService files)
+        private static async Task<PreparedProject> PrepareFilesAsync(SetupProjectDto dto, string projectPath, IDockiUpProjectConfigurationService files, Git.GitCredentials? credentials)
         {
             if (dto.ProjectOrigin != ProjectOriginType.Git)
                 return new PreparedProject(projectPath, await files.WriteComposeFileAsync(projectPath, dto.Compose!), null);
 
-            var branch = await files.CloneRepositoryAsync(projectPath, dto.GitUrl!, dto.Branch);
+            var branch = await files.CloneRepositoryAsync(projectPath, dto.GitUrl!, dto.Branch, credentials);
             var composeFile = string.IsNullOrWhiteSpace(dto.ComposeFile) ? DefaultRepoComposeFile : dto.ComposeFile.Trim();
             var composePath = Path.GetFullPath(Path.Combine(projectPath, composeFile));
             if (!composePath.StartsWith(projectPath + Path.DirectorySeparatorChar, StringComparison.Ordinal))

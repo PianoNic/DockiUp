@@ -52,7 +52,7 @@ public class DeploymentRunnerTests
 
     private void Git(string before, string after) => _docker
         .Setup(d => d.SyncRepositoryAsync("/p/app", "main", It.IsAny<string?>(), It.IsAny<Func<string, Task>>(), It.IsAny<CancellationToken>()))
-        .Returns(async (string _, string? _, string? _, Func<string, Task> log, CancellationToken _) =>
+        .Returns(async (string _, string? _, string? _, Func<string, Task> log, CancellationToken _, DockiUp.Application.Git.GitCredentials? _) =>
         {
             await log($"git {before}->{after}");
             return new GitSyncResult(before, after, "main");
@@ -298,7 +298,7 @@ public class ProjectPreparerTests : IDisposable
     public async Task GitOrigin_DefaultsToRepoDockerCompose_AndReportsClonedBranch()
     {
         _files.Setup(f => f.CloneRepositoryAsync(It.IsAny<string>(), "file:///r.git", null))
-            .Callback((string path, string _, string? _) => File.WriteAllText(Path.Combine(path, "docker-compose.yml"), "services: {}"))
+            .Callback((string path, string _, string? _, DockiUp.Application.Git.GitCredentials? _) => File.WriteAllText(Path.Combine(path, "docker-compose.yml"), "services: {}"))
             .ReturnsAsync("main");
 
         var prepared = await ProjectPreparer.PrepareAsync(Dto(ProjectOriginType.Git), _root, _files.Object);

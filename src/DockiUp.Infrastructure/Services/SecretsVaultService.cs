@@ -65,6 +65,21 @@ namespace DockiUp.Infrastructure.Services
             return rows;
         }
 
+        // Layout: base64(nonce | tag | ciphertext). Nonce and tag have fixed sizes, so no separators needed.
+        string ISecretsVaultService.Encrypt(string plaintext)
+        {
+            var (ciphertext, nonce, tag) = Encrypt(plaintext);
+            return Convert.ToBase64String([.. nonce, .. tag, .. ciphertext]);
+        }
+
+        string ISecretsVaultService.Decrypt(string encrypted)
+        {
+            var bytes = Convert.FromBase64String(encrypted);
+            var nonceSize = AesGcm.NonceByteSizes.MaxSize;
+            var tagSize = AesGcm.TagByteSizes.MaxSize;
+            return Decrypt(bytes[(nonceSize + tagSize)..], bytes[..nonceSize], bytes[nonceSize..(nonceSize + tagSize)]);
+        }
+
         private (byte[] ciphertext, byte[] nonce, byte[] tag) Encrypt(string plaintext)
         {
             var plainBytes = Encoding.UTF8.GetBytes(plaintext);

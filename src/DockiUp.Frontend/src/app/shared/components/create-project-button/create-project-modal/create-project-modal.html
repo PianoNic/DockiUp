@@ -96,6 +96,16 @@
             <mat-hint>Relative to the repository root</mat-hint>
           </mat-form-field>
         </div>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Git credential</mat-label>
+          <mat-select formControlName="gitCredentialId">
+            <mat-option value="">None (public repository)</mat-option>
+            @for (c of gitCredentials(); track c.id) {
+            <mat-option [value]="c.id">{{ c.name }} ({{ c.username }})</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Private repositories need a token: add one under Settings, Git credentials</mat-hint>
+        </mat-form-field>
         }
 
         <!-- Compose Content Input -->

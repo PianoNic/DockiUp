@@ -114,6 +114,38 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("Deployments");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.GitCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TokenEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("GitCredentials");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.Node", b =>
                 {
                     b.Property<Guid>("Id")
@@ -155,6 +187,49 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("Nodes");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.NotificationChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Events")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HeaderName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecretEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Target")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NotificationChannels");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.ProjectInfo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -177,6 +252,9 @@ namespace DockiUp.Infrastructure.Migrations
                     b.Property<string>("DockerProjectName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("GitCredentialId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("GitUrl")
                         .HasColumnType("text");
@@ -216,6 +294,38 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("ProjectInfo");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.ProjectSecret", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EnvName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SecretId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SecretId");
+
+                    b.HasIndex("ProjectId", "EnvName")
+                        .IsUnique();
+
+                    b.ToTable("ProjectSecrets");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.Secret", b =>
                 {
                     b.Property<Guid>("Id")
@@ -247,6 +357,21 @@ namespace DockiUp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Secrets");
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.ProjectSecret", b =>
+                {
+                    b.HasOne("DockiUp.Domain.ProjectInfo", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DockiUp.Domain.Secret", null)
+                        .WithMany()
+                        .HasForeignKey("SecretId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

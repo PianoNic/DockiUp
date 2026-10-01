@@ -9,4 +9,5 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { label: 'Containers', icon: 'view_list', route: '/containers' },
   { label: 'Nodes', icon: 'dns', route: '/nodes' },
   { label: 'Activity', icon: 'history', route: '/activity' },
+  { label: 'Settings', icon: 'settings', route: '/settings' },
 ];

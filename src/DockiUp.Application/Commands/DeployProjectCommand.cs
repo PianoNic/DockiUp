@@ -27,7 +27,8 @@ namespace DockiUp.Application.Commands
         IDockiUpDbContext dbContext,
         IActivityLogger activityLogger,
         INodeRpc nodeRpc,
-        IMediator mediator) : IRequestHandler<DeployProjectCommand, DeploymentDto?>
+        IMediator mediator,
+        Git.IGitCredentialsProvider? gitCredentials = null) : IRequestHandler<DeployProjectCommand, DeploymentDto?>
     {
         public async ValueTask<DeploymentDto?> Handle(DeployProjectCommand request, CancellationToken cancellationToken)
         {
@@ -40,11 +41,16 @@ namespace DockiUp.Application.Commands
                 return null;
             }
 
+            // Private repo: decrypted here, handed to the clone in-process or inside the node's RPC payload.
+            var credentials = dto.ProjectOrigin == ProjectOriginType.Git && gitCredentials is not null
+                ? await gitCredentials.GetAsync(dto.GitCredentialId, cancellationToken)
+                : null;
+
             // The files live where the project will run: on its node (which has no database, so it just
             // reports back the paths it used), or on this host.
             var prepared = dto.NodeId is Guid nodeId
-                ? await nodeRpc.InvokeAsync<PreparedProject>(nodeId, "PrepareProject", [dto], cancellationToken)
-                : await ProjectPreparer.PrepareAsync(dto, systemPaths.Value.ProjectsPath, projectFiles);
+                ? await nodeRpc.InvokeAsync<PreparedProject>(nodeId, "PrepareProject", [dto, credentials], cancellationToken)
+                : await ProjectPreparer.PrepareAsync(dto, systemPaths.Value.ProjectsPath, projectFiles, credentials);
 
             // The server always owns the project row, even for node-hosted projects.
             var projectInfo = new ProjectInfo
@@ -60,6 +66,7 @@ namespace DockiUp.Application.Commands
                 ComposePath = prepared.ComposePath,
                 ProjectUpdateMethod = dto.ProjectUpdateMethod,
                 PeriodicIntervalInMinutes = dto.PeriodicIntervalInMinutes,
+                GitCredentialId = credentials is null ? null : dto.GitCredentialId,
             };
             await dbContext.ProjectInfo.AddAsync(projectInfo, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);

@@ -151,17 +151,17 @@ namespace DockiUp.Infrastructure.Services
             return Task.CompletedTask;
         }
 
-        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default)
-            => _projectFiles.SyncRepositoryAsync(projectPath, branch, commit, log);
+        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default, Application.Git.GitCredentials? credentials = null)
+            => _projectFiles.SyncRepositoryAsync(projectPath, branch, commit, log, credentials);
 
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public Task ComposePullAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
-            => RunComposeAsync(["-p", target.DockerProjectName, "-f", target.ComposePath, "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
+            => RunComposeAsync([.. ComposeProjectArgs(target), "pull", "--ignore-buildable"], target.ProjectPath, log, cancellationToken);
 
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public async Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
         {
-            string[] project = ["-p", target.DockerProjectName, "-f", target.ComposePath];
+            string[] project = ComposeProjectArgs(target);
             var before = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
 
             // Pull first, while the old containers still serve traffic. Buildable services are skipped here
@@ -267,6 +267,61 @@ namespace DockiUp.Infrastructure.Services
 #pragma warning restore CS0618
             return DecodeDockerMultiplexedStream(stream);
         }
+
+        #region Vault secrets -> env file (#76)
+        // `-p NAME -f FILE`, plus `--env-file` when a deploy generated one (vault secrets mapped).
+        public static string[] ComposeProjectArgs(ComposeTarget target)
+        {
+            var envFile = Path.Combine(target.ProjectPath, Application.Deployments.EnvFile.GeneratedFileName);
+            return File.Exists(envFile)
+                ? ["-p", target.DockerProjectName, "-f", target.ComposePath, "--env-file", envFile]
+                : ["-p", target.DockerProjectName, "-f", target.ComposePath];
+        }
+
+        public async Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
+        {
+            // Paths come from the control plane; still only ever write inside the projects root.
+            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var project = Path.GetFullPath(projectPath);
+            var compose = Path.GetFullPath(composePath);
+            if (!project.StartsWith(root, StringComparison.Ordinal) || !compose.StartsWith(project + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                throw new ArgumentException($"Refusing to write an env file for '{projectPath}': it is outside the projects folder.");
+
+            var target = Path.Combine(project, Application.Deployments.EnvFile.GeneratedFileName);
+            if (secrets.Count == 0)
+            {
+                File.Delete(target); // no-op when missing
+                return;
+            }
+
+            // compose reads .env from the compose file's folder by default.
+            var dotEnv = Path.Combine(Path.GetDirectoryName(compose)!, ".env");
+            var existing = File.Exists(dotEnv) ? await File.ReadAllTextAsync(dotEnv, cancellationToken) : null;
+            var content = Application.Deployments.EnvFile.Merge(existing, secrets);
+
+            // Owner read/write only where the OS supports it; recreate so a looser existing mode can't linger.
+            File.Delete(target);
+            var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
+            if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            await using (var stream = new FileStream(target, options))
+            await using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+                await writer.WriteAsync(content.AsMemory(), cancellationToken);
+
+            ExcludeFromGit(project);
+        }
+
+        // Keep the generated file out of `git status`/`git add -A` in a checkout, so secrets can never be committed.
+        private static void ExcludeFromGit(string projectPath)
+        {
+            var info = Path.Combine(projectPath, ".git", "info");
+            if (!Directory.Exists(Path.Combine(projectPath, ".git"))) return;
+            Directory.CreateDirectory(info);
+            var exclude = Path.Combine(info, "exclude");
+            var line = "/" + Application.Deployments.EnvFile.GeneratedFileName;
+            if (File.Exists(exclude) && File.ReadAllLines(exclude).Contains(line)) return;
+            File.AppendAllText(exclude, Environment.NewLine + line + Environment.NewLine);
+        }
+        #endregion
 
         private static string DecodeDockerMultiplexedStream(Stream stream)
         {

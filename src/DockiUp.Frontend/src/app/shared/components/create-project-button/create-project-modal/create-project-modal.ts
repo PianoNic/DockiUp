@@ -9,7 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSelectModule } from '@angular/material/select';
-import { NodeDto, NodesService, SetupProjectDto } from '../../../../api';
+import { GitCredentialDto, GitCredentialsService, NodeDto, NodesService, SetupProjectDto } from '../../../../api';
 import { ProjectOriginType, ProjectUpdateMethod, UpdateMethodType } from '../../../models/api-enums';
 
 
@@ -37,6 +37,10 @@ export class CreateProjectModal implements OnInit {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<CreateProjectModal>);
   private nodesService = inject(NodesService);
+  private gitCredentialsService = inject(GitCredentialsService);
+
+  // Stored credentials for private repositories (managed under Settings).
+  readonly gitCredentials = signal<GitCredentialDto[]>([]);
 
   // Online nodes the project can be deployed to; empty means single-host (local only).
   readonly nodes = signal<NodeDto[]>([]);
@@ -86,6 +90,7 @@ export class CreateProjectModal implements OnInit {
       gitUrl: [''],
       branch: [''],
       composeFile: [''],
+      gitCredentialId: [''],
       composeContent: ['', Validators.required],
       path: ['']
     });
@@ -101,6 +106,11 @@ export class CreateProjectModal implements OnInit {
     this.nodesService.apiNodesGet().subscribe({
       next: nodes => this.nodes.set(nodes.filter(n => n.online)),
       error: () => this.nodes.set([])
+    });
+
+    this.gitCredentialsService.listGitCredentials().subscribe({
+      next: credentials => this.gitCredentials.set(credentials),
+      error: () => this.gitCredentials.set([])
     });
 
     // Setup path autocomplete
@@ -285,6 +295,7 @@ export class CreateProjectModal implements OnInit {
       // Git projects use the repo's own compose file; compose projects send the pasted content.
       branch: origin.originType === ProjectOriginType.Git ? origin.branch?.trim() || null : null,
       composeFile: origin.originType === ProjectOriginType.Git ? origin.composeFile?.trim() || null : null,
+      gitCredentialId: origin.originType === ProjectOriginType.Git ? origin.gitCredentialId || null : null,
       compose: origin.originType === ProjectOriginType.Compose ? origin.composeContent ?? null : null,
       path: origin.originType === ProjectOriginType.Import ? origin.path ?? null : null,
       projectUpdateMethod: update.updateMethod,

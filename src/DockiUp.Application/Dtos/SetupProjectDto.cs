@@ -23,5 +23,8 @@ namespace DockiUp.Application.Dtos
         public required ProjectUpdateMethod ProjectUpdateMethod { get; set; }
 
         public int? PeriodicIntervalInMinutes { get; set; }
+
+        /// <summary>Git: stored credential for a private repository (null for public repos).</summary>
+        public Guid? GitCredentialId { get; set; }
     }
 }

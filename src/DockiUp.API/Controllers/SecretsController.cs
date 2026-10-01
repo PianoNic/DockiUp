@@ -1,6 +1,7 @@
 using DockiUp.Application.Dtos;
 using DockiUp.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.API.Controllers
 {
@@ -8,7 +9,7 @@ namespace DockiUp.API.Controllers
     /// never returned by <c>List</c>; a freshly generated value is shown once on create.</summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class SecretsController(ISecretsVaultService vault, ISecretGeneratorService generator) : ControllerBase
+    public class SecretsController(ISecretsVaultService vault, ISecretGeneratorService generator, IDockiUpDbContext? db = null) : ControllerBase
     {
         public record StoreSecretRequest(string Name, string? Value);
         public record GeneratedSecretDto(string Name, string Value);
@@ -40,10 +41,23 @@ namespace DockiUp.API.Controllers
             return NoContent();
         }
 
+        /// <summary>Refused while a project maps an env var to the secret (its next deploy would lack it).</summary>
         [HttpDelete("{name}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(string name, CancellationToken cancellationToken)
-            => await vault.DeleteAsync(name, cancellationToken) ? NoContent() : NotFound();
+        {
+            if (db is not null)
+            {
+                var users = await db.ProjectSecrets
+                    .Join(db.Secrets.Where(s => s.Name == name), m => m.SecretId, s => s.Id, (m, s) => m.ProjectId)
+                    .Join(db.ProjectInfo, id => id, p => p.Id, (id, p) => p.ProjectName)
+                    .Distinct().ToListAsync(cancellationToken);
+                if (users.Count > 0)
+                    throw new ArgumentException($"'{name}' is used by {string.Join(", ", users)}. Remove it from their secrets first.");
+            }
+            return await vault.DeleteAsync(name, cancellationToken) ? NoContent() : NotFound();
+        }
     }
 }

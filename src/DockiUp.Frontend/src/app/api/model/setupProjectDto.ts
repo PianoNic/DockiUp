@@ -22,5 +22,6 @@ export interface SetupProjectDto {
     nodeId?: string | null;
     projectUpdateMethod: number;
     periodicIntervalInMinutes?: ProblemDetailsStatus | null;
+    gitCredentialId?: string | null;
 }
 

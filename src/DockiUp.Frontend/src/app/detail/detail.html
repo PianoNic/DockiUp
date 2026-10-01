@@ -130,8 +130,8 @@
       <mat-tab label="Deployments">
         <div class="tab-fill"><app-project-deployments [projectId]="id" [deployedCommit]="project()?.deployedCommit ?? null" /></div>
       </mat-tab>
-      <mat-tab label="Webhook">
-        <div class="tab-fill"><app-project-webhook [projectId]="id" /></div>
+      <mat-tab label="Settings">
+        <div class="tab-fill"><app-project-settings [projectId]="id" /></div>
       </mat-tab>
     }
   </mat-tab-group>

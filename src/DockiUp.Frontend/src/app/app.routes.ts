@@ -17,6 +17,7 @@ export const routes: Routes = [
       { path: 'project/:id', loadComponent: () => import('./detail/detail').then((m) => m.Detail) },
       { path: 'terminal/:containerId', loadComponent: () => import('./container-terminal/container-terminal').then((m) => m.ContainerTerminal) },
       { path: 'me', loadComponent: () => import('./user/user').then((m) => m.User) },
+      { path: 'settings', loadComponent: () => import('./settings/settings').then((m) => m.Settings) },
     ],
   },
   { path: '**', redirectTo: '/dashboard' },

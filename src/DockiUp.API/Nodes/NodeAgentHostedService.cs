@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using DockiUp.Application.Dtos;
+using DockiUp.Application.Git;
 using DockiUp.Application.Interfaces;
 using DockiUp.Application.Models;
 using DockiUp.Domain.Enums;
@@ -165,8 +166,8 @@ namespace DockiUp.API.Nodes
             c.On<string, bool>("DeleteProjectFiles", path => WithDocker(async d => { await d.DeleteProjectFilesAsync(path); return true; }));
             c.On<string, bool>("RemoveContainer", id => WithDocker(async d => { await d.RemoveContainerAsync(id); return true; }));
             // Deploy pipeline steps: output lines stream back to the server as DeployLog(runId, line).
-            c.On<string, string?, string?, string, GitSyncResult>("SyncRepository", (path, branch, commit, runId) =>
-                WithDocker(d => d.SyncRepositoryAsync(path, branch, commit, line => c.SendAsync("DeployLog", runId, line))));
+            c.On<string, string?, string?, string, GitCredentials?, GitSyncResult>("SyncRepository", (path, branch, commit, runId, credentials) =>
+                WithDocker(d => d.SyncRepositoryAsync(path, branch, commit, line => c.SendAsync("DeployLog", runId, line), credentials: credentials)));
             c.On<ComposeTarget, string, bool>("ComposePull", (target, runId) =>
                 WithDocker(async d => { await d.ComposePullAsync(target, line => c.SendAsync("DeployLog", runId, line)); return true; }));
             c.On<ComposeTarget, string, ComposeUpResult>("ComposeUp", (target, runId) =>
@@ -175,22 +176,24 @@ namespace DockiUp.API.Nodes
             c.On<string, bool>("StopContainer", id => WithDocker(async d => { await d.StopContainerAsync(id); return true; }));
             c.On<string, bool>("RestartContainer", id => WithDocker(async d => { await d.RestartContainerAsync(id); return true; }));
             c.On<string, int?, string>("GetContainerLogs", (id, tail) => WithDocker(d => d.GetContainerLogsAsync(id, tail)));
+            c.On<string, string, Dictionary<string, string>, bool>("WriteEnvFile", (path, composePath, secrets) =>
+                WithDocker(async d => { await d.WriteEnvFileAsync(path, composePath, secrets); return true; }));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node
         // clones/writes/composes locally and reports the paths it used back to the control plane.
         private void RegisterProjectHandlers(HubConnection c)
         {
-            c.On<SetupProjectDto, PreparedProject>("PrepareProject", PrepareLocallyAsync);
+            c.On<SetupProjectDto, GitCredentials?, PreparedProject>("PrepareProject", PrepareLocallyAsync);
         }
 
         // Clone / write the project's files on this node; the server then runs the deploy pipeline here.
-        private async Task<PreparedProject> PrepareLocallyAsync(SetupProjectDto dto)
+        private async Task<PreparedProject> PrepareLocallyAsync(SetupProjectDto dto, GitCredentials? credentials)
         {
             using var scope = services.CreateScope();
             var paths = scope.ServiceProvider.GetRequiredService<IOptions<SystemPaths>>().Value;
             var files = scope.ServiceProvider.GetRequiredService<IDockiUpProjectConfigurationService>();
-            return await DockiUp.Application.ProjectPreparer.PrepareAsync(dto, paths.ProjectsPath, files);
+            return await DockiUp.Application.ProjectPreparer.PrepareAsync(dto, paths.ProjectsPath, files, credentials);
         }
 
         // Interactive console: run the exec on this node's daemon and bridge its TTY over the connection.

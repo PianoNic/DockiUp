@@ -1,4 +1,5 @@
 using DockiUp.Application.Dtos;
+using DockiUp.Application.Git;
 using DockiUp.Application.Interfaces;
 using LibGit2Sharp;
 using System.Text;
@@ -9,15 +10,16 @@ namespace DockiUp.Infrastructure.Services
     {
         private const string ComposeFileName = "dockiup_compose.yml";
 
-        public Task<string> CloneRepositoryAsync(string projectPath, string gitUrl, string? branch = null) => Task.Run(() =>
+        public Task<string> CloneRepositoryAsync(string projectPath, string gitUrl, string? branch = null, GitCredentials? credentials = null) => Task.Run(() =>
         {
-            Repository.Clone(gitUrl, projectPath, new CloneOptions { BranchName = string.IsNullOrWhiteSpace(branch) ? null : branch });
+            var options = new CloneOptions { BranchName = string.IsNullOrWhiteSpace(branch) ? null : branch };
+            options.FetchOptions.CredentialsProvider = CredentialsProvider(credentials);
+            Repository.Clone(gitUrl, projectPath, options);
             using var repo = new Repository(projectPath);
             return repo.Head.FriendlyName;
         });
 
-        // ponytail: public repos only - private repos need credentials (CloneOptions/FetchOptions.CredentialsProvider).
-        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log) => Task.Run(async () =>
+        public Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, GitCredentials? credentials = null) => Task.Run(async () =>
         {
             using var repo = new Repository(projectPath);
             var target = string.IsNullOrWhiteSpace(branch) ? repo.Head.FriendlyName : branch;
@@ -26,7 +28,7 @@ namespace DockiUp.Infrastructure.Services
             await log($"$ git fetch origin ({target})");
             try
             {
-                Commands.Fetch(repo, "origin", Array.Empty<string>(), new FetchOptions { Prune = true }, null);
+                Commands.Fetch(repo, "origin", Array.Empty<string>(), new FetchOptions { Prune = true, CredentialsProvider = CredentialsProvider(credentials) }, null);
             }
             catch (LibGit2SharpException ex)
             {
@@ -64,6 +66,18 @@ namespace DockiUp.Infrastructure.Services
             await File.WriteAllTextAsync(filePath, composeContent, Encoding.UTF8);
             return filePath;
         }
+
+        /// <summary>libgit2 asks for credentials only when the remote demands them, so public repos are
+        /// unaffected. Clone, fetch and push all take this; null means anonymous.</summary>
+        public static LibGit2Sharp.Handlers.CredentialsHandler? CredentialsProvider(GitCredentials? credentials)
+            => credentials is null
+                ? null
+                : (_, _, _) => new UsernamePasswordCredentials
+                {
+                    // Token-based HTTPS auth ignores the user name on GitHub/Gitea, but it must not be empty.
+                    Username = string.IsNullOrWhiteSpace(credentials.Username) ? "git" : credentials.Username,
+                    Password = credentials.Token,
+                };
 
         private static string Short(string? sha) => sha is null ? "(none)" : sha[..Math.Min(7, sha.Length)];
     }

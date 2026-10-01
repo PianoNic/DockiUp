@@ -16,7 +16,7 @@ import { ContainerDto, ContainerService, Configuration } from '../api';
 import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
 import { NotificationService, errorMessage } from '../shared/services/notification.service';
 import { ProjectDeployments } from './project-deployments';
-import { ProjectWebhook } from './project-webhook';
+import { ProjectSettings } from './project-settings';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
@@ -35,7 +35,7 @@ import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
     MatProgressSpinnerModule,
     RouterLink,
     ProjectDeployments,
-    ProjectWebhook,
+    ProjectSettings,
     MatTabsModule,
     LocalDatePipe,
   ],

@@ -43,3 +43,16 @@ model/storeSecretRequest.ts
 model/webhookInfoDto.ts
 param.ts
 variables.ts
+api/gitCredentials.service.ts
+api/notifications.service.ts
+api/projectSettings.service.ts
+model/gitCredentialDto.ts
+model/notificationChannelDto.ts
+model/notificationChannelType.ts
+model/notificationEvent.ts
+model/projectSecretDto.ts
+model/projectSecretMapping.ts
+model/projectSettingsDto.ts
+model/saveGitCredentialRequest.ts
+model/saveNotificationChannelRequest.ts
+model/setProjectGitCredentialRequest.ts

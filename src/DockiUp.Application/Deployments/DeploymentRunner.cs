@@ -13,7 +13,10 @@ namespace DockiUp.Application.Deployments
         IDockiUpDbContext db,
         IDockerServiceResolver dockerResolver,
         IDeploymentEvents events,
-        IActivityLogger activity)
+        IActivityLogger activity,
+        ISecretsVaultService? vault = null,
+        Git.IGitCredentialsProvider? gitCredentials = null,
+        Mediator.IPublisher? publisher = null)
     {
         public async Task RunAsync(DeploymentRequest request, CancellationToken cancellationToken)
         {
@@ -30,8 +33,12 @@ namespace DockiUp.Application.Deployments
             // Periodic checks run quietly and only leave a record when they did something (or failed);
             // everything else was recorded as Queued up front and streams live.
             var log = new StringBuilder();
+            var redact = new List<string>();
+            // Defence in depth: whatever echoes a vault secret (compose, a build step), it never reaches the log.
+            string Redact(string text) => redact.Aggregate(text, (t, secret) => t.Replace(secret, "***"));
             async Task Log(string line)
             {
+                line = Redact(line);
                 log.AppendLine(line);
                 if (deployment is not null) await events.LogAsync(deployment.Id, line);
             }
@@ -51,7 +58,8 @@ namespace DockiUp.Application.Deployments
             {
                 if (project.ProjectOrigin == ProjectOriginType.Git)
                 {
-                    sync = await docker.SyncRepositoryAsync(project.ProjectPath, project.Branch, request.TargetCommit, Log, cancellationToken);
+                    var credentials = gitCredentials is null ? null : await gitCredentials.GetAsync(project.GitCredentialId, cancellationToken);
+                    sync = await docker.SyncRepositoryAsync(project.ProjectPath, project.Branch, request.TargetCommit, Log, cancellationToken, credentials);
                     project.Branch ??= sync.Branch;
                     if (deployment is null && sync.Before == sync.After)
                     {
@@ -60,6 +68,11 @@ namespace DockiUp.Application.Deployments
                         return; // periodic, nothing new: no record, no restart
                     }
                 }
+
+                var secrets = await LoadSecretsAsync(project.Id, cancellationToken);
+                redact.AddRange(secrets.Values.Where(v => v.Length >= 4));
+                await docker.WriteEnvFileAsync(project.ProjectPath, project.ComposePath, secrets, cancellationToken);
+                if (secrets.Count > 0) await Log($"Env file written with vault secrets: {string.Join(", ", secrets.Keys.Order(StringComparer.Ordinal))}");
 
                 var up = await docker.ComposeUpAsync(
                     new ComposeTarget(project.ProjectPath, project.ComposePath, project.DockerProjectName), Log, cancellationToken);
@@ -77,10 +90,26 @@ namespace DockiUp.Application.Deployments
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                await Log("ERROR: " + ex.Message);
+                var message = Redact(ex.Message);
+                await Log("ERROR: " + message);
                 deployment ??= Record(request, startedAt);
-                await CompleteAsync(deployment, project, sync, log, DeploymentStatus.Failed, ex.Message, cancellationToken);
+                await CompleteAsync(deployment, project, sync, log, DeploymentStatus.Failed, message, cancellationToken);
             }
+        }
+
+        // Mapped env name -> decrypted vault value. Names only ever go to the log, never values.
+        private async Task<Dictionary<string, string>> LoadSecretsAsync(Guid projectId, CancellationToken cancellationToken)
+        {
+            var mappings = await db.ProjectSecrets.Where(m => m.ProjectId == projectId)
+                .Join(db.Secrets, m => m.SecretId, s => s.Id, (m, s) => new { m.EnvName, s.Name })
+                .ToListAsync(cancellationToken);
+            var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (mappings.Count == 0) return values;
+            if (vault is null) throw new InvalidOperationException("The secrets vault is not available.");
+            foreach (var m in mappings)
+                values[m.EnvName] = await vault.RetrieveAsync(m.Name, cancellationToken)
+                    ?? throw new InvalidOperationException($"Vault secret '{m.Name}' (for {m.EnvName}) no longer exists.");
+            return values;
         }
 
         private Deployment Record(DeploymentRequest request, DateTime startedAt)
@@ -103,6 +132,11 @@ namespace DockiUp.Application.Deployments
             var commit = sync?.After is { } sha ? $" @ {sha[..Math.Min(7, sha.Length)]}" : "";
             await activity.LogAsync(status == DeploymentStatus.Succeeded ? "deploy" : "deploy.failed", project.ProjectName, project.Id,
                 $"{deployment.Trigger}{commit}", cancellationToken, deployment.ActorName);
+
+            // Notification channels (#75): the handler only queues, so this never slows or fails the deploy.
+            if (publisher is not null)
+                await publisher.Publish(new Notifications.DeploymentFinished(deployment.Id, project.Id, project.ProjectName,
+                    status == DeploymentStatus.Succeeded, deployment.Trigger.ToString(), sync?.After, error), cancellationToken);
         }
 
         private async Task FinishAsync(Deployment deployment, DeploymentStatus status, string? error, CancellationToken cancellationToken)

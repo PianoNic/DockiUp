@@ -12,6 +12,9 @@ namespace DockiUp.Infrastructure
         public DbSet<ActivityEntry> ActivityEntries { get; set; }
         public DbSet<Secret> Secrets { get; set; }
         public DbSet<Deployment> Deployments { get; set; }
+        public DbSet<NotificationChannel> NotificationChannels { get; set; }
+        public DbSet<GitCredential> GitCredentials { get; set; }
+        public DbSet<ProjectSecret> ProjectSecrets { get; set; }
 
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 
@@ -35,6 +38,16 @@ namespace DockiUp.Infrastructure
             {
                 e.HasKey(n => n.Id);
                 e.HasIndex(n => n.TokenHash);
+            });
+
+            // Notifications, project secrets and git credentials (#75-#77).
+            modelBuilder.Entity<NotificationChannel>(e => e.Property(c => c.Type).HasConversion<string>());
+            modelBuilder.Entity<GitCredential>(e => e.HasIndex(c => c.Name).IsUnique());
+            modelBuilder.Entity<ProjectSecret>(e =>
+            {
+                e.HasIndex(s => new { s.ProjectId, s.EnvName }).IsUnique();
+                e.HasOne<ProjectInfo>().WithMany().HasForeignKey(s => s.ProjectId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne<Secret>().WithMany().HasForeignKey(s => s.SecretId).OnDelete(DeleteBehavior.Cascade);
             });
         }
 

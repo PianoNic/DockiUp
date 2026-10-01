@@ -1,9 +1,11 @@
 using DockiUp.API.SignalR;
+using DockiUp.Application.Notifications;
 using DockiUp.Domain;
 using DockiUp.Infrastructure;
 using DockiUp.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.API.Nodes
@@ -25,6 +27,8 @@ namespace DockiUp.API.Nodes
         // Key under which a token-resolved node Id is stashed on the connection, so Register can use
         // it instead of trusting whatever Id the node self-reports.
         private const string ResolvedNodeIdKey = "ResolvedNodeId";
+        // The node id this connection registered as, to tell on disconnect which node went offline.
+        private const string RegisteredNodeIdKey = "RegisteredNodeId";
 
         public override async Task OnConnectedAsync()
         {
@@ -80,6 +84,8 @@ namespace DockiUp.API.Nodes
                 return;
             }
 
+            var wasOnline = registry.TryGetConnectionId(nodeId, out _);
+            Context.Items[RegisteredNodeIdKey] = nodeId;
             registry.Register(nodeId, Context.ConnectionId);
 
             await using var scope = scopeFactory.CreateAsyncScope();
@@ -110,6 +116,10 @@ namespace DockiUp.API.Nodes
             await db.SaveChangesAsync();
 
             logger.LogInformation("Node {Name} ({NodeId}) registered on {ConnectionId}.", node?.Name ?? registration.Name, nodeId, Context.ConnectionId);
+
+            // Re-registering on a live connection (or a reconnect that beat the old disconnect) is no news.
+            if (!wasOnline)
+                await PublishAsync(scope.ServiceProvider, new NodeConnectionChanged(nodeId, node?.Name ?? registration.Name, true));
         }
 
         /// <summary>Periodic liveness ping from the node.</summary>
@@ -139,10 +149,29 @@ namespace DockiUp.API.Nodes
         /// <summary>A line of deploy-pipeline output from a node - hand it to the server call awaiting it.</summary>
         public Task DeployLog(string runId, string line) => deployLogRelay.WriteAsync(runId, line);
 
-        public override Task OnDisconnectedAsync(Exception? exception)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
+            // Only the node's current connection going away means it is offline (not a stale one after a reconnect).
+            var goingOffline = Context.Items.TryGetValue(RegisteredNodeIdKey, out var registered) && registered is Guid nodeId
+                && registry.TryGetConnectionId(nodeId, out var live) && live == Context.ConnectionId;
             registry.Remove(Context.ConnectionId);
-            return base.OnDisconnectedAsync(exception);
+            if (goingOffline)
+            {
+                var id = (Guid)registered!;
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<DockiUpDbContext>();
+                var name = await db.Nodes.Where(n => n.Id == id).Select(n => n.Name).FirstOrDefaultAsync() ?? id.ToString();
+                await PublishAsync(scope.ServiceProvider, new NodeConnectionChanged(id, name, false));
+            }
+            await base.OnDisconnectedAsync(exception);
+        }
+
+        // Notification channels (#75). Never let a notification problem break the node connection.
+        private async Task PublishAsync(IServiceProvider services, NodeConnectionChanged notification)
+        {
+            if (services.GetService<IPublisher>() is not { } publisher) return;
+            try { await publisher.Publish(notification); }
+            catch (Exception ex) { logger.LogWarning("Could not publish node status notification: {Message}", ex.Message); }
         }
     }
 }

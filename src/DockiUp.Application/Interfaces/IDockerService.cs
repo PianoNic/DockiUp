@@ -28,7 +28,7 @@ namespace DockiUp.Application.Interfaces
         Task DeleteProjectFilesAsync(string projectPath);
 
         /// <summary>Deploy pipeline step 1 (git projects): sync the checkout. Runs where the checkout lives.</summary>
-        Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default);
+        Task<GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, CancellationToken cancellationToken = default, Git.GitCredentials? credentials = null);
 
         /// <summary>Deploy pipeline step 2: `compose pull` then `compose up -d --build --remove-orphans`,
         /// streaming output to <paramref name="log"/>. Throws with compose's output when it fails.</summary>
@@ -47,5 +47,11 @@ namespace DockiUp.Application.Interfaces
         /// Get container logs (stdout + stderr). Returns decoded text.
         /// </summary>
         Task<string> GetContainerLogsAsync(string containerId, int? tail = null, CancellationToken cancellationToken = default);
+
+        /// <summary>Deploy pipeline (before compose pull/up): writes the project's generated env file - its
+        /// <c>.env</c> merged with <paramref name="secrets"/> (secrets win) - which compose then gets via
+        /// <c>--env-file</c>. No secrets removes the generated file, so compose falls back to plain <c>.env</c>.
+        /// Runs where the project lives; values are never logged.</summary>
+        Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default);
     }
 }
