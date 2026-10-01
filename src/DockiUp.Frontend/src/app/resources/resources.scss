@@ -1,31 +1,36 @@
-.host-select {
-  width: 200px;
-  // Same 40px height as the stroked buttons next to it.
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
-  --mat-form-field-outlined-label-text-populated-size: 12px;
+.tonal-icon {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.danger-icon:not([disabled]) {
+  color: var(--mat-sys-error);
 }
 
 .usage {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  margin-bottom: 8px;
 }
 
+// Disk-usage stat cards: label + shaped icon, big number, reclaimable meter.
 .tile {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 16px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 14px;
+  gap: 8px;
+  padding: 18px 22px;
 }
 
-.tile-label { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
-.tile-value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.tile-sub { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
+.tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tile-label { font-weight: 600; color: var(--mat-sys-on-surface-variant); }
+.tile-value { font-size: 36px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tile-foot { display: flex; align-items: center; gap: 10px; min-height: 18px; }
+.tile-sub { font-size: 13px; color: var(--mat-sys-on-surface-variant); white-space: nowrap; }
+.tile .x-meter > i { background: var(--mat-sys-tertiary); }
 
 // The tab group fills the rest of the page; each tab's table scrolls on its own.
 .tabs {
@@ -54,9 +59,12 @@
 
 .spacer { flex: 1; }
 
-.danger {
-  --mat-button-outlined-label-text-color: var(--mat-sys-error);
-  --mat-button-outlined-outline-color: var(--mat-sys-error);
+// Destructive prune: error-container tonal button.
+.danger:not([disabled]) {
+  --mat-button-tonal-container-color: var(--mat-sys-error-container);
+  --mat-button-tonal-label-text-color: var(--mat-sys-on-error-container);
+  background-color: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
 }
 
 .ellipsis { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -67,10 +75,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 720px;
+  max-width: 760px;
   min-height: 0;
   overflow: auto;
-  padding-top: 8px; // room for the outlined fields' floating labels
 
   p { margin: 0; line-height: 1.5; }
 }

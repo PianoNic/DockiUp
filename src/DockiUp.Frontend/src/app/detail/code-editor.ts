@@ -27,9 +27,9 @@ export function languageFor(path: string): EditorLanguage {
     </div>
   `,
   styles: `
-    :host { display: flex; min-height: 0; overflow: hidden; border: 1px solid var(--mat-sys-outline-variant); border-radius: 10px;
-      background: var(--mat-sys-surface-container-lowest); font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    pre, textarea { margin: 0; padding: 10px; font: inherit; tab-size: 2; white-space: pre; box-sizing: border-box; }
+    :host { display: flex; min-height: 0; overflow: hidden; border-radius: 20px;
+      background: var(--mat-sys-surface-container-lowest); font: 13px/1.6 var(--x-mono); }
+    pre, textarea { margin: 0; padding: 14px; font: inherit; tab-size: 2; white-space: pre; box-sizing: border-box; }
     .gutter { flex-shrink: 0; min-width: 3.5em; overflow: hidden; text-align: right; color: var(--mat-sys-outline);
       background: var(--mat-sys-surface-container-low); user-select: none; }
     .area { position: relative; flex: 1; min-width: 0; }

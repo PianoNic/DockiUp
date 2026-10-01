@@ -1,5 +1,5 @@
 <div class="toolbar">
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="select">
+  <mat-form-field appearance="fill" subscriptSizing="dynamic" class="select">
     <mat-label>Container logs</mat-label>
     <mat-select [value]="selected()" (selectionChange)="selected.set($event.value)">
       <mat-option value="">All containers</mat-option>
@@ -8,7 +8,7 @@
       }
     </mat-select>
   </mat-form-field>
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tail">
+  <mat-form-field appearance="fill" subscriptSizing="dynamic" class="tail">
     <mat-label>Lines</mat-label>
     <mat-select [value]="tail()" (selectionChange)="tail.set($event.value)">
       @for (t of tailOptions; track t) {
@@ -16,22 +16,20 @@
       }
     </mat-select>
   </mat-form-field>
-  <mat-button-toggle-group multiple [value]="streams()" (change)="streams.set($event.value)" aria-label="Streams">
-    <mat-button-toggle value="stdout" matTooltip="Standard output">stdout</mat-button-toggle>
-    <mat-button-toggle value="stderr" matTooltip="Standard error">stderr</mat-button-toggle>
-  </mat-button-toggle-group>
+  <div class="x-group streams" role="group" aria-label="Streams">
+    @for (s of ['stdout', 'stderr']; track s) {
+      <button type="button" [matButton]="streams().includes(s) ? 'filled' : 'tonal'" [class.x-on]="streams().includes(s)"
+        [attr.aria-pressed]="streams().includes(s)" (click)="toggleStream(s)" [matTooltip]="s === 'stdout' ? 'Standard output' : 'Standard error'">
+        @if (streams().includes(s)) { <mat-icon>check</mat-icon> }
+        {{ s }}
+      </button>
+    }
+  </div>
   <mat-checkbox [checked]="timestamps()" (change)="timestamps.set($event.checked)">Timestamps</mat-checkbox>
-  <span class="spacer"></span>
-  <button mat-icon-button (click)="load()" [disabled]="loading()" matTooltip="Refresh" aria-label="Refresh logs">
-    <mat-icon>refresh</mat-icon>
-  </button>
-  <button mat-icon-button (click)="download()" [disabled]="!visible().length" matTooltip="Download the lines shown" aria-label="Download log">
-    <mat-icon>download</mat-icon>
-  </button>
 </div>
 
 <div class="toolbar">
-  <div class="search">
+  <div class="x-search search">
     <mat-icon>search</mat-icon>
     <input type="text" placeholder='Search: words or "a phrase" (any matches)' aria-label="Search logs"
       [value]="search()" (input)="search.set($any($event.target).value)" />
@@ -43,9 +41,15 @@
   </div>
   <mat-checkbox [checked]="invert()" (change)="invert.set($event.checked)" matTooltip="Show the lines that match none of the terms">Exclude matches</mat-checkbox>
   <span class="count">{{ visible().length }} of {{ lines().length }} lines</span>
+  <button mat-icon-button (click)="load()" [disabled]="loading()" matTooltip="Refresh" aria-label="Refresh logs">
+    <mat-icon>refresh</mat-icon>
+  </button>
+  <button mat-icon-button (click)="download()" [disabled]="!visible().length" matTooltip="Download the lines shown" aria-label="Download log">
+    <mat-icon>download</mat-icon>
+  </button>
 </div>
 
-<div class="output" #output>
+<div class="output x-code" #output>
   @if (loading() && !lines().length) {
     <mat-spinner diameter="24"></mat-spinner>
   } @else if (message()) {

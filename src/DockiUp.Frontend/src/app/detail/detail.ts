@@ -11,7 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
-import { ContainerDto, ContainerService } from '../api';
+import { ContainerDto, ContainerService, NodeDto, NodesService } from '../api';
 import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
 import { NotificationService } from '../shared/services/notification.service';
 import { ProjectDeployments } from './project-deployments';
@@ -57,6 +57,12 @@ export class Detail implements OnInit {
   private route = inject(ActivatedRoute);
   projectStore = inject(ProjectStore);
   private containerService = inject(ContainerService);
+  private readonly nodes = signal<NodeDto[]>([]);
+  /** Host name for the header eyebrow. */
+  readonly hostName = computed(() => {
+    const id = this.project()?.nodeId;
+    return id ? (this.nodes().find((n) => n.id === id)?.name ?? 'node') : 'Local host';
+  });
   private notifications = inject(NotificationService);
   private confirm = inject(ConfirmService);
   private router = inject(Router);
@@ -67,6 +73,10 @@ export class Detail implements OnInit {
 
   UpdateMethodType = UpdateMethodType;
   stateLabel = containerStateLabel;
+
+  constructor() {
+    inject(NodesService).apiNodesGet().subscribe({ next: (n) => this.nodes.set(n), error: () => {} });
+  }
 
   async ngOnInit() {
     await this.projectStore.loadContainers();
@@ -170,6 +180,12 @@ export class Detail implements OnInit {
         (c) => normalizeContainerState(c.state) === UpdateMethodType.Running
       ).length
     );
+  }
+
+  /** Every container is up: Start has nothing to do (Stop / Restart need at least one running). */
+  allRunning(): boolean {
+    const total = this.project()?.containers?.length ?? 0;
+    return total > 0 && this.getRunningCount() === total;
   }
 
   /** Normalized state (API may send enum as string). */

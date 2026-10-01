@@ -10,7 +10,7 @@
   flex: 1;
   min-height: 0;
 
-  // The active tab fills the remaining height; its table scrolls internally.
+  // The active tab fills the remaining height; its list scrolls internally.
   ::ng-deep .mat-mdc-tab-body-wrapper { flex: 1; min-height: 0; }
   ::ng-deep .mat-mdc-tab-body-content { overflow: hidden; }
 }
@@ -20,7 +20,9 @@
   flex-direction: column;
   box-sizing: border-box;
   height: 100%;
-  padding-top: 16px;
 
   > * { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 }
+
+.tab-label { display: inline-flex; align-items: center; gap: 8px; }
+.tab-label mat-icon { font-size: 18px; width: 18px; height: 18px; }

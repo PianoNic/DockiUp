@@ -1,6 +1,7 @@
 <div class="activity-wrapper">
   <header class="activity-header">
     <div>
+      <span class="x-eyebrow">Audit trail</span>
       <h1 class="activity-title">Activity</h1>
       <p class="activity-subtitle">Audit trail of deploys, lifecycle actions and node changes</p>
     </div>
@@ -14,12 +15,19 @@
           (input)="setFilter($any($event.target).value)"
         />
       </div>
-      <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+      <button mat-icon-button class="tonal-icon" (click)="reload()" [disabled]="loading()"
+        [matTooltip]="loading() ? 'Loading…' : 'Refresh'" aria-label="Refresh">
         <mat-icon>refresh</mat-icon>
-        {{ loading() ? 'Loading…' : 'Refresh' }}
       </button>
     </div>
   </header>
+
+  <div class="x-group kinds" role="group" aria-label="Kind">
+    @for (k of kinds; track k.key) {
+      <button [matButton]="kind() === k.key ? 'filled' : 'tonal'" [class.x-on]="kind() === k.key"
+        [attr.aria-pressed]="kind() === k.key" (click)="kind.set(k.key)">{{ k.label }}</button>
+    }
+  </div>
 
   @if (loading() && entries().length === 0) {
     <mat-progress-bar mode="indeterminate" />
@@ -27,43 +35,23 @@
 
   @if (filtered().length === 0 && !loading()) {
     <p class="activity-empty">
-      @if (entries().length === 0) { No activity yet. } @else { No rows match "{{ filter() }}". }
+      @if (entries().length === 0) { No activity yet. } @else { No entries match these filters. }
     </p>
   } @else {
     <div class="table-scroll">
-      <table class="activity-table">
-        <thead>
-          <tr>
-            <th>When</th>
-            <th>Who</th>
-            <th>Action</th>
-            <th>Target</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (e of filtered(); track e.id) {
-            <tr>
-              <td class="when">{{ e.createdAt | localDate: 'short' }}</td>
-              <td>
-                @if (e.actorName) {
-                  <span class="who">{{ e.actorName }}</span>
-                } @else {
-                  <span class="who system">system</span>
-                }
-              </td>
-              <td>
-                <span class="action-badge">
-                  <mat-icon>{{ activityIcon(e.action) }}</mat-icon>
-                  {{ e.action }}
-                </span>
-              </td>
-              <td class="target">{{ e.target }}</td>
-              <td class="details">{{ e.details }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <div class="x-list">
+        @for (e of filtered(); track e.id) {
+          <div class="x-row">
+            <span class="x-shape sm {{ shapeClass(e.action) }}"><mat-icon>{{ activityIcon(e.action) }}</mat-icon></span>
+            <span class="main">
+              <span class="line"><span class="action-badge">{{ e.action }}</span><span class="target">{{ e.target }}</span></span>
+              @if (e.details) { <span class="details">{{ e.details }}</span> }
+            </span>
+            <span class="x-chip" [class.system]="!e.actorName"><mat-icon>person</mat-icon>{{ e.actorName || 'system' }}</span>
+            <span class="when">{{ e.createdAt | localDate: 'short' }}</span>
+          </div>
+        }
+      </div>
     </div>
   }
 </div>

@@ -46,7 +46,7 @@ export class ContainerTerminal implements AfterViewInit, OnDestroy {
 
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+      fontFamily: '"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       fontSize: 13,
       scrollback: 5000,
       convertEol: true,

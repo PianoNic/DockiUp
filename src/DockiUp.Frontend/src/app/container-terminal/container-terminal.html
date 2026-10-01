@@ -1,10 +1,17 @@
 <div class="terminal-page">
-  <div class="terminal-header">
-    <button mat-icon-button routerLink="/containers" aria-label="Back">
-      <mat-icon>arrow_back</mat-icon>
-    </button>
-    <span class="title">Terminal — {{ containerId.slice(0, 12) }}</span>
-    <span class="status" [attr.data-status]="status()">{{ status() }}</span>
+  <header class="x-page-header terminal-header">
+    <div class="title-row">
+      <button mat-icon-button class="back" routerLink="/containers" aria-label="Back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <span class="x-eyebrow">Terminal</span>
+        <h1 class="x-title mono">{{ containerId.slice(0, 12) }}</h1>
+      </div>
+    </div>
+    <span class="state-badge" [attr.data-state]="status() === 'open' ? 'running' : status() === 'closed' ? 'crashed' : 'pending'">{{ status() }}</span>
+  </header>
+  <div class="xterm-frame x-code">
+    <div #term class="xterm-host" data-testid="terminal"></div>
   </div>
-  <div #term class="xterm-host" data-testid="terminal"></div>
 </div>

@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, computed, signal, effect, untracked } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -20,7 +19,6 @@ import { ImageUpdateStore } from '../shared/stores/image-update.store';
   selector: 'app-dashboard',
   imports: [
     CommonModule,
-    MatCardModule,
     MatIconModule,
     RouterLink,
     LocalDatePipe,
@@ -109,6 +107,8 @@ export class Dashboard implements OnInit {
   readonly localProjectCount = computed(() =>
     this.projects().filter(p => !(p as ProjectDto & { nodeId?: string }).nodeId).length);
 
+  protected readonly segmentKinds = ['running', 'updating', 'stopped', 'crashed'] as const;
+
   // ---- project helpers ----
   getRunningCount(project: ProjectDto): number {
     return (project.containers || []).filter(c => normalizeContainerState(c.state) === UpdateMethodType.Running).length;
@@ -174,6 +174,10 @@ export class Dashboard implements OnInit {
   }
 
   // ---- project actions ----
+  async onStartProject(project: ProjectDto) {
+    await this.projectStore.lifecycle(project, 'start');
+  }
+
   async onStopProject(project: ProjectDto) {
     await this.projectStore.lifecycle(project, 'stop');
   }

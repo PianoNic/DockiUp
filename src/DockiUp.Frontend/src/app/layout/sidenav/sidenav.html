@@ -1,27 +1,11 @@
-<nav class="sidenav-content" [class.collapsed]="collapsed()">
+<nav class="sidenav-content" aria-label="Main">
   @for (item of navigationItems(); track item.route) {
-    @if (!collapsed()) {
-      <button
-        mat-button
-        class="nav-button"
-        [routerLink]="item.route"
-        routerLinkActive="active"
-      >
-        <mat-icon>{{ item.icon }}</mat-icon>
+    <a class="rail-item" [routerLink]="item.route" routerLinkActive="active"
+      [matTooltip]="collapsed() ? item.label : ''" matTooltipPosition="right" [attr.aria-label]="item.label">
+      <mat-icon>{{ item.icon }}</mat-icon>
+      @if (!collapsed()) {
         <span>{{ item.label }}</span>
-      </button>
-    } @else {
-      <button
-        mat-icon-button
-        class="nav-button-icon"
-        [routerLink]="item.route"
-        routerLinkActive="active"
-      >
-        <mat-icon>{{ item.icon }}</mat-icon>
-      </button>
-    }
+      }
+    </a>
   }
-  <div class="version-display">
-    <div class="version-number">{{ version() }}</div>
-  </div>
 </nav>

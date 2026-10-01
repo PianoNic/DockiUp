@@ -21,7 +21,7 @@ type Row = ContainerDto & { dockerProjectName: string; nodeId: string | null; st
   selector: 'app-containers',
   imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, ImageUpdateBadge],
   templateUrl: './containers.html',
-  styleUrl: '../activity/activity.scss',
+  styleUrls: ['../activity/activity.scss', './containers.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Containers {
@@ -50,13 +50,34 @@ export class Containers {
     ),
   );
 
+  // Client-side filters over what is loaded: state, host, then the text filter.
+  protected readonly stateFilter = signal<'all' | 'running' | 'stopped'>('all');
+  protected readonly hostFilter = signal<string | null>(null);
+
+  protected readonly hosts = computed(() => [...new Set(this.rows().map((r) => this.nodeName(r)))].sort());
+
+  protected readonly stateFilters = computed(() => {
+    const rows = this.rows();
+    const running = rows.filter((r) => r.stateValue === UpdateMethodType.Running).length;
+    return [
+      { key: 'all' as const, label: 'All', count: rows.length },
+      { key: 'running' as const, label: 'Running', count: running },
+      { key: 'stopped' as const, label: 'Stopped', count: rows.length - running },
+    ];
+  });
+
   protected readonly filtered = computed(() => {
     const q = this.filter().toLowerCase().trim();
-    if (!q) return this.rows();
-    return this.rows().filter((r) =>
-      [r.name, r.dockerProjectName, r.serviceName, r.status, this.stateLabel(r), this.nodeName(r)]
-        .some((v) => v?.toLowerCase().includes(q)),
-    );
+    const state = this.stateFilter();
+    const host = this.hostFilter();
+    return this.rows().filter((r) => {
+      const running = r.stateValue === UpdateMethodType.Running;
+      if (state === 'running' && !running) return false;
+      if (state === 'stopped' && running) return false;
+      if (host !== null && this.nodeName(r) !== host) return false;
+      return !q || [r.name, r.dockerProjectName, r.serviceName, r.status, this.stateLabel(r), this.nodeName(r)]
+        .some((v) => v?.toLowerCase().includes(q));
+    });
   });
 
   // Containers clustered by compose project, so what runs together reads together.
@@ -96,6 +117,10 @@ export class Containers {
 
   protected cpu(s: ContainerStatsDto): string {
     return `${num(s.cpuPercent).toFixed(1)}%`;
+  }
+
+  protected cpuPercent(s: ContainerStatsDto): number {
+    return Math.min(100, Math.max(2, num(s.cpuPercent)));
   }
 
   protected memory(s: ContainerStatsDto): string {

@@ -1,0 +1,114 @@
+// Node cards in a grid; the grid scrolls inside the page, the header stays.
+.node-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.node-card {
+  gap: 18px;
+  padding: 24px;
+}
+
+.node-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.node-shape {
+  width: 56px;
+  height: 56px;
+  border-radius: 20px;
+
+  mat-icon { font-size: 26px; width: 26px; height: 26px; }
+}
+
+.node-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  .name {
+    font-size: 22px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sub {
+    font-size: 14px;
+    color: var(--mat-sys-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.node-facts {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px 12px;
+  margin: 0;
+  font-size: 14px;
+
+  dt { color: var(--mat-sys-on-surface-variant); }
+  dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.node-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .sm { height: 36px; }
+}
+
+.ping-result {
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.spacer { flex: 1; }
+
+.tonal-icon {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.danger-icon:not([disabled]) {
+  color: var(--mat-sys-error);
+}
+
+// "Connect another host": the last card, triggers the add-node dialog.
+.add-card {
+  align-items: flex-start;
+  justify-content: flex-start; // bubble in the top-left corner, like the server icon on the node cards
+  min-height: 240px;
+  padding: 24px;
+}
+
+// Same size as the server icon on the node cards.
+.add-shape {
+  width: 56px;
+  height: 56px;
+
+  mat-icon { font-size: 26px; width: 26px; height: 26px; }
+}
+
+.add-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.add-sub {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant);
+}

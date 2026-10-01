@@ -62,7 +62,7 @@ mat-dialog-actions .cancel {
 .mono,
 textarea.mono.mat-mdc-input-element,
 pre.code {
-  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 12.5px/1.5 var(--x-mono);
 }
 
 pre.code {
@@ -100,43 +100,70 @@ pre.code {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 14px;
+  gap: 14px;
+  padding: 20px;
   text-align: left;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 12px;
-  background: transparent;
+  border: none;
+  border-radius: 24px;
+  background: var(--mat-sys-surface-container);
   color: var(--mat-sys-on-surface);
   font: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  // Springy shape change: the expressive "morph" on selection.
+  transition: border-radius 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
 
   &:hover {
-    background-color: var(--mat-sys-surface-container-high);
-    border-color: var(--mat-sys-outline);
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: 3px solid var(--mat-sys-primary);
     outline-offset: 2px;
   }
 
-  &.selected {
-    border-color: var(--mat-sys-primary);
-    background-color: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  .ic {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: var(--mat-sys-surface-container-highest);
+    color: var(--mat-sys-on-surface-variant);
+    transition: border-radius 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s, color 0.2s;
 
     mat-icon {
-      color: var(--mat-sys-primary);
+      width: 28px;
+      height: 28px;
+      font-size: 28px;
+    }
+  }
+
+  &.selected {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    border-radius: 40px;
+    transform: scale(1.02);
+
+    .ic {
+      border-radius: 50%;
+      background: var(--mat-sys-primary);
+      color: var(--mat-sys-on-primary);
+    }
+
+    .hint {
+      color: var(--mat-sys-on-primary-container);
     }
   }
 
   .title {
-    font-weight: 500;
-    font-size: 14px;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: -10px;
   }
 
   .hint {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
     color: var(--mat-sys-on-surface-variant);
   }
@@ -283,4 +310,147 @@ pre.code {
   }
 }
 
-.credential { width: 190px; flex-shrink: 0; }
+.credential { width: 220px; flex-shrink: 0; }
+
+// ---- Expressive header: step question + wavy progress ----
+
+:host {
+  --mat-form-field-filled-container-color: var(--mat-sys-surface-container);
+}
+
+.np-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28px 24px 0 0;
+
+  h2 {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding-top: 0;
+
+    // Material's baseline spacer would push the title well below the close button.
+    &::before {
+      display: none;
+    }
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mat-sys-primary);
+  }
+
+  .question {
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .close {
+    background: var(--mat-sys-surface-container);
+  }
+}
+
+.np-progress {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px 8px;
+
+  .seg {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--mat-sys-on-surface-variant);
+
+    .bar,
+    .wave {
+      height: 14px;
+      width: 100%;
+    }
+
+    .bar {
+      background: linear-gradient(var(--mat-sys-surface-container-highest), var(--mat-sys-surface-container-highest)) center / 100% 6px no-repeat;
+    }
+
+    &.done .bar {
+      background-image: linear-gradient(var(--mat-sys-primary), var(--mat-sys-primary));
+    }
+
+    .wave path {
+      animation: np-wave 1.2s linear infinite;
+      fill: none;
+      stroke: var(--mat-sys-primary);
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+
+    &.current span {
+      font-weight: 700;
+      color: var(--mat-sys-primary);
+    }
+  }
+}
+
+// The stepper keeps the flow and validation; its own header is replaced by the one above.
+:host ::ng-deep {
+  .mat-horizontal-stepper-header-container {
+    display: none;
+  }
+
+  .mat-horizontal-content-container {
+    padding: 8px 0 0;
+  }
+
+  .mdc-text-field--filled {
+    border-radius: 16px 16px 6px 6px;
+  }
+}
+
+mat-dialog-actions {
+  padding: 8px 24px 24px;
+  gap: 8px;
+
+  button {
+    height: 48px;
+    border-radius: 24px;
+    padding: 0 20px;
+    transition: border-radius 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &:active {
+      border-radius: 12px;
+    }
+  }
+
+  .back:not([disabled]) {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  .primary-action {
+    height: 56px;
+    border-radius: 28px;
+    padding: 0 28px;
+    font-size: 16px;
+  }
+}
+
+// One wavelength (28 viewBox units) per loop: the wave travels, the segment stays put.
+@keyframes np-wave {
+  from { transform: translateX(0); }
+  to { transform: translateX(28px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-progress .wave path {
+    animation: none;
+  }
+}

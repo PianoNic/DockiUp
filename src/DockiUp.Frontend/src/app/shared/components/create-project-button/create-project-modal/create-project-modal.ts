@@ -48,6 +48,9 @@ export class CreateProjectModal implements OnInit {
   private readonly gitCredentialsService = inject(GitCredentialsService);
   private readonly projectStore = inject(ProjectStore);
   private readonly stepper = viewChild.required<MatStepper>('stepper');
+  readonly step = signal(0);
+  readonly stepLabels = ['Source', 'Where & environment', 'Updates', 'Review'];
+  readonly questions = ['Where does it come from?', 'Where should it run?', 'How should it stay current?', 'Ready to go?'];
 
   readonly ProjectUpdateMethod = ProjectUpdateMethod;
   readonly restartPolicies = ['', 'no', 'always', 'unless-stopped', 'on-failure'];
@@ -291,6 +294,7 @@ export class CreateProjectModal implements OnInit {
 
   // Anything may have changed on the way back and forth: always re-check on reaching the review.
   onStepChange(index: number) {
+    this.step.set(index);
     if (index === 3) this.validate();
   }
 

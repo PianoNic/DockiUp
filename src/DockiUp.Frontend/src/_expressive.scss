@@ -1,0 +1,484 @@
+// ============================================================================
+// Material 3 Expressive layer: shapes, tonal surfaces and the shared page parts.
+// Pages use these classes instead of their own copies, so the whole app keeps one look.
+// ============================================================================
+
+:root {
+  --x-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  // One monospace for code, hashes and IDs: Roboto Mono matches the Roboto Flex UI text.
+  --x-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  // Status colours; their containers are tinted from the surface, so they also work in dark mode.
+  --x-ok: #1e8e3e;
+  --x-warn: #b26a00;
+}
+
+// Dialogs: big, soft corners everywhere; the new project dialog a little bigger still.
+html {
+  --mat-dialog-container-shape: 32px;
+  --mat-form-field-filled-container-color: var(--mat-sys-surface-container-high);
+}
+.expressive-dialog {
+  --mat-dialog-container-shape: 40px;
+}
+
+// Buttons squash a little when pressed.
+.mat-mdc-button-base:not(.mat-mdc-icon-button) {
+  transition: border-radius 0.3s var(--x-spring);
+  &:active:not([disabled]) { border-radius: 12px; }
+}
+
+// Filled text fields: rounded top, softly rounded bottom, and the underline clipped to that shape
+// (Material draws it straight and full width, so it would stick out past the bottom corners).
+.mdc-text-field--filled {
+  border-radius: 16px 16px 6px 6px !important;
+  overflow: hidden;
+
+  .mdc-line-ripple::before {
+    border-bottom-width: 2px !important;
+    border-bottom-color: var(--mat-sys-on-surface-variant) !important;
+  }
+}
+
+// Tabs: a pill track with the active tab as a filled pill, instead of the underline.
+.mat-mdc-tab-header {
+  --mat-tab-divider-height: 0;
+  border-bottom: none !important;
+  margin-bottom: 16px;
+}
+.mat-mdc-tab-label-container {
+  flex-grow: 0 !important;
+  background: var(--mat-sys-surface-container);
+  border-radius: 28px;
+  padding: 4px;
+}
+.mat-mdc-tab-group .mat-mdc-tab,
+.mat-mdc-tab-nav-bar .mat-mdc-tab-link {
+  height: 44px !important;
+  min-width: 0 !important;
+  padding: 0 20px !important;
+  border-radius: 22px;
+  flex-grow: 0 !important;
+  transition: background-color 0.2s;
+
+  .mdc-tab-indicator { display: none; }
+  .mdc-tab__ripple::before, .mat-ripple { border-radius: 22px; }
+  .mdc-tab__text-label { font-weight: 600; font-size: 15px; gap: 8px; }
+
+  &.mdc-tab--active {
+    background: var(--mat-sys-primary);
+    .mdc-tab__text-label { color: var(--mat-sys-on-primary) !important; }
+  }
+}
+
+// ---- Page: header with eyebrow, big title, subtitle and actions on the right ----
+.x-page {
+  box-sizing: border-box;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.x-page-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+}
+.x-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mat-sys-primary);
+}
+.x-title {
+  margin: 2px 0 0;
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--mat-sys-on-surface);
+}
+.x-sub {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--mat-sys-on-surface-variant);
+}
+.x-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.x-section-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.x-empty {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 15px;
+  padding: 24px 4px;
+}
+
+// ---- Search: a filled pill ----
+.x-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 40px; // same as the buttons next to it
+  padding: 0 16px;
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  input {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--mat-sys-on-surface);
+    font: inherit;
+    font-size: 15px;
+    width: 220px;
+  }
+  &:focus-within { outline: 2px solid var(--mat-sys-primary); outline-offset: 1px; }
+}
+
+// ---- Cards: tonal, no border, large corners ----
+.x-card {
+  box-sizing: border-box;
+  background: var(--mat-sys-surface-container);
+  border-radius: 28px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--mat-sys-on-surface);
+}
+a.x-card, button.x-card, .x-card.x-clickable {
+  text-decoration: none;
+  font: inherit;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  transition: border-radius 0.35s var(--x-spring), background-color 0.2s;
+  &:hover { background: var(--mat-sys-surface-container-high); border-radius: 36px; }
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: 2px; }
+}
+.x-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+// Icon in a shaped container. Variants: round, sm, primary, tonal (primary container), tertiary, ok, err.
+.x-shape {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+  mat-icon { font-size: 22px; width: 22px; height: 22px; }
+
+  &.round { border-radius: 50%; }
+  &.sm { width: 36px; height: 36px; border-radius: 12px; mat-icon { font-size: 18px; width: 18px; height: 18px; } }
+  &.sm.round { border-radius: 50%; }
+  &.primary { background: var(--mat-sys-primary); color: var(--mat-sys-on-primary); }
+  &.tonal { background: var(--mat-sys-primary-container); color: var(--mat-sys-on-primary-container); }
+  &.tertiary { background: var(--mat-sys-tertiary-container); color: var(--mat-sys-on-tertiary-container); }
+  &.ok { background: color-mix(in srgb, var(--x-ok) 22%, var(--mat-sys-surface)); color: var(--x-ok); }
+  &.err { background: var(--mat-sys-error-container); color: var(--mat-sys-on-error-container); }
+}
+
+// Big numbers on stat cards.
+.x-num {
+  font-size: 52px;
+  line-height: 56px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  small { font-size: 18px; font-weight: 600; letter-spacing: 0; color: var(--mat-sys-on-surface-variant); }
+}
+
+// ---- Segmented list: separate rows, the outer corners rounded ----
+.x-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.x-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  flex-shrink: 0; // in a scrolling list rows keep their height
+  padding: 10px 18px;
+  border-radius: 6px;
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+  text-decoration: none;
+  &:first-child { border-top-left-radius: 24px; border-top-right-radius: 24px; }
+  &:last-child { border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+}
+a.x-row:hover, button.x-row:hover { background: var(--mat-sys-surface-container-high); }
+
+// Tables in the same segmented style: rows are separate rounded strips, no grid lines.
+table.x-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-size: 15px;
+
+  thead th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
+    padding: 4px 16px 6px;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--mat-sys-surface);
+  }
+  tbody td {
+    padding: 12px 16px;
+    background: var(--mat-sys-surface-container);
+    vertical-align: middle;
+  }
+  tbody tr td:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+  tbody tr td:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+  tbody tr:first-child td:first-child { border-top-left-radius: 24px; }
+  tbody tr:first-child td:last-child { border-top-right-radius: 24px; }
+  tbody tr:last-child td:first-child { border-bottom-left-radius: 24px; }
+  tbody tr:last-child td:last-child { border-bottom-right-radius: 24px; }
+  tbody tr:hover td { background: var(--mat-sys-surface-container-high); }
+}
+
+// ---- Connected button group: neighbours share flat inner corners, the selected one is a full pill ----
+.x-group {
+  display: inline-flex;
+  gap: 2px;
+  > button, > a {
+    border-radius: 8px !important;
+    &:first-child { border-top-left-radius: 20px !important; border-bottom-left-radius: 20px !important; }
+    &:last-child { border-top-right-radius: 20px !important; border-bottom-right-radius: 20px !important; }
+    &.x-on { border-radius: 20px !important; }
+  }
+}
+
+// ---- Chips: small tonal labels (host, commit, events) ----
+.x-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+}
+
+// Thin rounded meter (CPU, memory, reclaimable space).
+.x-meter {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface-container-highest);
+  overflow: hidden;
+  > i { display: block; height: 100%; border-radius: 4px; background: var(--mat-sys-primary); }
+}
+
+// Dark log / code surface.
+.x-code {
+  background: #1d2433;
+  color: #dbe2f9;
+  border-radius: 28px;
+}
+// Light scrollbar on dark code surfaces (logs, compose previews, the terminal).
+.x-code, .x-code * {
+  &::-webkit-scrollbar-thumb { background: rgba(219, 226, 249, 0.28) padding-box; }
+  &::-webkit-scrollbar-thumb:hover { background: rgba(219, 226, 249, 0.45) padding-box; }
+}
+// Keep the scrollbars clear of the 28px rounded corners.
+.x-code::-webkit-scrollbar-track { margin: 18px; }
+@supports (-moz-appearance: none) {
+  .x-code, .x-code * { scrollbar-color: rgba(219, 226, 249, 0.35) transparent; }
+}
+
+// ---- Side rail parts (layout, sidenav, task center and account share them) ----
+.rail-item {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 26px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.2s, border-radius 0.3s var(--x-spring);
+
+  mat-icon { flex-shrink: 0; }
+  &:hover { background: var(--mat-sys-surface-container-high); }
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: -3px; }
+  &.active {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    mat-icon { font-variation-settings: 'FILL' 1; }
+  }
+
+  .count {
+    margin-left: auto;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+.rail.collapsed .rail-item {
+  width: 56px;
+  padding: 0;
+  justify-content: center;
+  align-self: center;
+}
+
+// Extended FAB (new project): a soft square, wider with its label.
+.x-fab {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 18px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--mat-sys-level1);
+  transition: border-radius 0.35s var(--x-spring), box-shadow 0.2s;
+
+  // Extended in the rail: full width, icon on the same 18px inset and 14px gap as the nav items below.
+  &.extended { padding: 0 24px 0 20px; justify-content: flex-start; }
+  &:hover { box-shadow: var(--mat-sys-level2); border-radius: 24px; }
+  &:active { border-radius: 12px; }
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: 2px; }
+}
+.rail .x-fab { margin-bottom: 4px; }
+// In the rail: full width, icon on the same 18px inset and 14px gap as the nav items below.
+.rail .x-fab.extended { width: 100%; padding: 0 18px; gap: 14px; }
+// The component's host is the rail's flex item: centre the button inside it when collapsed.
+.rail app-create-project-button { display: flex; }
+.rail.collapsed app-create-project-button { justify-content: center; }
+
+// Deployments panel (opened from the rail): a rounded sheet with segmented rows.
+.mat-mdc-menu-panel.x-deploy-menu {
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  border-radius: 28px !important;
+  background: var(--mat-sys-surface);
+
+  .mat-mdc-menu-content { padding: 16px 12px 12px; }
+
+  .x-deploy-row.mat-mdc-menu-item {
+    min-height: 64px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: var(--mat-sys-surface-container);
+    &:first-child { border-top-left-radius: 22px; border-top-right-radius: 22px; }
+    &:last-child { border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
+    &:hover, &.cdk-keyboard-focused { background: var(--mat-sys-surface-container-high); }
+
+    .mat-mdc-menu-item-text { display: flex; align-items: center; gap: 14px; width: 100%; }
+  }
+}
+
+// ---- Menus and dropdown panels (mat-menu, mat-select, autocomplete): one rounded sheet style ----
+.mat-mdc-menu-panel.mat-mdc-menu-panel,
+div.mat-mdc-select-panel,
+div.mat-mdc-autocomplete-panel {
+  border-radius: 20px !important;
+  background: var(--mat-sys-surface-container-low) !important;
+  box-shadow: var(--mat-sys-level2) !important;
+}
+.mat-mdc-menu-panel .mat-mdc-menu-content,
+div.mat-mdc-select-panel,
+div.mat-mdc-autocomplete-panel {
+  padding: 8px !important;
+}
+.mat-mdc-menu-item,
+.mat-mdc-option {
+  min-height: 48px !important;
+  border-radius: 12px;
+  padding: 0 14px !important;
+  & + & { margin-top: 2px; }
+  .mat-icon { margin-right: 12px; color: var(--mat-sys-on-surface-variant); }
+}
+.mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+  background: var(--mat-sys-primary-container) !important;
+  .mdc-list-item__primary-text { color: var(--mat-sys-on-primary-container) !important; font-weight: 600; }
+}
+// The single-select check mark is redundant next to the tinted selection.
+.mat-mdc-option .mat-pseudo-checkbox-minimal { display: none; }
+// Menu items that mark the current choice (e.g. the host picker) get the same tint.
+.mat-mdc-menu-item.x-selected {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font-weight: 600;
+  .mat-icon { color: var(--mat-sys-on-primary-container); }
+}
+
+// Icon buttons centre their icon with flexbox instead of Material's fixed 8px padding, so a resized
+// one (e.g. the 48px remove button on the project header) keeps its icon in the middle.
+.mat-mdc-icon-button.mat-mdc-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+// Every code-like element uses the one monospace (otherwise browsers fall back to Consolas/Courier).
+code, pre, kbd, samp, .mono, .x-code {
+  font-family: var(--x-mono);
+}
+
+// An icon inside a shape is centred by the shape; menu-item icon spacing must not shift it.
+.x-shape .mat-icon { margin: 0 !important; }

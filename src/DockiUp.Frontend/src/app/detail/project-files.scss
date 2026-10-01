@@ -19,11 +19,12 @@
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-  padding: 16px 20px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 14px;
+  padding: 16px 20px 20px;
+  border-radius: 28px;
+  background: var(--mat-sys-surface-container);
+  transition: background-color 0.2s, border-radius 0.35s var(--x-spring);
 
-  &.dragging { border-color: var(--mat-sys-primary); background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent); }
+  &.dragging { background: var(--mat-sys-primary-container); border-radius: 36px; }
 }
 
 .toolbar {
@@ -49,16 +50,16 @@
 .crumb {
   display: inline-flex;
   align-items: center;
-  padding: 4px 6px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 14px;
   background: transparent;
   color: inherit;
   font: inherit;
   white-space: nowrap;
   cursor: pointer;
 
-  &:hover { background: var(--mat-sys-surface-container-high); }
+  &:hover { background: var(--mat-sys-surface-container-highest); }
   mat-icon { color: var(--mat-sys-primary); }
 }
 
@@ -90,14 +91,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 2px 4px 2px 10px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  padding: 2px 4px 2px 14px;
+  border-radius: 20px;
   cursor: pointer;
+  transition: background-color 0.15s;
 
-  &:hover { background: var(--mat-sys-surface-container-high); }
+  &:hover { background: var(--mat-sys-surface-container-highest); }
   &:focus-visible { outline: 2px solid var(--mat-sys-primary); }
-  &.selected { border-color: var(--mat-sys-primary); background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent); }
+  &.selected { background: var(--mat-sys-primary-container); color: var(--mat-sys-on-primary-container); .kind, .meta { color: var(--mat-sys-on-primary-container); } }
 
   .kind { flex-shrink: 0; color: var(--mat-sys-on-surface-variant); }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -112,12 +113,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 13px var(--x-mono);
 }
 
 .dirty { margin-left: 6px; color: #fb8c00; }
 
-.toolbar button[mat-stroked-button],
+.toolbar button[matButton],
 .toolbar button[mat-flat-button] { margin-left: 8px; }
 
 .editor { flex: 1; }

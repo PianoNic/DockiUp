@@ -1,54 +1,79 @@
-.custom-layout {
+.shell {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   overflow: hidden;
-}
-
-.layout-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.custom-sidenav {
-  position: relative;
-  height: 100%;
-  width: 240px;
-  flex-shrink: 0;
   background-color: var(--mat-sys-surface-container-low);
-  overflow-x: hidden;
-  overflow-y: auto;
-  transition: width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-
-  &.collapsed {
-    width: 72px;
-  }
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--mat-sys-outline-variant);
-    border-radius: 3px;
-  }
 }
 
-.custom-main-content {
-  flex: 1;
+// Side rail: brand, new project, navigation, then deployments and the account at the bottom.
+.rail {
+  width: 264px;
+  flex-shrink: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background-color: var(--mat-sys-surface-container-low);
+  gap: 6px;
+  padding: 16px 16px 16px;
+  // Visible: the account menu opens upwards out of the rail.
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1);
+
+  &.collapsed {
+    width: 88px;
+    padding: 16px 12px;
+  }
+}
+
+.rail-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  margin-bottom: 8px;
+
+  button { color: var(--mat-sys-on-surface-variant); }
+}
+
+.rail.collapsed .rail-top {
+  justify-content: center;
+}
+
+// The DockiUp logo (public/logo.png, a 2x export of assets/DockiUpLogo.png).
+.brand {
+  display: flex;
+  border-radius: 12px;
+
+  img {
+    display: block;
+    height: 64px;
+    width: auto;
+  }
+
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: 2px; }
+}
+
+app-header {
+  margin-top: auto;
 }
 
 .content-wrapper {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: 24px;
+  margin: 12px 12px 12px 0;
+  padding: 32px 40px;
   background-color: var(--mat-sys-surface);
-  border-radius: var(--mat-sys-corner-large) 0 0 0;
+  border-radius: 36px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .content-wrapper {
+    padding: 20px 16px;
+    border-radius: 24px;
+  }
 }

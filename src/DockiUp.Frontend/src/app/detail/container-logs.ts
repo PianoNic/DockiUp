@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, model, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,7 +34,6 @@ const sortKey = (line: string) => line.slice(0, line.indexOf(' ')).replace(/\.(\
   imports: [
     FormsModule,
     MatButtonModule,
-    MatButtonToggleModule,
     MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
@@ -60,6 +58,10 @@ export class ContainerLogs {
   protected readonly tailOptions = [100, 200, 500, 1000, 5000, 0];
   protected readonly tail = signal(200);
   protected readonly streams = signal<string[]>(['stdout', 'stderr']);
+
+  protected toggleStream(s: string): void {
+    this.streams.update((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
+  }
   protected readonly timestamps = signal(false);
   protected readonly search = signal('');
   protected readonly invert = signal(false);

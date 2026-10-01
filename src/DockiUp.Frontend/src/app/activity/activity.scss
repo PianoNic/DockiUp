@@ -1,71 +1,72 @@
 .activity-wrapper {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 24px 16px;
   // Header stays put; only the table scrolls.
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 20px;
 }
 
 .activity-header {
   flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: 16px 24px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
 }
 
 .activity-title {
-  font-size: 26px;
-  line-height: 32px;
-  font-weight: 700;
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
 .activity-subtitle {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   color: var(--mat-sys-on-surface-variant);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .activity-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-field {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  // Matches mat-stroked-button: outline colour, full-pill corners, 40px height.
+  gap: 10px;
+  // A filled pill, like the search in the mockups (same height as the buttons beside it).
   box-sizing: border-box;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid var(--mat-sys-outline);
-  border-radius: var(--mat-sys-corner-full);
-  background: transparent;
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-high);
 
   mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
     color: var(--mat-sys-on-surface-variant);
   }
+
+  &:focus-within { outline: 2px solid var(--mat-sys-primary); outline-offset: 1px; }
 
   input {
     border: none;
     outline: none;
     background: transparent;
     color: var(--mat-sys-on-surface);
-    font-size: 14px;
-    width: 200px;
+    font: inherit;
+    font-size: 15px;
+    width: 220px;
   }
 }
 
@@ -80,24 +81,23 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 14px;
 }
 
+// Segmented rows: each row its own rounded strip, the outer corners of the list fully rounded.
 .activity-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-size: 15px;
 
   thead th {
     text-align: left;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--mat-sys-on-surface-variant);
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    padding: 4px 16px 6px;
     white-space: nowrap;
     position: sticky;
     top: 0;
@@ -106,17 +106,22 @@
   }
 
   tbody td {
-    padding: 11px 16px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    padding: 12px 16px;
+    background: var(--mat-sys-surface-container);
     vertical-align: middle;
   }
 
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: var(--mat-sys-surface-container-high, rgba(0, 0, 0, 0.04)); }
+  tbody tr td:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+  tbody tr td:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+  tbody tr:first-child td:first-child { border-top-left-radius: 24px; }
+  tbody tr:first-child td:last-child { border-top-right-radius: 24px; }
+  tbody tr:last-child td:first-child { border-bottom-left-radius: 24px; }
+  tbody tr:last-child td:last-child { border-bottom-right-radius: 24px; }
+  tbody tr:hover td { background: var(--mat-sys-surface-container-high); }
 }
 
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.when { color: var(--mat-sys-on-surface-variant); font-size: 12.5px; white-space: nowrap; }
+.mono { font-family: var(--x-mono); }
+.when { color: var(--mat-sys-on-surface-variant); font-size: 14px; white-space: nowrap; }
 
 .who { font-weight: 500; }
 .who.system { color: var(--mat-sys-on-surface-variant); font-style: italic; }
@@ -125,12 +130,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-  color: var(--mat-sys-primary);
-  font-size: 12.5px;
-  font-weight: 500;
+  height: 28px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
 
   mat-icon { font-size: 14px; width: 14px; height: 14px; }
@@ -145,7 +152,7 @@
 // Containers page: one header row per compose project.
 .group-row {
   cursor: pointer;
-  td { background: var(--mat-sys-surface-container); }
+  td { background: var(--mat-sys-surface-container-highest) !important; }
 }
 
 .group-head {
@@ -159,12 +166,15 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--mat-sys-outline-variant);
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-highest);
   color: var(--mat-sys-on-surface-variant);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
 
   mat-icon { font-size: 14px; width: 14px; height: 14px; }
 }

@@ -23,16 +23,16 @@ import { NotificationService, errorMessage } from '../shared/services/notificati
     <h2 mat-dialog-title>{{ existing ? 'Edit git credential' : 'Add git credential' }}</h2>
     <mat-dialog-content>
       <p>An HTTPS personal access token with read access to the repository (GitHub, GitLab, Gitea/Forgejo).</p>
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="fill">
         <mat-label>Name</mat-label>
         <input matInput [(ngModel)]="name" placeholder="GitHub (my-org)" />
       </mat-form-field>
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="fill">
         <mat-label>User name</mat-label>
         <input matInput [(ngModel)]="username" placeholder="git" />
         <mat-hint>Your account name; any value works for GitHub tokens</mat-hint>
       </mat-form-field>
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="fill">
         <mat-label>Token</mat-label>
         <input matInput type="password" autocomplete="new-password" [(ngModel)]="token"
           [placeholder]="existing ? 'Leave empty to keep ' + existing.tokenMasked : ''" />
@@ -78,37 +78,34 @@ export class GitCredentialDialog {
   selector: 'app-git-credentials',
   imports: [LocalDatePipe, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: '../activity/activity.scss',
+  styleUrl: './settings-list.scss',
   template: `
-    <div class="activity-header">
-      <p class="activity-subtitle">HTTPS tokens for cloning and fetching private repositories, also on nodes.</p>
-      <button mat-flat-button (click)="edit(null)"><mat-icon>add</mat-icon> Add credential</button>
+    <div class="toolbar">
+      <p class="intro">HTTPS tokens for cloning and fetching private repositories, also on nodes.</p>
+      <button matButton="filled" (click)="edit(null)"><mat-icon>add</mat-icon> Add credential</button>
     </div>
     @if (loading() && credentials().length === 0) { <mat-progress-bar mode="indeterminate" /> }
     @if (credentials().length === 0 && !loading()) {
-      <p class="activity-empty">No git credentials yet. Public repositories need none.</p>
+      <p class="x-empty">No git credentials yet. Public repositories need none.</p>
     } @else {
-      <div class="table-scroll">
-        <table class="activity-table">
-          <thead><tr><th>Name</th><th>User</th><th>Token</th><th>Projects</th><th>Added</th><th></th></tr></thead>
-          <tbody>
-            @for (c of credentials(); track c.id) {
-              <tr>
-                <td class="target">{{ c.name }}</td>
-                <td>{{ c.username }}</td>
-                <td class="mono">{{ c.tokenMasked }}</td>
-                <td>{{ count(c) }}</td>
-                <td class="when">{{ c.createdAt | localDate }}</td>
-                <td>
-                  <div class="row-actions">
-                    <button mat-icon-button (click)="edit(c)" matTooltip="Edit" aria-label="Edit credential"><mat-icon>edit</mat-icon></button>
-                    <button mat-icon-button (click)="remove(c)" matTooltip="Delete" aria-label="Delete credential"><mat-icon>delete</mat-icon></button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="scroll">
+        <div class="x-list">
+          @for (c of credentials(); track c.id) {
+            <div class="x-row">
+              <span class="x-shape lg tonal"><mat-icon>key</mat-icon></span>
+              <span class="main">
+                <span class="name">{{ c.name }}</span>
+                <span class="meta">{{ c.username }} · <span class="mono">{{ c.tokenMasked }}</span></span>
+              </span>
+              <span class="x-chip">{{ count(c) }} {{ count(c) === 1 ? 'project' : 'projects' }}</span>
+              <span class="side">Added {{ c.createdAt | localDate }}</span>
+              <span class="actions">
+                <button mat-icon-button (click)="edit(c)" matTooltip="Edit" aria-label="Edit credential"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button class="danger" (click)="remove(c)" matTooltip="Delete" aria-label="Delete credential"><mat-icon>delete</mat-icon></button>
+              </span>
+            </div>
+          }
+        </div>
       </div>
     }
   `,

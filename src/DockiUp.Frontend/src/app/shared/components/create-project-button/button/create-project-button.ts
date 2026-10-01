@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -24,6 +24,9 @@ import { ProjectStore } from '../../../stores/project.store';
   styleUrl: './create-project-button.scss'
 })
 export class CreateProjectButton {
+  /** Icon and label (rail, empty states); false shows the icon only (collapsed rail). */
+  readonly extended = input(true);
+
   projectService = inject(ProjectService)
   projectStore = inject(ProjectStore);
   destroyRef = inject(DestroyRef);
@@ -35,7 +38,7 @@ export class CreateProjectButton {
   ) { }
 
   async openCreateDialog() {
-    const dialogRef = this.dialog.open(CreateProjectModal, { width: '920px', maxWidth: '95vw' });
+    const dialogRef = this.dialog.open(CreateProjectModal, { width: '920px', maxWidth: '95vw', panelClass: 'expressive-dialog' });
 
     // The dialog creates (or adopts) the project itself; open it right away: its first deployment streams there.
     dialogRef.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (result: CreateProjectResult | undefined) => {

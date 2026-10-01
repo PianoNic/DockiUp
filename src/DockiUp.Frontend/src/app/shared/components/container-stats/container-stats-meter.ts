@@ -20,11 +20,11 @@ import { ContainerStatsStore, formatBytes, num } from '../../stores/container-st
     }
   `,
   styles: `
-    .meter { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; font-size: 11.5px; }
-    .name { color: var(--mat-sys-on-surface-variant); font-weight: 500; letter-spacing: 0.04em; }
+    .meter { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px 10px; font-size: 13px; }
+    .name { color: var(--mat-sys-on-surface-variant); font-weight: 600; letter-spacing: 0.04em; }
     .val { color: var(--mat-sys-on-surface); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-    .bar { height: 4px; border-radius: 2px; background: var(--mat-sys-surface-container-highest); overflow: hidden; }
-    .bar > span { display: block; height: 100%; border-radius: 2px; background: var(--mat-sys-primary); }
+    .bar { height: 8px; border-radius: 4px; background: var(--mat-sys-surface-container-highest); overflow: hidden; }
+    .bar > span { display: block; height: 100%; border-radius: 4px; background: var(--mat-sys-primary); }
   `,
 })
 export class ContainerStatsMeter {

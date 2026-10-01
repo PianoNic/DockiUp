@@ -38,24 +38,25 @@ const SHOWN = 300;
       display: flex;
       flex-direction: column;
       gap: 2px;
-      border: 1px solid var(--mat-sys-outline-variant);
-      border-radius: 10px;
-      padding: 4px;
+      margin-top: 12px;
+      border-radius: 24px;
+      padding: 6px;
+      background: var(--mat-sys-surface-container);
     }
     .tag {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border: none;
-      border-radius: 8px;
+      border-radius: 18px;
       background: transparent;
       color: inherit;
-      font: 14px ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: 14px var(--x-mono);
       text-align: left;
       cursor: pointer;
       &:hover { background: var(--mat-sys-surface-container-high); }
-      &.selected { background: var(--mat-sys-secondary-container); color: var(--mat-sys-on-secondary-container); }
+      &.selected { background: var(--mat-sys-primary-container); color: var(--mat-sys-on-primary-container); }
       .current { margin-left: auto; font: 12px var(--mat-sys-body-small-font, inherit); color: var(--mat-sys-on-surface-variant); }
     }
     .hint, .error { margin: 8px 0 0; font-size: 13px; color: var(--mat-sys-on-surface-variant); }
@@ -65,7 +66,7 @@ const SHOWN = 300;
     <h2 mat-dialog-title>Choose a tag for {{ data.serviceName }}</h2>
     <mat-dialog-content>
       <p class="hint">@if (data.image) { Runs <code>{{ data.image }}</code> now. } The chosen tag is written to <code>dockiup.override.yml</code>; the compose file stays untouched.</p>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
+      <mat-form-field appearance="fill" subscriptSizing="dynamic" class="filter">
         <mat-label>Filter tags</mat-label>
         <mat-icon matPrefix>search</mat-icon>
         <input matInput [value]="filter()" (input)="filter.set($any($event.target).value)" cdkFocusInitial />

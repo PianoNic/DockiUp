@@ -39,19 +39,19 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
   styles: `
     mat-form-field { width: 100%; }
     .row { display: flex; gap: 12px; }
-    .events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 4px 0 12px; }
-    .label { font-weight: 500; margin: 8px 0 0; }
+    .events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 6px 0 16px; padding: 8px 12px; border-radius: 20px; background: var(--mat-sys-surface-container); }
+    .label { font-weight: 600; margin: 12px 0 0; }
     .error { color: var(--mat-sys-error); font-size: 14px; }
   `,
   template: `
     <h2 mat-dialog-title>{{ existing ? 'Edit channel' : 'Add notification channel' }}</h2>
     <mat-dialog-content>
       <div class="row">
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="fill">
           <mat-label>Name</mat-label>
           <input matInput [(ngModel)]="name" placeholder="Ops alerts" required />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="fill">
           <mat-label>Type</mat-label>
           <mat-select [ngModel]="type()" (ngModelChange)="type.set($event)">
             @for (t of types; track t.value) { <mat-option [value]="t.value">{{ t.label }}</mat-option> }
@@ -61,7 +61,7 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
 
       @switch (type()) {
         @case ('Telegram') {
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Chat id</mat-label>
             <input matInput [(ngModel)]="target" placeholder="-1001234567890" />
             <mat-hint>The chat, group or channel the bot posts to</mat-hint>
@@ -69,30 +69,30 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
         }
         @case ('Ntfy') {
           <div class="row">
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="fill">
               <mat-label>Server</mat-label>
               <input matInput [(ngModel)]="url" placeholder="https://ntfy.sh" />
             </mat-form-field>
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="fill">
               <mat-label>Topic</mat-label>
               <input matInput [(ngModel)]="target" placeholder="dockiup" />
             </mat-form-field>
           </div>
         }
         @case ('Webhook') {
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>URL</mat-label>
             <input matInput [(ngModel)]="url" placeholder="https://example.com/hooks/dockiup" />
             <mat-hint>Receives a JSON POST: event, title, message, timestamp, data</mat-hint>
           </mat-form-field>
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Secret header name</mat-label>
             <input matInput [(ngModel)]="headerName" placeholder="X-Webhook-Secret" />
           </mat-form-field>
         }
       }
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="fill">
         <mat-label>{{ secretLabel() }}</mat-label>
         <input matInput type="password" autocomplete="new-password" [(ngModel)]="secret"
           [placeholder]="existing?.secretMasked ? 'Leave empty to keep ' + existing!.secretMasked : ''" />

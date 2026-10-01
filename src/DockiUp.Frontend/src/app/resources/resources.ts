@@ -1,3 +1,4 @@
+import { MatMenuModule } from '@angular/material/menu';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -47,6 +48,7 @@ export function utcToLocal(day: number, hour: number): { day: number; hour: numb
 @Component({
   selector: 'app-resources',
   imports: [
+    MatMenuModule,
     LocalDatePipe,
     MatButtonModule,
     MatButtonToggleModule,
@@ -146,6 +148,12 @@ export class Resources {
 
   protected size(value: unknown): string {
     return value === null || value === undefined ? '–' : formatBytes(value);
+  }
+
+  /** Share of `part` in `total` (0-100), for the reclaimable meters. */
+  protected pct(part: unknown, total: unknown): number {
+    const t = Number(total);
+    return t > 0 ? Math.min(100, Math.round((Number(part) / t) * 100)) : 0;
   }
 
   protected count(value: unknown): number {

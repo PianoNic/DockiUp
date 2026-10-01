@@ -1,0 +1,53 @@
+// Activity page extras; the shared page look comes from ./activity.scss.
+
+.kinds {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.tonal-icon {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.x-row {
+  min-height: 64px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .target {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .details {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.x-chip.system {
+  font-style: italic;
+}
+
+.when {
+  width: 120px;
+  text-align: right;
+  flex-shrink: 0;
+}

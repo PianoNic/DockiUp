@@ -1,56 +1,37 @@
 :host {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
   min-width: 0;
-  padding-top: 6px; // room for the outlined fields' floating labels
 }
 
 .toolbar {
   flex-shrink: 0;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .select { min-width: 200px; }
-.tail { width: 130px; }
+.tail { width: 140px; }
 .spacer { flex: 1; }
 
-mat-button-toggle-group { --mat-button-toggle-height: 40px; }
+.streams button { height: 48px; }
 
 .search {
   flex: 1;
   min-width: 220px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  height: 40px;
-  padding: 0 4px 0 14px;
-  border: 1px solid var(--mat-sys-outline);
-  border-radius: var(--mat-sys-corner-full);
+  padding-right: 4px;
 
-  > mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--mat-sys-on-surface-variant); }
-
-  input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--mat-sys-on-surface);
-    font-size: 14px;
-  }
-
-  .clear { --mat-icon-button-state-layer-size: 32px; padding: 4px; }
+  input { flex: 1; min-width: 0; width: auto; }
+  .clear { --mat-icon-button-state-layer-size: 36px; padding: 6px; }
 }
 
 .count {
   color: var(--mat-sys-on-surface-variant);
-  font-size: 12.5px;
+  font-size: 13px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -60,12 +41,10 @@ mat-button-toggle-group { --mat-button-toggle-height: 40px; }
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: #222;
-  color: #eee;
-  padding: 1rem;
-  border-radius: 4px;
-  font-family: 'Fira Mono', 'Consolas', monospace;
-  font-size: 0.9rem;
+  padding: 20px 24px;
+  font-family: var(--x-mono);
+  font-size: 13px;
+  line-height: 1.65;
 
   pre { margin: 0; min-height: 100%; }
 }

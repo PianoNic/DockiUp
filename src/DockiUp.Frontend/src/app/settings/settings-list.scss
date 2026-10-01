@@ -1,0 +1,87 @@
+// Shared by the three Settings tabs: intro + add button, then a segmented list that scrolls on its own.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  .intro {
+    flex: 1;
+    min-width: 240px;
+    margin: 0;
+    font-size: 15px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.x-row { min-height: 76px; }
+
+.x-shape.lg {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .name {
+    font-size: 16px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    font-size: 13px;
+    color: var(--mat-sys-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.chips {
+  flex: 1.4;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.side {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant);
+  white-space: nowrap;
+}
+
+.actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.danger { color: var(--mat-sys-error); }
+.off { opacity: 0.6; }
+.mono { font-family: var(--x-mono); }

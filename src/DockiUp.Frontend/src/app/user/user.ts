@@ -3,7 +3,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { map } from 'rxjs';
@@ -13,7 +12,7 @@ import { Theme, ThemeService } from '../shared/services/theme.service';
 /** Who you are (from the IdP token), your preferences, and what you've done lately. */
 @Component({
   selector: 'app-user',
-  imports: [LocalDatePipe, RouterLink, MatButtonModule, MatButtonToggleModule, MatIconModule],
+  imports: [LocalDatePipe, RouterLink, MatButtonModule, MatIconModule],
   templateUrl: './user.html',
   styleUrl: './user.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

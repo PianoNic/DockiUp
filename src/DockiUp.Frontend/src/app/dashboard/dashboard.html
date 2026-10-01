@@ -1,54 +1,57 @@
-<div class="container-wrapper">
+<div class="x-page dashboard">
   <!-- Header -->
-  <header class="dash-header">
-    <div class="dash-heading">
-      <h1 class="dashboard-title">Dashboard</h1>
-      <p class="dash-subtitle">Your Docker stacks at a glance</p>
+  <header class="x-page-header">
+    <div>
+      <span class="x-eyebrow">{{ containerStats().running }} of {{ containerStats().total }} containers running</span>
+      <h1 class="x-title">Dashboard</h1>
     </div>
-    <div class="dash-actions">
-      <button mat-stroked-button (click)="imageUpdates.checkNow()" [disabled]="imageUpdates.checking()" matTooltip="Compare running images with their registries">
-        <mat-icon>update</mat-icon>
-        {{ imageUpdates.checking() ? 'Checking…' : 'Check for updates' }}
-      </button>
+    <div class="x-actions">
       @if (projectStore.loading()) {
         <mat-progress-spinner diameter="24" mode="indeterminate" color="primary" />
       }
+      <button matButton="tonal" (click)="imageUpdates.checkNow()" [disabled]="imageUpdates.checking()" matTooltip="Compare running images with their registries">
+        <mat-icon>update</mat-icon>
+        {{ imageUpdates.checking() ? 'Checking…' : 'Check for updates' }}
+      </button>
     </div>
   </header>
 
-  <!-- KPI row -->
-  <div class="kpi-row">
-    <mat-card appearance="outlined" class="kpi kpi-projects">
-      <div class="kpi-label"><mat-icon>layers</mat-icon> Projects</div>
-      <div class="kpi-value">{{ projects().length }}</div>
-    </mat-card>
+  <!-- Stat cards -->
+  <div class="stats">
+    <div class="x-card stat">
+      <div class="stat-head"><span class="stat-label">Projects</span><span class="x-shape tonal"><mat-icon>layers</mat-icon></span></div>
+      <span class="x-num">{{ projects().length }}</span>
+    </div>
 
-    <mat-card appearance="outlined" class="kpi kpi-running">
-      <div class="kpi-label"><mat-icon>check_circle</mat-icon> Running</div>
-      <div class="kpi-value">
-        {{ containerStats().running }}<span class="kpi-of">of {{ containerStats().total }}</span>
+    <div class="x-card stat stat-running">
+      <div class="stat-head"><span class="stat-label">Running</span><span class="x-shape round ok"><mat-icon>play_arrow</mat-icon></span></div>
+      <span class="x-num">{{ containerStats().running }} <small>of {{ containerStats().total }}</small></span>
+    </div>
+
+    <div class="x-card stat">
+      <div class="stat-head"><span class="stat-label">Stopped</span><span class="x-shape"><mat-icon>stop</mat-icon></span></div>
+      <span class="x-num">{{ containerStats().stopped }}</span>
+    </div>
+
+    <div class="x-card stat" [class.stat-alert]="containerStats().crashed > 0">
+      <div class="stat-head">
+        <span class="stat-label">Crashed</span>
+        <span class="x-shape crashed-shape" [class.err]="containerStats().crashed > 0"><mat-icon>monitor_heart</mat-icon></span>
       </div>
-    </mat-card>
-
-    <mat-card appearance="outlined" class="kpi kpi-stopped">
-      <div class="kpi-label"><mat-icon>stop_circle</mat-icon> Stopped</div>
-      <div class="kpi-value">{{ containerStats().stopped }}</div>
-    </mat-card>
-
-    <mat-card appearance="outlined" class="kpi kpi-crashed" [class.alert]="containerStats().crashed > 0">
-      <div class="kpi-label"><mat-icon>error</mat-icon> Crashed</div>
-      <div class="kpi-value">{{ containerStats().crashed }}</div>
-    </mat-card>
+      <span class="x-num">{{ containerStats().crashed }}</span>
+    </div>
   </div>
 
   <!-- Health bar: proportion of containers by state -->
   @if (containerStats().total > 0) {
     <div class="health">
       <div class="health-bar" [matTooltip]="containerStats().running + ' running · ' + containerStats().stopped + ' stopped · ' + containerStats().updating + ' updating · ' + containerStats().crashed + ' crashed'">
-        <span class="seg running" [style.width.%]="health().running"></span>
-        <span class="seg updating" [style.width.%]="health().updating"></span>
-        <span class="seg stopped" [style.width.%]="health().stopped"></span>
-        <span class="seg crashed" [style.width.%]="health().crashed"></span>
+        <!-- Only non-empty segments, sized by share: an empty one would still leave its gap at the end. -->
+        @for (k of segmentKinds; track k) {
+          @if (health()[k] > 0) {
+            <span class="seg" [class]="k" [style.flex-grow]="health()[k]"></span>
+          }
+        }
       </div>
       <div class="health-legend">
         <span><i class="dot running"></i> Running</span>
@@ -59,123 +62,130 @@
     </div>
   }
 
-  <!-- Nodes + Recent activity -->
-  <div class="panels">
-    <mat-card appearance="outlined" class="panel">
-      <div class="panel-head">
-        <h2><mat-icon>dns</mat-icon> Nodes</h2>
-        <span class="panel-sub">{{ onlineNodeCount() }} online</span>
-      </div>
-      <div class="panel-body">
-        <div class="node-row">
-          <span class="node-name">
-            <i class="status-dot online"></i>
-            Local host
-            @if (localDockerVersion(); as v) { <span class="node-ver">docker {{ v }}</span> }
-          </span>
-          <span class="node-meta">{{ localProjectCount() }} projects</span>
-        </div>
-        @for (node of nodes(); track node.id) {
-          <div class="node-row">
-            <span class="node-name">
-              <i class="status-dot" [class.online]="node.online" [class.offline]="!node.online"></i>
-              {{ node.name }}
-              @if (node.dockerVersion) { <span class="node-ver">docker {{ node.dockerVersion }}</span> }
-            </span>
-            <span class="node-meta">
-              {{ projectCountForNode(node.id) }} projects
-            </span>
-          </div>
-        }
-        @if (nodes().length === 0) {
-          <p class="panel-empty">No remote nodes. <a class="table-link" routerLink="/nodes">Add one</a> to deploy across multiple hosts.</p>
-        }
-      </div>
-    </mat-card>
+  <div class="columns">
+    <!-- Projects -->
+    <section class="projects">
+      <h2 class="x-section-title">Projects</h2>
 
-    <mat-card appearance="outlined" class="panel">
-      <div class="panel-head">
-        <h2><mat-icon>history</mat-icon> Recent activity</h2>
-      </div>
-      <div class="panel-body">
-        @for (a of recentActivity(); track a.id) {
-          <div class="activity-row">
-            <mat-icon class="activity-icon">{{ activityIcon(a.action) }}</mat-icon>
-            <span class="activity-text">{{ activityLabel(a) }}</span>
-            <span class="activity-time" [matTooltip]="a.createdAt | localDate">{{ relativeTime(a.createdAt) }}</span>
-          </div>
-        }
-        @if (recentActivity().length === 0) {
-          <p class="panel-empty">No activity yet.</p>
-        }
-      </div>
-    </mat-card>
-  </div>
+      @if (projects().length !== 0) {
+        <div class="project-grid">
+          @for (project of projects(); track project.dockerProjectName) {
+            <div class="x-card x-clickable project-card" [routerLink]="['/project', project.dockerProjectName]"
+              tabindex="0" role="link" [attr.aria-label]="'Open ' + project.projectName">
+              <div class="project-head">
+                <span class="x-shape round status-shape" [attr.data-status]="getProjectStatusClass(project)">
+                  <mat-icon>{{ getProjectStatusIcon(project) }}</mat-icon>
+                </span>
+                <span class="project-title">
+                  <span class="project-name">{{ project.projectName }}</span>
+                  @if (project.projectDescription) {
+                    <span class="project-description">{{ project.projectDescription }}</span>
+                  }
+                </span>
+                <mat-icon class="open-arrow">arrow_forward</mat-icon>
+              </div>
 
-  <!-- Projects -->
-  <h2 class="section-title">Projects</h2>
-  @if (projects().length !== 0) {
-    <div class="container-list">
-      @for (project of projects(); track project.dockerProjectName) {
-        <mat-card appearance="outlined" class="project-card clickable" [attr.data-status]="getProjectStatusClass(project)"
-          [routerLink]="['/project', project.dockerProjectName]" tabindex="0" role="link" [attr.aria-label]="'Open ' + project.projectName">
-          <mat-card-header>
-            <mat-icon mat-card-avatar class="status-avatar" [attr.data-status]="getProjectStatusClass(project)">
-              {{ getProjectStatusIcon(project) }}
-            </mat-icon>
-            <mat-card-title-group>
-              <mat-card-title>{{ project.projectName }}</mat-card-title>
-              <mat-card-subtitle class="project-description">{{ project.projectDescription }}</mat-card-subtitle>
-            </mat-card-title-group>
-          </mat-card-header>
-          <mat-card-content>
-            <div class="project-meta">
-              <span class="chip running-chip">{{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</span>
-              @if (project.deployedCommit; as sha) {
-                <span class="chip commit-chip" [matTooltip]="project.deployedCommitMessage ?? ''"><mat-icon>commit</mat-icon>{{ sha.slice(0, 7) }}</span>
-              }
-              @if (projectNodeName(project); as nodeName) {
-                <span class="chip node-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
-              }
-              <app-image-update-badge [projectId]="project.id" />
+              <div class="project-meta">
+                <span class="state-badge" [attr.data-state]="getProjectStatusClass(project)">{{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</span>
+                @if (project.deployedCommit; as sha) {
+                  <span class="x-chip" [matTooltip]="project.deployedCommitMessage ?? ''"><mat-icon>commit</mat-icon><span class="mono">{{ sha.slice(0, 7) }}</span></span>
+                }
+                @if (projectNodeName(project); as nodeName) {
+                  <span class="x-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
+                }
+                <app-image-update-badge [projectId]="project.id" />
+              </div>
+
+              <!-- Buttons act on the project; they must not also open it. -->
+              <div class="project-actions" (click)="$event.stopPropagation()">
+                @if (canDeploy(project)) {
+                  <button mat-icon-button class="deploy-btn" (click)="onDeployProject(project)" matTooltip="Deploy now (pull &amp; up)" aria-label="Deploy now">
+                    <mat-icon>rocket_launch</mat-icon>
+                  </button>
+                }
+                <!-- Start when nothing runs, Stop otherwise; Restart only makes sense with something running. -->
+                @if (getRunningCount(project) === 0) {
+                  <button mat-icon-button class="tonal-icon" (click)="onStartProject(project)" [disabled]="projectStore.loading()" matTooltip="Start project" aria-label="Start project">
+                    <mat-icon>play_arrow</mat-icon>
+                  </button>
+                } @else {
+                  <button mat-icon-button class="tonal-icon" (click)="onStopProject(project)" [disabled]="projectStore.loading()" matTooltip="Stop project" aria-label="Stop project">
+                    <mat-icon>stop</mat-icon>
+                  </button>
+                }
+                <button mat-icon-button class="tonal-icon" (click)="onRestartProject(project)" [disabled]="projectStore.loading() || getRunningCount(project) === 0" matTooltip="Restart project" aria-label="Restart project">
+                  <mat-icon>restart_alt</mat-icon>
+                </button>
+              </div>
             </div>
-          </mat-card-content>
-          <!-- Buttons act on the project; they must not also open it. -->
-          <mat-card-actions (click)="$event.stopPropagation()">
-            <button mat-button [routerLink]="['/project', project.dockerProjectName]">View</button>
-            <span class="spacer"></span>
-            <button mat-icon-button (click)="onStopProject(project)" [disabled]="projectStore.loading()" matTooltip="Stop project" aria-label="Stop project">
-              <mat-icon>stop</mat-icon>
-            </button>
-            <button mat-icon-button (click)="onRestartProject(project)" [disabled]="projectStore.loading()" matTooltip="Restart project" aria-label="Restart project">
-              <mat-icon>restart_alt</mat-icon>
-            </button>
-            @if (canDeploy(project)) {
-              <button mat-icon-button (click)="onDeployProject(project)" matTooltip="Deploy now (pull &amp; up)" aria-label="Deploy now">
-                <mat-icon>rocket_launch</mat-icon>
-              </button>
-            }
-          </mat-card-actions>
-        </mat-card>
+          }
+        </div>
       }
-    </div>
-  }
 
-  @if (projects().length === 0 && !projectStore.loading()) {
-    <div class="container-list">
-      <mat-card class="empty-state">
-        <mat-card-content>
-          <mat-icon class="empty-icon">inbox</mat-icon>
+      @if (projects().length === 0 && !projectStore.loading()) {
+        <div class="x-card empty-state">
+          <span class="x-shape tonal empty-shape"><mat-icon>inbox</mat-icon></span>
           <p>No compose stacks found. Add your first compose stack to get started.</p>
           <app-create-project-button />
-        </mat-card-content>
-      </mat-card>
-    </div>
-  }
+        </div>
+      }
 
-  @if (projects().length === 0 && projectStore.loading()) {
-    <div class="loading-state">
-      <mat-progress-bar mode="indeterminate" />
-    </div>
-  }
+      @if (projects().length === 0 && projectStore.loading()) {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </section>
+
+    <aside class="side">
+      <!-- Hosts -->
+      <section class="side-section">
+        <div class="side-head">
+          <h2 class="x-section-title">Hosts</h2>
+          <span class="side-sub">{{ onlineNodeCount() }} online</span>
+        </div>
+        <div class="x-list">
+          <a class="x-row" routerLink="/nodes">
+            <span class="x-shape sm round ok"><mat-icon>dns</mat-icon></span>
+            <span class="row-main">
+              <span class="row-title">Local host</span>
+              <span class="row-sub">@if (localDockerVersion(); as v) { Docker {{ v }} · }{{ localProjectCount() }} projects</span>
+            </span>
+          </a>
+          @for (node of nodes(); track node.id) {
+            <a class="x-row" routerLink="/nodes">
+              <span class="x-shape sm round" [class.ok]="node.online"><mat-icon>dns</mat-icon></span>
+              <span class="row-main">
+                <span class="row-title">{{ node.name }}</span>
+                <span class="row-sub">@if (node.dockerVersion) { Docker {{ node.dockerVersion }} · }{{ projectCountForNode(node.id) }} projects</span>
+              </span>
+              @if (!node.online) { <span class="state-badge" data-state="offline">offline</span> }
+            </a>
+          }
+        </div>
+        @if (nodes().length === 0) {
+          <p class="side-empty">No remote nodes. <a class="table-link" routerLink="/nodes">Add one</a> to deploy across multiple hosts.</p>
+        }
+      </section>
+
+      <!-- Recent activity -->
+      <section class="side-section">
+        <div class="side-head">
+          <h2 class="x-section-title">Recent activity</h2>
+          <a class="table-link" routerLink="/activity">See all</a>
+        </div>
+        @if (recentActivity().length !== 0) {
+          <div class="x-list">
+            @for (a of recentActivity(); track a.id) {
+              <div class="x-row activity-row">
+                <span class="x-shape sm tonal"><mat-icon>{{ activityIcon(a.action) }}</mat-icon></span>
+                <span class="row-main row-title activity-text">{{ activityLabel(a) }}</span>
+                <span class="row-time" [matTooltip]="a.createdAt | localDate">{{ relativeTime(a.createdAt) }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="side-empty">No activity yet.</p>
+        }
+      </section>
+    </aside>
+  </div>
 </div>

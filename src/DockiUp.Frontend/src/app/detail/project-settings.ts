@@ -37,10 +37,10 @@ interface Row { envName: string; secretId: string }
       <app-project-webhook [projectId]="projectId()" />
 
       @if (settings()?.isGit) {
-        <section class="panel">
-          <h2 class="section-title"><mat-icon>key</mat-icon> Repository access</h2>
+        <section class="panel x-card">
+          <h2 class="section-title"><span class="x-shape tertiary sm"><mat-icon>key</mat-icon></span> Repository access</h2>
           <p class="hint">Private repositories need a git credential for clone and fetch (also on nodes). Manage them in <a routerLink="/settings">Settings</a>.</p>
-          <mat-form-field appearance="outline" class="credential" subscriptSizing="dynamic">
+          <mat-form-field appearance="fill" class="credential" subscriptSizing="dynamic">
             <mat-label>Git credential</mat-label>
             <mat-select [value]="settings()?.gitCredentialId ?? ''" (selectionChange)="setCredential($event.value)">
               <mat-option value="">None (public repository)</mat-option>
@@ -50,8 +50,8 @@ interface Row { envName: string; secretId: string }
         </section>
       }
 
-      <section class="panel">
-        <h2 class="section-title"><mat-icon>lock</mat-icon> Secrets</h2>
+      <section class="panel x-card">
+        <h2 class="section-title"><span class="x-shape sm"><mat-icon>lock</mat-icon></span> Secrets</h2>
         <p class="hint">
           Each variable is filled from the vault at deploy time and written, with the project's <code>.env</code>, to an env file
           compose reads (<code>--env-file</code>). Mapped secrets win over the same name in <code>.env</code>. Reference them in
@@ -59,11 +59,11 @@ interface Row { envName: string; secretId: string }
         </p>
         @for (row of rows(); track $index) {
           <div class="row">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field appearance="fill" subscriptSizing="dynamic">
               <mat-label>Variable</mat-label>
               <input matInput [(ngModel)]="row.envName" (ngModelChange)="dirty.set(true)" placeholder="DB_PASSWORD" />
             </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field appearance="fill" subscriptSizing="dynamic">
               <mat-label>Vault secret</mat-label>
               <mat-select [(ngModel)]="row.secretId" (ngModelChange)="dirty.set(true)">
                 @for (s of vault(); track s.id) { <mat-option [value]="s.id">{{ s.name }}</mat-option> }
@@ -75,8 +75,8 @@ interface Row { envName: string; secretId: string }
           <p class="empty">No variables mapped.</p>
         }
         <div class="actions">
-          <button mat-stroked-button (click)="addRow()"><mat-icon>add</mat-icon> Add variable</button>
-          <button mat-stroked-button (click)="newSecret()"><mat-icon>enhanced_encryption</mat-icon> New vault secret</button>
+          <button matButton="tonal" (click)="addRow()"><mat-icon>add</mat-icon> Add variable</button>
+          <button matButton="tonal" (click)="newSecret()"><mat-icon>enhanced_encryption</mat-icon> New vault secret</button>
           <button mat-flat-button (click)="save()" [disabled]="!dirty() || saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
         </div>
       </section>

@@ -1,22 +1,29 @@
 <div class="activity-wrapper">
   <header class="activity-header">
     <div>
+      <span class="x-eyebrow">{{ hostName() }}</span>
       <h1 class="activity-title">Resources</h1>
       <p class="activity-subtitle">Images, volumes and networks on {{ hostName() }}</p>
     </div>
     <div class="activity-actions">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="host-select">
-        <mat-label>Host</mat-label>
-        <mat-select [value]="host()" (selectionChange)="host.set($event.value)">
-          <mat-option value="">Local host</mat-option>
-          @for (n of nodes(); track n.id) {
-            <mat-option [value]="n.id" [disabled]="!n.online">{{ n.name }}{{ n.online ? '' : ' (offline)' }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <button mat-stroked-button (click)="reload()" [disabled]="loading()">
+      <!-- Host picker as a tonal button + menu: same 40px height as the refresh button beside it. -->
+      <button matButton="tonal" [matMenuTriggerFor]="hostMenu" aria-label="Host">
+        <mat-icon>dns</mat-icon>
+        {{ hostName() }}
+        <mat-icon iconPositionEnd>arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #hostMenu="matMenu" xPosition="before">
+        <button mat-menu-item [class.x-selected]="host() === ''" (click)="host.set('')">
+          <mat-icon>computer</mat-icon>Local host
+        </button>
+        @for (n of nodes(); track n.id) {
+          <button mat-menu-item [class.x-selected]="host() === n.id" [disabled]="!n.online" (click)="host.set(n.id)">
+            <mat-icon>dns</mat-icon>{{ n.name }}{{ n.online ? '' : ' (offline)' }}
+          </button>
+        }
+      </mat-menu>
+      <button mat-icon-button class="tonal-icon" (click)="reload()" [disabled]="loading()" matTooltip="Refresh" aria-label="Refresh">
         <mat-icon>refresh</mat-icon>
-        {{ loading() ? 'Loading…' : 'Refresh' }}
       </button>
     </div>
   </header>
@@ -30,25 +37,31 @@
 
   @if (data(); as d) {
     <div class="usage" aria-label="Disk usage">
-      <div class="tile">
-        <span class="tile-label">Images</span>
+      <div class="x-card tile">
+        <div class="tile-head"><span class="tile-label">Images</span><span class="x-shape tonal"><mat-icon>layers</mat-icon></span></div>
         <span class="tile-value">{{ size(d.diskUsage.imagesSize) }}</span>
-        <span class="tile-sub">{{ size(d.diskUsage.imagesReclaimable) }} reclaimable</span>
+        <div class="tile-foot">
+          <span class="x-meter"><i [style.width.%]="pct(d.diskUsage.imagesReclaimable, d.diskUsage.imagesSize)"></i></span>
+          <span class="tile-sub">{{ size(d.diskUsage.imagesReclaimable) }} reclaimable</span>
+        </div>
       </div>
-      <div class="tile">
-        <span class="tile-label">Containers</span>
+      <div class="x-card tile">
+        <div class="tile-head"><span class="tile-label">Containers</span><span class="x-shape"><mat-icon>inventory_2</mat-icon></span></div>
         <span class="tile-value">{{ size(d.diskUsage.containersSize) }}</span>
-        <span class="tile-sub">writable layers</span>
+        <div class="tile-foot"><span class="tile-sub">writable layers</span></div>
       </div>
-      <div class="tile">
-        <span class="tile-label">Volumes</span>
+      <div class="x-card tile">
+        <div class="tile-head"><span class="tile-label">Volumes</span><span class="x-shape tertiary"><mat-icon>storage</mat-icon></span></div>
         <span class="tile-value">{{ size(d.diskUsage.volumesSize) }}</span>
-        <span class="tile-sub">{{ size(d.diskUsage.volumesReclaimable) }} reclaimable</span>
+        <div class="tile-foot">
+          <span class="x-meter"><i [style.width.%]="pct(d.diskUsage.volumesReclaimable, d.diskUsage.volumesSize)"></i></span>
+          <span class="tile-sub">{{ size(d.diskUsage.volumesReclaimable) }} reclaimable</span>
+        </div>
       </div>
-      <div class="tile">
-        <span class="tile-label">Build cache</span>
+      <div class="x-card tile">
+        <div class="tile-head"><span class="tile-label">Build cache</span><span class="x-shape"><mat-icon>cleaning_services</mat-icon></span></div>
         <span class="tile-value">{{ size(d.diskUsage.buildCacheSize) }}</span>
-        <span class="tile-sub">&nbsp;</span>
+        <div class="tile-foot"><span class="tile-sub">build layers</span></div>
       </div>
     </div>
   }
@@ -62,8 +75,8 @@
             <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
           </div>
           <span class="spacer"></span>
-          <button mat-stroked-button (click)="pruneImages(false)" [disabled]="busy() || !unused().dangling">Prune dangling ({{ unused().dangling }})</button>
-          <button mat-stroked-button class="danger" (click)="pruneImages(true)" [disabled]="busy() || !unused().images">Prune all unused ({{ unused().images }})</button>
+          <button matButton="tonal" (click)="pruneImages(false)" [disabled]="busy() || !unused().dangling">Prune dangling ({{ unused().dangling }})</button>
+          <button matButton="tonal" class="danger" (click)="pruneImages(true)" [disabled]="busy() || !unused().images"><mat-icon>cleaning_services</mat-icon>Prune all unused ({{ unused().images }})</button>
         </div>
         <div class="table-scroll">
           <table class="activity-table">
@@ -83,7 +96,7 @@
                     @else { <span class="state-badge" data-state="pending">Unused</span> }
                   </td>
                   <td><div class="row-actions">
-                    <button mat-icon-button (click)="removeImage(i)" [disabled]="i.inUse || busy()"
+                    <button mat-icon-button class="danger-icon" (click)="removeImage(i)" [disabled]="i.inUse || busy()"
                       [matTooltip]="i.inUse ? 'In use by ' + count(i.containers) + ' container(s)' : 'Delete image'" aria-label="Delete image">
                       <mat-icon>delete</mat-icon>
                     </button></div>
@@ -106,7 +119,7 @@
             <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
           </div>
           <span class="spacer"></span>
-          <button mat-stroked-button class="danger" (click)="pruneVolumesNow()" [disabled]="busy() || !unused().volumes">Prune unused ({{ unused().volumes }})</button>
+          <button matButton="tonal" class="danger" (click)="pruneVolumesNow()" [disabled]="busy() || !unused().volumes"><mat-icon>cleaning_services</mat-icon>Prune unused ({{ unused().volumes }})</button>
         </div>
         <div class="table-scroll">
           <table class="activity-table">
@@ -123,7 +136,7 @@
                     @else { <span class="state-badge" data-state="pending">Unused</span> }
                   </td>
                   <td><div class="row-actions">
-                    <button mat-icon-button (click)="removeVolume(v)" [disabled]="v.inUse || busy()"
+                    <button mat-icon-button class="danger-icon" (click)="removeVolume(v)" [disabled]="v.inUse || busy()"
                       [matTooltip]="v.inUse ? 'In use by ' + count(v.containers) + ' container(s)' : 'Delete volume and its data'" aria-label="Delete volume">
                       <mat-icon>delete</mat-icon>
                     </button></div>
@@ -146,7 +159,7 @@
             <input type="text" placeholder="Filter…" aria-label="Filter" [value]="filter()" (input)="filter.set($any($event.target).value)" />
           </div>
           <span class="spacer"></span>
-          <button mat-stroked-button (click)="pruneNetworks()" [disabled]="busy() || !unused().networks">Prune unused ({{ unused().networks }})</button>
+          <button matButton="tonal" (click)="pruneNetworks()" [disabled]="busy() || !unused().networks">Prune unused ({{ unused().networks }})</button>
         </div>
         <div class="table-scroll">
           <table class="activity-table">
@@ -163,7 +176,7 @@
                     @else { <span class="state-badge" data-state="pending">Unused</span> }
                   </td>
                   <td><div class="row-actions">
-                    <button mat-icon-button (click)="removeNetwork(n)" [disabled]="n.inUse || n.builtin || busy()"
+                    <button mat-icon-button class="danger-icon" (click)="removeNetwork(n)" [disabled]="n.inUse || n.builtin || busy()"
                       [matTooltip]="n.builtin ? 'Built-in networks cannot be removed' : n.inUse ? 'Containers are attached' : 'Delete network'" aria-label="Delete network">
                       <mat-icon>delete</mat-icon>
                     </button></div>
@@ -180,7 +193,7 @@
 
     <mat-tab label="Scheduled cleanup">
       <div class="tab-fill">
-        <div class="schedule">
+        <div class="x-card schedule">
           <p class="details">
             Prunes {{ hostName() }} on a schedule: stopped containers that belong to no compose project, unused networks,
             and images no container uses. Containers of compose projects are kept even when stopped, so every project's
@@ -194,7 +207,7 @@
               <mat-button-toggle value="Weekly">Weekly</mat-button-toggle>
             </mat-button-toggle-group>
             @if (frequency() === 'Weekly') {
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-form-field appearance="fill" subscriptSizing="dynamic">
                 <mat-label>Day</mat-label>
                 <mat-select [value]="day()" (selectionChange)="day.set($event.value)">
                   @for (d of days; track $index) { <mat-option [value]="$index">{{ d }}</mat-option> }
@@ -202,7 +215,7 @@
               </mat-form-field>
             }
             @if (frequency() !== 'Off') {
-              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="hour">
+              <mat-form-field appearance="fill" subscriptSizing="dynamic" class="hour">
                 <mat-label>At (local time)</mat-label>
                 <mat-select [value]="hour()" (selectionChange)="hour.set($event.value)">
                   @for (h of hours; track h) { <mat-option [value]="h">{{ h < 10 ? '0' + h : h }}:00</mat-option> }
@@ -218,7 +231,7 @@
               <mat-icon>save</mat-icon>
               Save schedule
             </button>
-            <button mat-stroked-button (click)="runCleanupNow()" [disabled]="busy()">
+            <button matButton="tonal" (click)="runCleanupNow()" [disabled]="busy()">
               <mat-icon>cleaning_services</mat-icon>
               Run now
             </button>

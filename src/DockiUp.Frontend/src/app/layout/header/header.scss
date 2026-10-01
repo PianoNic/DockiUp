@@ -1,113 +1,72 @@
-.header {
-  background-color: var(--mat-sys-surface-container-low);
-  color: var(--mat-sys-primary);
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.hamburger-menu {
-  color: var(--mat-sys-primary) !important;
-}
-
-.app-title {
-  font-family: "Shrikhand", serif;
-  margin-left: 1rem;
-}
-
-.spacer {
-  flex: 1 1 auto;
-}
-
-.user-menu-container {
-  position: relative;
-}
-
-.user-button {
-  color: var(--mat-sys-on-surface) !important;
-  flex-direction: row-reverse !important;
-  gap: 12px !important;
-  font-size: 1.1rem !important;
-
-  mat-icon {
-    font-size: 1.3rem !important;
-    width: 1.3rem !important;
-    height: 1.3rem !important;
-  }
-}
-
-.user-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background-color: var(--mat-sys-surface);
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-medium);
-  box-shadow: var(--mat-sys-level3);
-  min-width: 200px;
-  z-index: 100;
-  margin-top: 8px;
-}
-
-.user-info {
-  padding: 12px 16px;
-
-  .user-name {
-    font: var(--mat-sys-title-small);
-    color: var(--mat-sys-on-surface);
-  }
-
-  .user-email {
-    font: var(--mat-sys-body-small);
-    color: var(--mat-sys-on-surface-variant);
-    margin-top: 4px;
-  }
-}
-
-.dropdown-divider {
-  height: 1px;
-  background-color: var(--mat-sys-outline-variant);
-}
-
-.user-dropdown {
-  app-theme-toggle {
-    display: flex;
-    width: 100%;
-
-    .theme-toggle {
-      width: 100%;
-    }
-  }
-}
-
-// Same look as the theme toggle row, so every menu entry reads as one list.
-.dropdown-link {
+// Avatar (picture or initials), name and version; opens the account menu upwards.
+.user-card {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  color: inherit;
-  text-decoration: none;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 26px;
+  background: var(--mat-sys-surface);
   cursor: pointer;
-  user-select: none;
-  font: var(--mat-sys-label-large);
-  transition: background-color 150ms ease;
+  transition: border-radius 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  &:hover,
-  &:focus-visible {
-    background: var(--mat-sys-surface-container-highest);
-    outline: none;
-  }
+  text-decoration: none;
+  color: inherit;
 
-  mat-icon {
-    font-size: 1.1rem;
-    width: 1.1rem;
-    height: 1.1rem;
-    line-height: 1;
-  }
+  &:hover { border-radius: 18px; }
+  &.active { background: var(--mat-sys-primary-container); }
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: 2px; }
 }
 
-.user-picture {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+:host-context(.rail.collapsed) .user-card {
+  width: auto;
+  align-self: center;
+  padding: 6px;
+  background: transparent;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
   object-fit: cover;
-  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font-weight: 800;
+  transform: rotate(-6deg);
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  .name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--mat-sys-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    font-size: 12px;
+    color: var(--mat-sys-on-surface-variant);
+  }
 }

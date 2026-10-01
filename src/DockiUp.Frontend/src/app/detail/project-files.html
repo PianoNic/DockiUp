@@ -20,7 +20,7 @@
 
     @if (creating(); as kind) {
       <form class="create" (ngSubmit)="create()">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+        <mat-form-field appearance="fill" subscriptSizing="dynamic" class="grow">
           <mat-label>New {{ kind }} name</mat-label>
           <input matInput name="newName" [(ngModel)]="newName" (keydown.escape)="creating.set(null)" autofocus />
         </mat-form-field>
@@ -59,7 +59,7 @@
         <code class="path" [title]="f.path">{{ f.path }}</code>
         @if (dirty()) { <span class="dirty" matTooltip="Unsaved changes">●</span> }
         <span class="grow"></span>
-        <button mat-stroked-button (click)="save(false)" [disabled]="busy()"><mat-icon>save</mat-icon> Save</button>
+        <button matButton="tonal" (click)="save(false)" [disabled]="busy()"><mat-icon>save</mat-icon> Save</button>
         <button mat-flat-button (click)="save(true)" [disabled]="busy()"><mat-icon>rocket_launch</mat-icon> Save and deploy</button>
         <button mat-icon-button (click)="closeFile()" matTooltip="Close" aria-label="Close"><mat-icon>close</mat-icon></button>
       </div>

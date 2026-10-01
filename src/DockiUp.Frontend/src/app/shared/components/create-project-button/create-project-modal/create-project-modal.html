@@ -1,4 +1,22 @@
-<h2 mat-dialog-title>New project</h2>
+<div class="np-header">
+  <h2 mat-dialog-title>
+    <span class="eyebrow">New project · Step {{ step() + 1 }} of 4</span>
+    <span class="question">{{ questions[step()] }}</span>
+  </h2>
+  <button mat-icon-button type="button" class="close" (click)="cancel()" aria-label="Close"><mat-icon>close</mat-icon></button>
+</div>
+<div class="np-progress" aria-hidden="true">
+  @for (label of stepLabels; track $index) {
+  <div class="seg" [class.done]="$index < step()" [class.current]="$index === step()">
+    @if ($index === step()) {
+    <svg class="wave" viewBox="0 0 200 14" preserveAspectRatio="none"><path d="M-26 7 Q -19 1 -12 7 T 2 7 T 16 7 T 30 7 T 44 7 T 58 7 T 72 7 T 86 7 T 100 7 T 114 7 T 128 7 T 142 7 T 156 7 T 170 7 T 184 7 T 198 7 T 212 7 T 226 7" vector-effect="non-scaling-stroke" /></svg>
+    } @else {
+    <div class="bar"></div>
+    }
+    <span>{{ label }}</span>
+  </div>
+  }
+</div>
 
 <mat-dialog-content>
   @if (busy()) {
@@ -13,25 +31,25 @@
       <div class="source-grid" role="radiogroup" aria-label="Source">
         <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'git'"
           [class.selected]="source() === 'git'" (click)="setSource('git')">
-          <mat-icon>commit</mat-icon>
+          <span class="ic"><mat-icon>commit</mat-icon></span>
           <span class="title">Git repository</span>
           <span class="hint">Deploy a compose file from a repo; redeploys on new commits</span>
         </button>
         <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'compose'"
           [class.selected]="source() === 'compose'" (click)="setSource('compose')">
-          <mat-icon>description</mat-icon>
+          <span class="ic"><mat-icon>description</mat-icon></span>
           <span class="title">Compose</span>
           <span class="hint">Write or upload a compose file, or convert a docker run command</span>
         </button>
         <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'image'"
           [class.selected]="source() === 'image'" (click)="setSource('image')">
-          <mat-icon>inventory_2</mat-icon>
+          <span class="ic"><mat-icon>inventory_2</mat-icon></span>
           <span class="title">Image</span>
           <span class="hint">Run a single image with ports, volumes and environment</span>
         </button>
         <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'existing'"
           [class.selected]="source() === 'existing'" (click)="setSource('existing')">
-          <mat-icon>move_down</mat-icon>
+          <span class="ic"><mat-icon>move_down</mat-icon></span>
           <span class="title">Existing on a host</span>
           <span class="hint">Adopt a running compose project in place, nothing is moved or restarted</span>
         </button>
@@ -40,13 +58,13 @@
       @switch (source()) {
       @case ('git') {
       <div class="row">
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Repository URL</mat-label>
           <input matInput type="url" placeholder="https://github.com/owner/repo.git" [value]="gitUrl()"
             (input)="gitUrl.set($any($event.target).value)" (keydown.enter)="inspect()" (blur)="gitUrl().trim() !== inspectedUrl() && inspect()">
           <mat-hint>For a private repository, pick its credential first</mat-hint>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="credential">
+        <mat-form-field appearance="fill" class="credential">
           <mat-label>Credential</mat-label>
           <mat-select [value]="gitCredentialId()" (selectionChange)="changeCredential($event.value)" [disabled]="busy()">
             <mat-option value="">None (public)</mat-option>
@@ -63,7 +81,7 @@
 
       @if (repo(); as r) {
       <div class="row">
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Branch</mat-label>
           <mat-select [value]="branch()" (selectionChange)="changeBranch($event.value)" [disabled]="busy()">
             @for (b of r.branches; track b) {
@@ -71,7 +89,7 @@
             }
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Compose file</mat-label>
           <mat-select [value]="composeFile()" (selectionChange)="composeFile.set($event.value)" [disabled]="busy() || r.composeFiles.length === 0">
             @for (f of r.composeFiles; track f.path) {
@@ -109,7 +127,7 @@
       </div>
 
       @if (composeMode() === 'editor') {
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>Compose file</mat-label>
         <textarea matInput class="mono" rows="12" placeholder="services:&#10;  web:&#10;    image: nginx" [value]="compose()"
           (input)="compose.set($any($event.target).value)"></textarea>
@@ -119,7 +137,7 @@
       <p class="message warn"><mat-icon>warning</mat-icon>{{ w }}</p>
       }
       } @else {
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>docker run command</mat-label>
         <textarea matInput class="mono" rows="6" placeholder="docker run -d --name web -p 8080:80 nginx" [value]="dockerRun()"
           (input)="dockerRun.set($any($event.target).value)"></textarea>
@@ -132,15 +150,15 @@
 
       @case ('image') {
       <div class="row">
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Image</mat-label>
           <input matInput placeholder="nginx or ghcr.io/owner/app" [value]="image()" (input)="image.set($any($event.target).value)">
         </mat-form-field>
-        <mat-form-field appearance="outline" class="narrow">
+        <mat-form-field appearance="fill" class="narrow">
           <mat-label>Tag</mat-label>
           <input matInput placeholder="latest" [value]="tag()" (input)="tag.set($any($event.target).value)">
         </mat-form-field>
-        <mat-form-field appearance="outline" class="narrow">
+        <mat-form-field appearance="fill" class="narrow">
           <mat-label>Restart</mat-label>
           <mat-select [value]="restart()" (selectionChange)="restart.set($event.value)">
             @for (r of restartPolicies; track r) { <mat-option [value]="r">{{ r || 'default' }}</mat-option> }
@@ -148,18 +166,18 @@
         </mat-form-field>
       </div>
       <div class="row">
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Ports</mat-label>
           <textarea matInput class="mono" rows="3" placeholder="8080:80" [value]="ports()" (input)="ports.set($any($event.target).value)"></textarea>
           <mat-hint>One per line, host:container</mat-hint>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Volumes</mat-label>
           <textarea matInput class="mono" rows="3" placeholder="./data:/data" [value]="volumes()" (input)="volumes.set($any($event.target).value)"></textarea>
           <mat-hint>One per line, source:target[:ro]</mat-hint>
         </mat-form-field>
       </div>
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>Environment</mat-label>
         <textarea matInput class="mono" rows="3" placeholder="TZ=Europe/Zurich" [value]="environment()" (input)="environment.set($any($event.target).value)"></textarea>
         <mat-hint>One KEY=value per line. Secrets fit better in the .env on the next step.</mat-hint>
@@ -204,19 +222,19 @@
       @if (existing(); as p) {
       <p class="muted">{{ p.dockerProjectName }} stays where it is, on {{ hostName(p.nodeId) }}, with its own environment.</p>
       }
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>Description</mat-label>
         <input matInput [value]="description()" (input)="description.set($any($event.target).value)" maxlength="500">
       </mat-form-field>
       } @else {
       <div class="row">
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Project Name</mat-label>
           <input matInput [value]="projectName()" (input)="projectName.set($any($event.target).value)" maxlength="100" required>
           @if (nameError(); as e) { <mat-hint class="warn-text">{{ e }}</mat-hint> }
         </mat-form-field>
         @if (nodes().length > 0) {
-        <mat-form-field appearance="outline" class="grow">
+        <mat-form-field appearance="fill" class="grow">
           <mat-label>Deploy to</mat-label>
           <mat-select [value]="nodeId()" (selectionChange)="nodeId.set($event.value)">
             <mat-option [value]="''">Local (this host)</mat-option>
@@ -227,7 +245,7 @@
         </mat-form-field>
         }
       </div>
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>Description</mat-label>
         <input matInput [value]="description()" (input)="description.set($any($event.target).value)" maxlength="500">
       </mat-form-field>
@@ -239,7 +257,7 @@
         </button>
         <input #envUpload type="file" hidden (change)="uploadEnv($event)">
       </div>
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance="fill" class="full-width">
         <mat-label>Environment variables</mat-label>
         <textarea matInput class="mono" rows="8" placeholder="POSTGRES_PASSWORD=change-me" [value]="envFile()"
           (input)="envFile.set($any($event.target).value)"></textarea>
@@ -280,7 +298,7 @@
       <p class="muted">After creating, the project page shows the webhook URL and secret.</p>
       }
       @if (updateMethod() === ProjectUpdateMethod.Periodically) {
-      <mat-form-field appearance="outline" class="narrow">
+      <mat-form-field appearance="fill" class="narrow">
         <mat-label>Check interval (minutes)</mat-label>
         <input matInput type="number" min="1" [value]="interval()" (input)="interval.set($any($event.target).value)" required>
       </mat-form-field>
@@ -362,17 +380,19 @@
 
 <mat-dialog-actions>
   <button mat-button class="cancel" (click)="cancel()">Cancel</button>
-  <button mat-button (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0 || busy()">Back</button>
+  <button mat-button class="back" (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0 || busy()">Back</button>
   @if (stepper.selectedIndex === 3) {
-  <button mat-flat-button (click)="create()" [disabled]="!canCreate()">
+  <button mat-flat-button class="primary-action" (click)="create()" [disabled]="!canCreate()">
     {{ source() === 'existing' ? 'Adopt' : 'Create' }}
+    <mat-icon iconPositionEnd>rocket_launch</mat-icon>
   </button>
   } @else {
-  <button mat-flat-button (click)="next()" [disabled]="busy() ||
+  <button mat-flat-button class="primary-action" (click)="next()" [disabled]="busy() ||
       (stepper.selectedIndex === 0 && !sourceValid()) ||
       (stepper.selectedIndex === 1 && !whereValid()) ||
       (stepper.selectedIndex === 2 && !updatesValid())">
     Next
+    <mat-icon iconPositionEnd>arrow_forward</mat-icon>
   </button>
   }
 </mat-dialog-actions>

@@ -1,21 +1,25 @@
-<div class="profile">
-  <header class="profile-header">
+<div class="profile x-page">
+  <header class="hero">
     @if (picture() && !pictureFailed()) {
       <img class="avatar" [src]="picture()" alt="" referrerpolicy="no-referrer" (error)="pictureFailed.set(true)" />
     } @else {
       <div class="avatar">{{ initials() }}</div>
     }
-    <div>
-      <h1>{{ name() }}</h1>
-      <p class="sub">
+    <div class="hero-text">
+      <span class="x-eyebrow">Your profile</span>
+      <h1 class="x-title">{{ name() }}</h1>
+      <p class="hero-sub">
         @if (authEnabled()) { {{ email() ?? username() ?? 'Signed in' }} } @else { Login is off — everyone shares this local profile }
       </p>
     </div>
+    @if (authEnabled()) {
+      <button matButton="tonal" (click)="signOut()"><mat-icon>logout</mat-icon> Sign out</button>
+    }
   </header>
 
   <div class="grid">
-    <section class="card">
-      <h2><mat-icon>badge</mat-icon> Identity</h2>
+    <section class="x-card">
+      <h2 class="x-card-title"><span class="x-shape"><mat-icon>badge</mat-icon></span> Identity</h2>
       @if (authEnabled()) {
         <dl>
           <dt>Name</dt><dd>{{ name() }}</dd>
@@ -23,8 +27,8 @@
           <dt>Username</dt><dd>{{ username() ?? '—' }}</dd>
           <dt>Subject</dt><dd class="mono">{{ subject() ?? '—' }}</dd>
           <dt>Roles</dt>
-          <dd>
-            @for (r of roles(); track r) { <span class="chip">{{ r }}</span> } @empty { — }
+          <dd class="chips">
+            @for (r of roles(); track r) { <span class="x-chip">{{ r }}</span> } @empty { — }
           </dd>
         </dl>
       } @else {
@@ -35,41 +39,48 @@
       }
     </section>
 
-    <section class="card">
-      <h2><mat-icon>palette</mat-icon> Appearance</h2>
-      <mat-button-toggle-group [value]="theme.getTheme()()" (change)="theme.setTheme($event.value)" aria-label="Theme" hideSingleSelectionIndicator>
+    <section class="x-card">
+      <h2 class="x-card-title"><span class="x-shape tertiary"><mat-icon>palette</mat-icon></span> Appearance</h2>
+      <div class="x-group" role="radiogroup" aria-label="Theme">
         @for (t of themes; track t.value) {
-          <mat-button-toggle [value]="t.value"><mat-icon>{{ t.icon }}</mat-icon> {{ t.label }}</mat-button-toggle>
+          <button [matButton]="theme.getTheme()() === t.value ? 'filled' : 'tonal'" [class.x-on]="theme.getTheme()() === t.value"
+            role="radio" [attr.aria-checked]="theme.getTheme()() === t.value" (click)="theme.setTheme(t.value)">
+            <mat-icon>{{ t.icon }}</mat-icon> {{ t.label }}
+          </button>
         }
-      </mat-button-toggle-group>
+      </div>
       <p class="muted">Auto follows your operating system. Saved in this browser.</p>
     </section>
 
-    <section class="card">
-      <h2><mat-icon>info</mat-icon> About</h2>
+    <section class="x-card">
+      <h2 class="x-card-title"><span class="x-shape tonal round"><mat-icon>info</mat-icon></span> About</h2>
       <dl>
         <dt>Version</dt><dd class="mono">{{ app()?.version ?? '…' }}</dd>
         <dt>Environment</dt><dd>{{ app()?.environment ?? '…' }}</dd>
-        <dt>Sign-in</dt><dd class="mono">{{ authEnabled() ? app()?.authority : 'disabled' }}</dd>
+        <dt>Sign-in</dt>
+        <dd>
+          @if (authEnabled()) { <span class="mono">{{ app()?.authority }}</span> } @else { <span class="x-chip">disabled</span> }
+        </dd>
       </dl>
-      @if (authEnabled()) {
-        <button mat-stroked-button (click)="signOut()"><mat-icon>logout</mat-icon> Sign out</button>
-      }
     </section>
 
     @if (authEnabled()) {
-      <section class="card wide">
-        <h2><mat-icon>history</mat-icon> Your recent activity</h2>
-        @for (e of mine(); track e.id) {
-          <div class="activity-row">
-            <span class="chip">{{ e.action }}</span>
-            <span class="target">{{ e.target }}</span>
-            <span class="muted when">{{ e.createdAt | localDate }}</span>
+      <section class="x-card wide">
+        <h2 class="x-card-title"><span class="x-shape"><mat-icon>history</mat-icon></span> Your recent activity</h2>
+        @if (mine().length) {
+          <div class="x-list">
+            @for (e of mine(); track e.id) {
+              <div class="x-row">
+                <span class="x-chip">{{ e.action }}</span>
+                <span class="target">{{ e.target }}</span>
+                <span class="muted when">{{ e.createdAt | localDate }}</span>
+              </div>
+            }
           </div>
-        } @empty {
+        } @else {
           <p class="muted">Nothing yet. Deploys and lifecycle actions you trigger show up here.</p>
         }
-        <a mat-button routerLink="/activity">All activity</a>
+        <a matButton routerLink="/activity">All activity</a>
       </section>
     }
   </div>

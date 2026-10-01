@@ -1,74 +1,82 @@
-<h1>
-  {{ project()?.projectName ?? 'Project' }}
-  @if (project()?.projectDescription; as description) {
-    <span class="description">– {{ description }}</span>
-  }
-  <app-image-update-badge [projectId]="managedId()" />
-</h1>
-@if (project()?.deployedAt; as deployedAt) {
-  <p class="deployed">
-    <mat-icon>verified</mat-icon>
-    Deployed
-    @if (project()?.deployedCommit; as sha) {
-      <code>{{ sha.slice(0, 7) }}</code>
-      @if (project()?.deployedCommitMessage; as message) { <span class="message">{{ message }}</span> }
+<header class="x-page-header detail-header">
+  <div class="title-block">
+    <span class="x-eyebrow">Project · {{ hostName() }}</span>
+    <h1 class="x-title">
+      {{ project()?.projectName ?? 'Project' }}
+      <app-image-update-badge [projectId]="managedId()" />
+    </h1>
+    @if (project()?.projectDescription; as description) {
+      <p class="x-sub">{{ description }}</p>
     }
-    <span class="when">· {{ deployedAt | localDate: 'short' }}</span>
-  </p>
-}
-
-@if (project(); as p) {
-  <div class="project-actions">
-    @if (managedId()) {
-      <button mat-flat-button (click)="deployNow()">
-        <mat-icon>rocket_launch</mat-icon>
-        Deploy now
-      </button>
-      <button mat-stroked-button (click)="pull()" [disabled]="pulling()" matTooltip="Download newer images without restarting; Deploy applies them">
-        <mat-icon>cloud_download</mat-icon>
-        {{ pulling() ? 'Pulling...' : 'Pull' }}
-      </button>
+    @if (project()?.deployedAt; as deployedAt) {
+      <p class="deployed">
+        <span class="state-badge" data-state="running">Deployed</span>
+        @if (project()?.deployedCommit; as sha) {
+          <span class="x-chip"><mat-icon>commit</mat-icon><code>{{ sha.slice(0, 7) }}</code></span>
+          @if (project()?.deployedCommitMessage; as message) { <span class="message">{{ message }}</span> }
+        }
+        <span class="when">· {{ deployedAt | localDate: 'short' }}</span>
+      </p>
     }
-    <button mat-stroked-button (click)="lifecycle('start')" [disabled]="projectStore.loading()">
-      <mat-icon>play_arrow</mat-icon>
-      Start
-    </button>
-    <button mat-stroked-button (click)="lifecycle('stop')" [disabled]="projectStore.loading()">
-      <mat-icon>stop</mat-icon>
-      Stop
-    </button>
-    <button mat-stroked-button (click)="lifecycle('restart')" [disabled]="projectStore.loading()">
-      <mat-icon>restart_alt</mat-icon>
-      Restart
-    </button>
-    @if (projectStore.loading()) {
-      <mat-spinner diameter="24"></mat-spinner>
-    }
-    <span class="spacer"></span>
-    <button mat-stroked-button class="danger" (click)="removeProject()">
-      <mat-icon>delete</mat-icon>
-      Remove
-    </button>
   </div>
 
+  @if (project(); as p) {
+    <div class="x-actions">
+      @if (projectStore.loading()) {
+        <mat-spinner diameter="24"></mat-spinner>
+      }
+      @if (managedId()) {
+        <button mat-flat-button class="deploy" (click)="deployNow()">
+          <mat-icon>rocket_launch</mat-icon>
+          Deploy now
+        </button>
+      }
+      <div class="x-group">
+        @if (managedId()) {
+          <button matButton="tonal" (click)="pull()" [disabled]="pulling()" matTooltip="Download newer images without restarting; Deploy applies them">
+            <mat-icon>cloud_download</mat-icon>
+            {{ pulling() ? 'Pulling...' : 'Pull' }}
+          </button>
+        }
+        <button matButton="tonal" (click)="lifecycle('start')" [disabled]="projectStore.loading() || allRunning()">
+          <mat-icon>play_arrow</mat-icon>
+          Start
+        </button>
+        <button matButton="tonal" (click)="lifecycle('stop')" [disabled]="projectStore.loading() || getRunningCount() === 0">
+          <mat-icon>stop</mat-icon>
+          Stop
+        </button>
+        <button matButton="tonal" (click)="lifecycle('restart')" [disabled]="projectStore.loading() || getRunningCount() === 0">
+          <mat-icon>restart_alt</mat-icon>
+          Restart
+        </button>
+      </div>
+      <button mat-icon-button class="remove" (click)="removeProject()" matTooltip="Remove project" aria-label="Remove project">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  }
+</header>
+
+@if (project(); as p) {
   <!-- Tabs instead of stacked sections, so the page itself never scrolls. -->
   <mat-tab-group class="detail-tabs" animationDuration="0ms" preserveContent mat-stretch-tabs="false"
     [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)">
     <mat-tab label="Containers">
       <div class="tab-fill">
-        <mat-card appearance="outlined" class="main-card">
-          <h2 class="section-title">
-            Containers
-            <span class="count-chip">{{ getRunningCount() }}/{{ p.containers.length }} running</span>
-          </h2>
+        <div class="main-card">
           <div class="card-content-flex">
             <div class="containers-list">
+              <h2 class="section-title">
+                Containers
+                <span class="state-badge" [attr.data-state]="getRunningCount() === p.containers.length ? 'running' : 'stopped'">{{ getRunningCount() }}/{{ p.containers.length }} running</span>
+              </h2>
               @for (container of p.containers; track container.id) {
-                <div class="container-card" [class.selected]="selectedContainerId() === container.id" role="button" tabindex="0"
+                <div class="container-card x-card" [class.selected]="selectedContainerId() === container.id" role="button" tabindex="0"
             (click)="toggleContainerLogs(container)" (keydown.enter)="toggleContainerLogs(container)"
             [attr.aria-pressed]="selectedContainerId() === container.id" [matTooltip]="selectedContainerId() === container.id ? 'Show all logs' : 'Show only this container\'s logs'" matTooltipShowDelay="600">
                   <div class="container-title">
-                    <mat-icon class="state-icon" [attr.data-state]="stateLabel(container.state)">{{ getStatusIcon(container.state) }}</mat-icon>
+                    <span class="x-shape round sm state-shape" [attr.data-state]="stateLabel(container.state)"><mat-icon>{{ getStatusIcon(container.state) }}</mat-icon></span>
                     <span class="name" [title]="container.name">{{ container.name }}</span>
                   </div>
                   <div class="container-meta">
@@ -89,7 +97,7 @@
                     <a mat-icon-button [routerLink]="['/terminal', container.id]" [queryParams]="{ nodeId: project()?.nodeId }" [disabled]="getContainerState(container) !== UpdateMethodType.Running" matTooltip="Terminal" aria-label="Terminal">
                       <mat-icon>terminal</mat-icon>
                     </a>
-              <button mat-icon-button (click)="onRemoveContainer(container)" matTooltip="Remove container" aria-label="Remove container">
+              <button mat-icon-button class="remove-container" (click)="onRemoveContainer(container)" matTooltip="Remove container" aria-label="Remove container">
                 <mat-icon>delete</mat-icon>
               </button>
                   </div>
@@ -103,7 +111,7 @@
             <app-container-logs class="console-area" [containers]="p.containers" [nodeId]="p.nodeId" [projectName]="p.dockerProjectName"
               [(selected)]="selectedContainerId" />
           </div>
-        </mat-card>
+        </div>
       </div>
     </mat-tab>
     @if (managedId(); as id) {

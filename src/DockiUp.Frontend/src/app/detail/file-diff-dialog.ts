@@ -77,9 +77,9 @@ export function lineDiff(before: string, after: string, context = 3): DiffLine[]
     .stats { margin-left: 8px; font-size: 14px; }
     .add { color: #43a047; }
     .del { color: #e53935; }
-    .diff { margin: 0; max-height: 60vh; overflow: auto; border: 1px solid var(--mat-sys-outline-variant); border-radius: 8px;
-      font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .row { display: block; padding: 0 10px; white-space: pre; }
+    .diff { margin: 0; max-height: 60vh; overflow: auto; padding: 10px 0; border-radius: 20px; background: var(--mat-sys-surface-container);
+      font: 12.5px/1.6 var(--x-mono); }
+    .row { display: block; padding: 0 16px; white-space: pre; }
     .row[data-kind='+'] { background: color-mix(in srgb, #43a047 16%, transparent); }
     .row[data-kind='-'] { background: color-mix(in srgb, #e53935 16%, transparent); }
     .row[data-kind='…'] { color: var(--mat-sys-outline); background: var(--mat-sys-surface-container); }

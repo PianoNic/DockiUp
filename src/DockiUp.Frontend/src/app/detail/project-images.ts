@@ -32,15 +32,16 @@ interface ServiceRow {
     .images-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .images-head .section-title { margin: 0; }
     .images-head .spacer { flex: 1; }
-    .policy { width: 260px; }
+    .policy { width: 280px; }
+    .table-scroll { flex: 1; }
     .image-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .note { color: var(--mat-sys-on-surface-variant); font-size: 12.5px; }
   `,
   template: `
     <section class="panel images-panel">
       <div class="images-head">
-        <h2 class="section-title"><mat-icon>system_update</mat-icon> Images</h2>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="policy">
+        <h2 class="section-title"><span class="x-shape tonal sm"><mat-icon>system_update</mat-icon></span> Images</h2>
+        <mat-form-field appearance="fill" subscriptSizing="dynamic" class="policy">
           <mat-label>When a newer image is published</mat-label>
           <mat-select [value]="settings()?.policy" (selectionChange)="setPolicy($event.value)" [disabled]="!settings()">
             <mat-option value="Off">Ignore (don't check)</mat-option>
@@ -49,7 +50,7 @@ interface ServiceRow {
           </mat-select>
         </mat-form-field>
         <span class="spacer"></span>
-        <button mat-stroked-button (click)="store.checkNow(projectId())" [disabled]="store.checking() || settings()?.policy === 'Off'">
+        <button matButton="tonal" (click)="store.checkNow(projectId())" [disabled]="store.checking() || settings()?.policy === 'Off'">
           <mat-icon>update</mat-icon>
           {{ store.checking() ? 'Checking…' : 'Check now' }}
         </button>
@@ -79,7 +80,7 @@ interface ServiceRow {
                     <div class="image-cell">
                       <span class="mono">{{ r.pinned ?? r.check?.image ?? '—' }}</span>
                       @if (r.pinned) {
-                        <span class="chip" matTooltip="Chosen here (dockiup.override.yml); reset to use the compose file's image again">
+                        <span class="x-chip" matTooltip="Chosen here (dockiup.override.yml); reset to use the compose file's image again">
                           <mat-icon>push_pin</mat-icon>pinned
                         </span>
                       }

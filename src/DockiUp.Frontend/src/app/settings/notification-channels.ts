@@ -16,47 +16,43 @@ import { CHANNEL_TYPES, ChannelDialog, EVENTS } from './channel-dialog';
   selector: 'app-notification-channels',
   imports: [MatButtonModule, MatIconModule, MatProgressBarModule, MatSlideToggleModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: '../activity/activity.scss',
+  styleUrl: './settings-list.scss',
   template: `
-    <div class="activity-header">
-      <p class="activity-subtitle">Discord, Slack, Telegram, ntfy or any webhook. Each channel picks the events it receives.</p>
-      <button mat-flat-button (click)="edit(null)"><mat-icon>add</mat-icon> Add channel</button>
+    <div class="toolbar">
+      <p class="intro">Discord, Slack, Telegram, ntfy or any webhook. Each channel picks the events it receives.</p>
+      <button matButton="filled" (click)="edit(null)"><mat-icon>add</mat-icon> Add channel</button>
     </div>
     @if (loading() && channels().length === 0) { <mat-progress-bar mode="indeterminate" /> }
     @if (channels().length === 0 && !loading()) {
-      <p class="activity-empty">No channels yet. Add one to hear about failed deployments and nodes going offline.</p>
+      <p class="x-empty">No channels yet. Add one to hear about failed deployments and nodes going offline.</p>
     } @else {
-      <div class="table-scroll">
-        <table class="activity-table">
-          <thead><tr><th>Name</th><th>Type</th><th>Events</th><th>Enabled</th><th></th></tr></thead>
-          <tbody>
-            @for (c of channels(); track c.id) {
-              <tr>
-                <td class="target">{{ c.name }}</td>
-                <td>{{ typeLabel(c.type) }}</td>
-                <td>
-                  @for (e of c.events; track e) { <span class="chip">{{ eventLabel(e) }}</span> } @empty { <span class="details">none</span> }
-                </td>
-                <td>
-                  <mat-slide-toggle [checked]="c.enabled" (change)="setEnabled(c, $event.checked)" [attr.aria-label]="'Enable ' + c.name" />
-                </td>
-                <td>
-                  <div class="row-actions">
-                    <button mat-stroked-button (click)="test(c)" [disabled]="testing()[c.id]">
-                      <mat-icon>send</mat-icon> {{ testing()[c.id] ? 'Sending…' : 'Send test' }}
-                    </button>
-                    <button mat-icon-button (click)="edit(c)" matTooltip="Edit" aria-label="Edit channel"><mat-icon>edit</mat-icon></button>
-                    <button mat-icon-button (click)="remove(c)" matTooltip="Delete" aria-label="Delete channel"><mat-icon>delete</mat-icon></button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="scroll">
+        <div class="x-list">
+          @for (c of channels(); track c.id) {
+            <div class="x-row">
+              <span [class]="typeShape(c.type)" [class.off]="!c.enabled"><mat-icon>{{ typeIcon(c.type) }}</mat-icon></span>
+              <span class="main" [class.off]="!c.enabled">
+                <span class="name">{{ c.name }}</span>
+                <span class="meta">{{ typeLabel(c.type) }}@if (c.target || c.url) { · {{ c.target || c.url }} }</span>
+              </span>
+              <span class="chips">
+                @for (e of c.events; track e) { <span class="x-chip">{{ eventLabel(e) }}</span> } @empty { <span class="meta">No events</span> }
+              </span>
+              <mat-slide-toggle [checked]="c.enabled" (change)="setEnabled(c, $event.checked)" [attr.aria-label]="'Enable ' + c.name" />
+              <span class="actions">
+                <button mat-icon-button (click)="test(c)" [disabled]="testing()[c.id]"
+                  [matTooltip]="testing()[c.id] ? 'Sending…' : 'Send test'" aria-label="Send test">
+                  <mat-icon>{{ testing()[c.id] ? 'hourglass_top' : 'send' }}</mat-icon>
+                </button>
+                <button mat-icon-button (click)="edit(c)" matTooltip="Edit" aria-label="Edit channel"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button class="danger" (click)="remove(c)" matTooltip="Delete" aria-label="Delete channel"><mat-icon>delete</mat-icon></button>
+              </span>
+            </div>
+          }
+        </div>
       </div>
     }
   `,
-  styles: `.chip { margin: 2px 4px 2px 0; }`,
 })
 export class NotificationChannels {
   private readonly api = inject(NotificationsService);
@@ -74,6 +70,11 @@ export class NotificationChannels {
 
   protected typeLabel = (t: string) => CHANNEL_TYPES.find((x) => x.value === t)?.label ?? t;
   protected eventLabel = (e: string) => EVENTS.find((x) => x.value === e)?.label ?? e;
+  protected typeIcon = (t: string) =>
+    ({ Discord: 'forum', Slack: 'tag', Telegram: 'send', Ntfy: 'phone_iphone', Webhook: 'webhook' } as Record<string, string>)[t] ?? 'notifications';
+  // Each service gets its own container colour, so the list is easy to scan.
+  protected typeShape = (t: string) =>
+    'x-shape lg ' + (({ Discord: 'tonal', Telegram: 'tonal', Slack: 'tertiary', Ntfy: 'tertiary' } as Record<string, string>)[t] ?? '');
 
   private reload(): void {
     this.loading.set(true);

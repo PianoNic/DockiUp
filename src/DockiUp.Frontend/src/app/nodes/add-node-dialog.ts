@@ -16,9 +16,9 @@ import { errorMessage } from '../shared/services/notification.service';
     .compose-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
     .compose-head span { font-weight: 500; }
     pre {
-      margin: 0; max-height: 300px; overflow: auto; padding: 12px; border-radius: 10px;
-      border: 1px solid var(--mat-sys-outline-variant); background: var(--mat-sys-surface-container);
-      font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      margin: 0; max-height: 300px; overflow: auto; padding: 16px 20px; border-radius: 24px;
+      background: #1d2433; color: #dbe2f9;
+      font: 12.5px/1.5 var(--x-mono);
     }
     .error { color: var(--mat-sys-error); font-size: 14px; }
     mat-form-field { width: 100%; }
@@ -28,7 +28,7 @@ import { errorMessage } from '../shared/services/notification.service';
     <mat-dialog-content>
       <p>Deploy this compose on the host you want to add. Nothing is saved until you press <strong>Add node</strong>.</p>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="fill">
         <mat-label>Node name (optional)</mat-label>
         <input matInput [value]="name()" (input)="name.set($any($event.target).value)" placeholder="node-1" />
       </mat-form-field>
@@ -41,7 +41,7 @@ import { errorMessage } from '../shared/services/notification.service';
             <button mat-button (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>{{ copied() ? 'Copied' : 'Copy' }}</button>
           </div>
         </div>
-        <pre>{{ compose() }}</pre>
+        <pre class="x-code">{{ compose() }}</pre>
       }
 
       @if (error(); as err) {

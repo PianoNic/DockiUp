@@ -1,53 +1,27 @@
-<mat-toolbar color="primary" class="header">
-  <button mat-icon-button class="hamburger-menu" (click)="onMenuToggle()">
-    <mat-icon>menu</mat-icon>
-  </button>
-
-  <span class="app-title">DockiUp</span>
-
-  <span class="spacer"></span>
-
-  <app-create-project-button />
-
-  <app-task-center />
+<div class="account">
+  <app-task-center [extended]="!collapsed()" />
 
   @if (authEnabled() && !isAuthenticated()) {
-    <button mat-button class="user-button" (click)="login()">
-      <span>Login</span>
+    <button type="button" class="rail-item" (click)="login()" aria-label="Login"
+      [matTooltip]="collapsed() ? 'Login' : ''" matTooltipPosition="right">
       <mat-icon>login</mat-icon>
+      @if (!collapsed()) { <span>Login</span> }
     </button>
   } @else {
-    <div class="user-menu-container">
-      <button mat-button class="user-button" (click)="toggleUserMenu()">
-        <span>{{ displayName() }}</span>
-        @if (picture() && !pictureFailed()) {
-          <img class="user-picture" [src]="picture()" alt="" referrerpolicy="no-referrer" (error)="pictureFailed.set(true)" />
-        } @else {
-          <mat-icon>account_circle</mat-icon>
-        }
-      </button>
-      @if (userMenuOpen()) {
-        <div class="user-dropdown">
-          <div class="user-info">
-            <div class="user-name">{{ displayName() }}</div>
-            <div class="user-email">{{ email() }}</div>
-          </div>
-          <div class="dropdown-divider"></div>
-          <a class="dropdown-link" routerLink="/me" (click)="closeUserMenu()">
-            <mat-icon>account_circle</mat-icon>
-            <span>Profile</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <app-theme-toggle />
-          @if (authEnabled() && isAuthenticated()) {
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-link" (click)="logout()">
-              <mat-icon>logout</mat-icon>
-              <span>Logout</span>
-            </a>
-          }
-        </div>
+    <!-- Straight to the profile: theme and sign-out live there. -->
+    <a class="user-card" routerLink="/me" routerLinkActive="active" [attr.aria-label]="'Profile of ' + displayName()"
+      [matTooltip]="collapsed() ? displayName() : ''" matTooltipPosition="right">
+      @if (picture() && !pictureFailed()) {
+        <img class="avatar" [src]="picture()" alt="" referrerpolicy="no-referrer" (error)="pictureFailed.set(true)" />
+      } @else {
+        <span class="avatar initials">{{ initials() }}</span>
       }
-    </div>
+      @if (!collapsed()) {
+        <span class="who">
+          <span class="name">{{ displayName() }}</span>
+          <span class="meta">{{ version() }}</span>
+        </span>
+      }
+    </a>
   }
-</mat-toolbar>
+</div>

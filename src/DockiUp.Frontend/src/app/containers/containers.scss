@@ -1,0 +1,44 @@
+// Containers page extras; the shared page look comes from ../activity/activity.scss.
+
+.filters {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tonal-icon {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.cpu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 92px;
+
+  .x-meter { max-width: 44px; }
+}
+
+.danger {
+  color: var(--mat-sys-error);
+}
+
+// Container names stay on one line (they are identifiers; a hyphen is no place to break).
+td.target.indent { white-space: nowrap; }
+
+// Project names head their group: a step above the container rows.
+.group-head a { font-size: 16px; font-weight: 700; }
+
+// Eight columns plus five actions: slimmer cell padding and packed actions keep it within the page.
+.activity-table td, .activity-table th { padding-left: 12px; padding-right: 12px; }
+.row-actions { gap: 0; }
+
+// Status ("Up 2 hours (healthy)") is the one free-text column: it wraps instead of widening the table.
+td.status { white-space: normal; min-width: 96px; }
+// Group names stay on one line too.
+.group-head .table-link { white-space: nowrap; }
+.service-cell { white-space: nowrap; }
+.group-host { text-align: right; }

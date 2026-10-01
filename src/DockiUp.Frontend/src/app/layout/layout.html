@@ -1,15 +1,23 @@
-<div class="custom-layout">
-  <app-header (menuToggle)="layoutService.toggleSidenavCollapsed()" />
-
-  <div class="layout-body">
-    <aside class="custom-sidenav" [class.collapsed]="layoutService.sidenavCollapsed()">
-      <app-sidenav [collapsed]="layoutService.sidenavCollapsed()" />
-    </aside>
-
-    <div class="custom-main-content">
-      <div class="content-wrapper">
-        <router-outlet />
-      </div>
+<div class="shell">
+  <aside class="rail" [class.collapsed]="layoutService.sidenavCollapsed()">
+    <div class="rail-top">
+      <button mat-icon-button type="button" (click)="layoutService.toggleSidenavCollapsed()"
+        [attr.aria-label]="layoutService.sidenavCollapsed() ? 'Expand menu' : 'Collapse menu'">
+        <mat-icon>menu</mat-icon>
+      </button>
+      @if (!layoutService.sidenavCollapsed()) {
+        <a class="brand" routerLink="/dashboard" aria-label="DockiUp home">
+          <img src="logo.png" alt="DockiUp" width="150" height="64" />
+        </a>
+      }
     </div>
-  </div>
+
+    <app-create-project-button [extended]="!layoutService.sidenavCollapsed()" />
+    <app-sidenav [collapsed]="layoutService.sidenavCollapsed()" />
+    <app-header [collapsed]="layoutService.sidenavCollapsed()" />
+  </aside>
+
+  <main class="content-wrapper">
+    <router-outlet />
+  </main>
 </div>

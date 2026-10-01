@@ -34,11 +34,11 @@ import { NotificationService, errorMessage } from '../shared/services/notificati
           <button mat-icon-button (click)="copy(value)" matTooltip="Copy" aria-label="Copy secret"><mat-icon>content_copy</mat-icon></button>
         </div>
       } @else {
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="fill">
           <mat-label>Name</mat-label>
           <input matInput [(ngModel)]="name" [readonly]="!!overwrite" placeholder="postgres-password" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="fill">
           <mat-label>Value</mat-label>
           <input matInput type="password" autocomplete="new-password" [(ngModel)]="value" />
           <mat-hint>Leave empty to generate a strong random value</mat-hint>
@@ -93,34 +93,30 @@ export class SecretDialog {
   selector: 'app-vault-secrets',
   imports: [LocalDatePipe, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: '../activity/activity.scss',
+  styleUrl: './settings-list.scss',
   template: `
-    <div class="activity-header">
-      <p class="activity-subtitle">Encrypted at rest. Map them to environment variables in a project's Settings tab.</p>
-      <button mat-flat-button (click)="add(null)"><mat-icon>add</mat-icon> Add secret</button>
+    <div class="toolbar">
+      <p class="intro">Encrypted at rest. Map them to environment variables in a project's Settings tab.</p>
+      <button matButton="filled" (click)="add(null)"><mat-icon>add</mat-icon> Add secret</button>
     </div>
     @if (loading() && secrets().length === 0) { <mat-progress-bar mode="indeterminate" /> }
     @if (secrets().length === 0 && !loading()) {
-      <p class="activity-empty">The vault is empty.</p>
+      <p class="x-empty">The vault is empty.</p>
     } @else {
-      <div class="table-scroll">
-        <table class="activity-table">
-          <thead><tr><th>Name</th><th>Added</th><th></th></tr></thead>
-          <tbody>
-            @for (s of secrets(); track s.id) {
-              <tr>
-                <td class="target mono">{{ s.name }}</td>
-                <td class="when">{{ s.createdAt | localDate }}</td>
-                <td>
-                  <div class="row-actions">
-                    <button mat-icon-button (click)="add(s.name)" matTooltip="Replace value" aria-label="Replace value"><mat-icon>edit</mat-icon></button>
-                    <button mat-icon-button (click)="remove(s)" matTooltip="Delete" aria-label="Delete secret"><mat-icon>delete</mat-icon></button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="scroll">
+        <div class="x-list">
+          @for (s of secrets(); track s.id) {
+            <div class="x-row">
+              <span class="x-shape lg tertiary"><mat-icon>lock</mat-icon></span>
+              <span class="main"><span class="name mono">{{ s.name }}</span></span>
+              <span class="side">Added {{ s.createdAt | localDate }}</span>
+              <span class="actions">
+                <button mat-icon-button (click)="add(s.name)" matTooltip="Replace value" aria-label="Replace value"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button class="danger" (click)="remove(s)" matTooltip="Delete" aria-label="Delete secret"><mat-icon>delete</mat-icon></button>
+              </span>
+            </div>
+          }
+        </div>
       </div>
     }
   `,

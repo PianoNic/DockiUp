@@ -1,140 +1,65 @@
 :host {
   display: flex;
   flex-direction: column;
+  gap: 20px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.main-card-grid {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
+// ---- Header: eyebrow, title, deployed line; actions on the right ----
+.detail-header {
+  align-items: flex-start;
 }
 
-.main-card {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  max-width: none;
-  padding: 1.5rem;
+.title-block {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-.card-content-flex {
-  display: flex;
-  gap: 2rem;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.containers-list {
-  flex: 1 1 25%;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  height: 100%;
-  overflow-y: auto;
 }
 
-.console-area {
-  flex: 3 3 75%;
+.x-title app-image-update-badge {
+  margin-left: 12px;
+  vertical-align: middle;
 }
 
-.project-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.count-chip {
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.content-flex{
-  display: flex;
-  flex-direction: row;
-}
-
-.status {
-  flex-grow: 1;
-}
-
-.container-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px 8px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 14px;
-}
-
-.container-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-
-  .name {
-    font: var(--mat-sys-title-medium);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.state-icon {
-  flex-shrink: 0;
-  &[data-state='running'] { color: #43a047; }
-  &[data-state='stopped'] { color: #9e9e9e; }
-  &[data-state='crashed'] { color: #e53935; }
-  &[data-state='updating'], &[data-state='created'] { color: #1e88e5; }
-}
-
-.container-meta {
+.deployed {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-
-  .status { color: var(--mat-sys-on-surface-variant); font-size: 13px; }
-}
-
-.container-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 -8px 0 0;
-}
-
-h1 .description {
+  margin: 10px 0 0;
   color: var(--mat-sys-on-surface-variant);
-  font-weight: 500;
+  font-size: 14px;
+
+  code { font-family: var(--x-mono); font-size: 12px; }
+  .message { color: var(--mat-sys-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
 }
 
+.x-actions {
+  align-self: center;
+
+  .deploy {
+    height: 48px;
+    border-radius: 24px;
+    padding: 0 24px;
+  }
+
+  .x-group button { height: 48px; }
+
+  .remove {
+    width: 48px;
+    height: 48px;
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
+// ---- Tabs fill the rest; each tab scrolls internally ----
 .detail-tabs {
   flex: 1;
   min-height: 0;
 
-  // Let the active tab fill the remaining height; its content scrolls internally.
   ::ng-deep .mat-mdc-tab-body-wrapper { flex: 1; min-height: 0; }
   ::ng-deep .mat-mdc-tab-body-content { overflow: hidden; }
 }
@@ -144,41 +69,102 @@ h1 .description {
   flex-direction: column;
   box-sizing: border-box;
   height: 100%;
-  padding-top: 16px;
 }
 
-.project-actions .spacer { flex: 1; }
-
-.danger {
-  --mat-button-outlined-label-text-color: var(--mat-sys-error);
-  --mat-button-outlined-outline-color: var(--mat-sys-error);
+// ---- Containers tab: cards on the left, logs on the right ----
+.main-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.deployed {
+.card-content-flex {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.containers-list {
+  flex: 0 0 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.console-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: -8px 0 12px;
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 14px;
-
-  mat-icon { font-size: 18px; width: 18px; height: 18px; color: #43a047; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--mat-sys-on-surface); }
-  .message { color: var(--mat-sys-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  gap: 10px;
+  margin: 0 4px 2px;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .container-card {
+  gap: 10px;
+  padding: 16px 18px 10px;
   cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition: border-radius 0.35s var(--x-spring), background-color 0.2s;
 
   &:hover { background: var(--mat-sys-surface-container-high); }
-  &:focus-visible { outline: 2px solid var(--mat-sys-primary); outline-offset: 2px; }
+  &:focus-visible { outline: 3px solid var(--mat-sys-primary); outline-offset: 2px; }
 
   &.selected {
-    border-color: var(--mat-sys-primary);
-    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    border-radius: 32px;
+
+    .container-meta .status { color: var(--mat-sys-on-primary-container); }
   }
 }
 
-// "Update available" next to the project name (#68).
-h1 app-image-update-badge { margin-left: 12px; vertical-align: middle; }
+.container-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  .name {
+    font-size: 17px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// State icon in a round shape, tinted like the state badges.
+.state-shape {
+  &[data-state='running'] { background: color-mix(in srgb, #43a047 22%, var(--mat-sys-surface)); color: #43a047; }
+  &[data-state='crashed'] { background: var(--mat-sys-error-container); color: var(--mat-sys-on-error-container); }
+  &[data-state='updating'], &[data-state='created'] { background: var(--mat-sys-primary-container); color: var(--mat-sys-on-primary-container); }
+}
+
+.container-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .status { flex-grow: 1; color: var(--mat-sys-on-surface-variant); font-size: 13px; }
+}
+
+.container-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 -8px 0 0;
+
+  .remove-container { color: var(--mat-sys-error); }
+}

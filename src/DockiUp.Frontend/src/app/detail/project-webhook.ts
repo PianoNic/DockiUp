@@ -14,8 +14,8 @@ import { NotificationService } from '../shared/services/notification.service';
   styleUrl: './project-deployments.scss',
   template: `
     @if (webhook(); as w) {
-      <section class="panel">
-        <h2 class="section-title"><mat-icon>webhook</mat-icon> Push webhook</h2>
+      <section class="panel x-card">
+        <h2 class="section-title"><span class="x-shape tonal sm"><mat-icon>webhook</mat-icon></span> Push webhook</h2>
         <p class="hint">
           Add this as a push webhook in GitHub, Gitea/Forgejo or GitLab. Either content type works; use the secret
           below as the webhook secret (GitLab: "Secret token"). Any other tool can send it as an

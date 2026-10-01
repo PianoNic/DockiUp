@@ -1,3 +1,7 @@
-<button mat-icon-button (click)="openCreateDialog()" matTooltip="Deploy a new project" aria-label="Deploy a new project">
-  <mat-icon>add_circle</mat-icon>
+<button type="button" class="x-fab" [class.extended]="extended()" (click)="openCreateDialog()"
+  [matTooltip]="extended() ? '' : 'New project'" matTooltipPosition="right" aria-label="Deploy a new project">
+  <mat-icon>add</mat-icon>
+  @if (extended()) {
+    <span>New project</span>
+  }
 </button>

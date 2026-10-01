@@ -1,17 +1,19 @@
 @use '@angular/material' as mat;
+@use 'expressive';
 @import '@xterm/xterm/css/xterm.css';
 
-/* Self-hosted Material Icons font (served from /fonts) so icons render without the Google CDN —
-   works offline / air-gapped and avoids leaking viewers' IPs to Google. */
+/* Self-hosted Material Symbols Rounded (served from /fonts) so icons render without the Google CDN —
+   works offline / air-gapped and avoids leaking viewers' IPs to Google. Variable font, subset to the
+   axes the app uses: FILL 0..1 (active navigation fills its icon), weight 400, 24px optical size, grade 0. */
 @font-face {
-  font-family: 'Material Icons';
+  font-family: 'Material Symbols Rounded';
   font-style: normal;
   font-weight: 400;
   font-display: block;
-  src: url('/fonts/material-icons.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded.woff2') format('woff2');
 }
-.material-icons {
-  font-family: 'Material Icons';
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
   font-weight: normal;
   font-style: normal;
   font-size: 24px;
@@ -22,18 +24,21 @@
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
 @import url('https://fonts.googleapis.com/css2?family=Shrikhand&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400..800&family=Roboto+Mono:wght@400..600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap');
 
 @include mat.core();
 
 html {
   @include mat.theme((
-    color: mat.$azure-palette,
-    typography: Roboto,
+    // Rose tertiary: a warm accent (avatars, cleanup) that stays distinct from the blue primary.
+    color: (primary: mat.$azure-palette, tertiary: mat.$rose-palette),
+    typography: 'Roboto Flex',
     density: 0
   ));
 }
@@ -43,38 +48,48 @@ body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
+  // A notch above Material's 14px body: the expressive layout reads better at 15px.
+  font-size: 15px;
   margin: 0;
 }
 
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body { margin: 0; font-family: "Roboto Flex", Roboto, "Helvetica Neue", sans-serif; }
 
 * {
   transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-:root {
-  scrollbar-color: var(--mat-sys-outline-variant) transparent;
-  scrollbar-width: thin;
+// Scrollbars: a slim pill thumb on an invisible track, no arrow buttons.
+// Chrome/Edge ignore ::-webkit-scrollbar once scrollbar-width/-color are set, so those standard
+// properties are applied to Firefox only (it has no ::-webkit-scrollbar).
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--mat-sys-outline-variant) transparent;
+  }
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--mat-sys-outline-variant) transparent;
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
 }
-
-*::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-*::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
-
-*::-webkit-scrollbar-thumb {
-  background: var(--mat-sys-outline-variant);
-  border-radius: 2px;
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-thumb {
+  // The transparent border insets the pill from the edge (and from rounded container corners).
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--mat-sys-outline-variant) padding-box;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mat-sys-outline) padding-box;
 }
 
 .mat-horizontal-content-container {
@@ -115,7 +130,9 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow-y: auto;
+  // Icon buttons' 48px touch targets overhang the edge by a few px; that must not scroll the page sideways.
+  overflow-x: hidden;
 }
 
 // In a flex column, a page wrapper's `margin: 0 auto` would shrink it to its content; keep it full width.
@@ -131,15 +148,15 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-width: 88px; // same width for every state, so whatever follows lines up
-  padding: 3px 10px;
-  border-radius: 999px;
+  min-width: 96px; // same width for every state, so whatever follows lines up
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--state) 16%, transparent);
   color: var(--state);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
-
 
   &[data-state='running'], &[data-state='online'] { --state: #43a047; }
   &[data-state='stopped'], &[data-state='offline'] { --state: #9e9e9e; }
@@ -158,3 +175,4 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   &:hover,
   &:focus-visible { text-decoration: underline; }
 }
+

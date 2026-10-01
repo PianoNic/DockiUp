@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { interval } from 'rxjs';
 import { NodeDto, NodesService } from '../api';
 import { AddNodeDialog } from './add-node-dialog';
@@ -14,9 +15,9 @@ import { errorMessage } from '../shared/services/notification.service';
 /** Remote Docker hosts (KRINT-style): add, ping and remove nodes. */
 @Component({
   selector: 'app-nodes',
-  imports: [LocalDatePipe, MatButtonModule, MatIconModule, MatProgressBarModule],
+  imports: [LocalDatePipe, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule],
   templateUrl: './nodes.html',
-  styleUrl: '../activity/activity.scss',
+  styleUrls: ['../activity/activity.scss', './nodes.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Nodes {
@@ -25,6 +26,7 @@ export class Nodes {
   private readonly confirm = inject(ConfirmService);
 
   protected readonly nodes = signal<NodeDto[]>([]);
+  protected readonly onlineCount = computed(() => this.nodes().filter((n) => n.online).length);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly pinging = signal<Record<string, boolean>>({});

@@ -6,6 +6,7 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { authInterceptor, provideAuth, withAppInitializerAuthCheck } from 'angular-auth-oidc-client';
 import { environment } from '../environments/environment';
 import { ApiModule, Configuration } from './api';
+import { MatIconRegistry } from '@angular/material/icon';
 import { ThemeService } from './shared/services/theme.service';
 import { authLoaderProvider } from './shared/auth/auth.config';
 
@@ -30,5 +31,7 @@ export const appConfig: ApplicationConfig = {
       const themeService = inject(ThemeService);
       themeService.setTheme(themeService.getTheme()());
     }),
+    // Every <mat-icon> uses Material Symbols Rounded (ligatures, so the icon names stay the same).
+    provideAppInitializer(() => { inject(MatIconRegistry).setDefaultFontSetClass('material-symbols-rounded', 'mat-ligature-font'); }),
   ]
 };
