@@ -230,13 +230,33 @@ public class ValidateComposeQueryTests
         var docker = new Mock<IDockerService>();
         var expected = new ComposeValidationDto(true, [], [], [new ComposeServiceDto("web", "nginx")]);
         var request = new ComposeValidationRequest(node, "services: {}", null);
-        docker.Setup(d => d.ValidateComposeAsync(request, It.IsAny<CancellationToken>())).ReturnsAsync(expected);
+        docker.Setup(d => d.ValidateComposeAsync(request, null, It.IsAny<CancellationToken>())).ReturnsAsync(expected);
         var resolver = new Mock<IDockerServiceResolver>();
         resolver.Setup(r => r.Resolve(node)).Returns(docker.Object);
 
         var result = await new ValidateComposeQueryHandler(resolver.Object).Handle(new ValidateComposeQuery(request), CancellationToken.None);
 
         Assert.Same(expected, result);
+    }
+
+    [Fact]
+    public async Task ValidateCompose_ResolvesStoredCredentials_AndPassesThemSeparately()
+    {
+        var credentialId = Guid.NewGuid();
+        var credentials = new DockiUp.Application.Git.GitCredentials("bot", "secret-token");
+        var provider = new Mock<DockiUp.Application.Git.IGitCredentialsProvider>();
+        provider.Setup(p => p.GetAsync(credentialId, It.IsAny<CancellationToken>())).ReturnsAsync(credentials);
+        var docker = new Mock<IDockerService>();
+        var request = new ComposeValidationRequest(null, null, null, "https://git.example/private.git", GitCredentialId: credentialId);
+        docker.Setup(d => d.ValidateComposeAsync(request, credentials, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ComposeValidationDto(true, [], [], []));
+        var resolver = new Mock<IDockerServiceResolver>();
+        resolver.Setup(r => r.Resolve(null)).Returns(docker.Object);
+
+        var result = await new ValidateComposeQueryHandler(resolver.Object, provider.Object).Handle(new ValidateComposeQuery(request), CancellationToken.None);
+
+        Assert.True(result.Valid);
+        docker.Verify(d => d.ValidateComposeAsync(request, credentials, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

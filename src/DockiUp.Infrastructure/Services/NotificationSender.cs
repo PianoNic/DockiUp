@@ -87,7 +87,10 @@ namespace DockiUp.Infrastructure.Services
         private const int MaxBody = 1800;
 
         private static HttpRequestMessage Post(string url, object payload)
-            => new(HttpMethod.Post, url) { Content = JsonContent.Create(payload) };
+            // Buffered, so it carries a Content-Length: simple receivers mis-read chunked bodies as empty.
+            => new(HttpMethod.Post, url) { Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(payload, JsonOptions), System.Text.Encoding.UTF8, "application/json") };
+
+        private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web);
 
         private static string Required(string? value, string what)
             => string.IsNullOrWhiteSpace(value) ? throw new ArgumentException($"The channel has no {what}.") : value;

@@ -9,7 +9,6 @@
  */
 
 
-export interface PinServiceImageRequest { 
-    tag: string;
+export interface DiskUsageDtoImagesSize { 
 }
 

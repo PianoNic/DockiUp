@@ -46,10 +46,7 @@ namespace DockiUp.Application.Dtos
         string? GitUrl = null,
         string? Branch = null,
         string? ComposeFile = null,
-        Guid? GitCredentialId = null,
-        // Set by the server from GitCredentialId (anything a client sends is overwritten); travels to a node
-        // only inside the RPC payload so it can clone a private repo there.
-        Git.GitCredentials? Credentials = null);
+        Guid? GitCredentialId = null);
 
     public record ComposeServiceDto(string Name, string? Image);
 

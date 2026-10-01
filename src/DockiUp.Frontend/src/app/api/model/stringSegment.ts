@@ -10,13 +10,11 @@
 import { CleanupScheduleDtoHourUtc } from './cleanupScheduleDtoHourUtc';
 
 
-export interface DockerNetworkDto { 
-    id: string;
-    name: string;
-    driver: string;
-    scope: string;
-    containers: CleanupScheduleDtoHourUtc;
-    inUse: boolean;
-    builtin: boolean;
+export interface StringSegment { 
+    buffer?: string | null;
+    offset?: CleanupScheduleDtoHourUtc;
+    length?: CleanupScheduleDtoHourUtc;
+    value?: string | null;
+    hasValue?: boolean;
 }
 

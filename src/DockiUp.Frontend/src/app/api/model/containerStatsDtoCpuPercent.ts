@@ -9,6 +9,6 @@
  */
 
 
-export interface DashboardStatsDtoTotalProjects { 
+export interface ContainerStatsDtoCpuPercent { 
 }
 

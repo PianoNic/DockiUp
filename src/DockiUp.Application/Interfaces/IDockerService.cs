@@ -57,7 +57,8 @@ namespace DockiUp.Application.Interfaces
         /// <summary>`docker compose config` on this host for a compose file that isn't a project yet
         /// (inline, or from a git repo cloned to a temp folder). Never throws for a bad file: the problems
         /// come back as errors.</summary>
-        Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default);
+        /// <paramref name="credentials"/> are resolved by the server from the request's GitCredentialId (private repos).
+        Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, Git.GitCredentials? credentials = null, CancellationToken cancellationToken = default);
 
         // Project files (#65/#67): run where the project folder lives. Every relative path is confined to
         // the project folder (no traversal, no absolute paths, no symlinks pointing out) and .git is off limits.

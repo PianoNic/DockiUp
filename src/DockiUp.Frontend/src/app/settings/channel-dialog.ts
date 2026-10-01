@@ -8,7 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
-import { NotificationChannelDto, NotificationChannelType, NotificationEvent, NotificationsService, SaveNotificationChannelRequest } from '../api';
+import { NotificationChannelDto, NotificationChannelType, NotificationsService, SaveNotificationChannelRequest } from '../api';
+
+/** Mirrors DockiUp.Domain.NotificationEvent (the API sends the names as strings; the generator inlines them). */
+export type NotificationEvent = 'DeploymentSucceeded' | 'DeploymentFailed' | 'NodeOffline' | 'NodeOnline' | 'ImageUpdateAvailable' | 'CleanupReport';
 import { errorMessage } from '../shared/services/notification.service';
 
 export const CHANNEL_TYPES: { value: NotificationChannelType; label: string }[] = [
@@ -131,7 +134,7 @@ export class ChannelDialog {
   protected secret = '';
   protected enabled = this.existing?.enabled ?? true;
   protected readonly clearSecret = signal(false);
-  protected readonly selected = signal(new Set<NotificationEvent>(this.existing?.events ?? ['DeploymentFailed', 'NodeOffline']));
+  protected readonly selected = signal(new Set<NotificationEvent>((this.existing?.events as NotificationEvent[] | undefined) ?? ['DeploymentFailed', 'NodeOffline']));
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 

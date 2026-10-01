@@ -496,7 +496,7 @@ namespace DockiUp.Infrastructure.Services
                 });
 
         [ExcludeFromCodeCoverage] // clones and spawns the `docker` CLI; the parsing is unit-tested (ComposeValidation)
-        public async Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default)
+        public async Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, Application.Git.GitCredentials? credentials = null, CancellationToken cancellationToken = default)
         {
             var dir = Path.Combine(Path.GetTempPath(), "dockiup-validate-" + Guid.NewGuid().ToString("N"));
             try
@@ -504,7 +504,7 @@ namespace DockiUp.Infrastructure.Services
                 string composePath;
                 if (!string.IsNullOrWhiteSpace(request.GitUrl))
                 {
-                    await _projectFiles.CloneRepositoryAsync(dir, request.GitUrl.Trim(), string.IsNullOrWhiteSpace(request.Branch) ? null : request.Branch.Trim(), request.Credentials);
+                    await _projectFiles.CloneRepositoryAsync(dir, request.GitUrl.Trim(), string.IsNullOrWhiteSpace(request.Branch) ? null : request.Branch.Trim(), credentials);
                     var file = string.IsNullOrWhiteSpace(request.ComposeFile) ? Application.ProjectPreparer.DefaultRepoComposeFile : request.ComposeFile.Trim();
                     composePath = Application.ProjectPreparer.ResolveInside(dir, file, "The compose file must be inside the repository.");
                     if (!File.Exists(composePath))

@@ -9,6 +9,6 @@
  */
 
 
-export interface GetContainerLogsTailParameter { 
+export interface ContainerStatsDtoMemoryUsage { 
 }
 

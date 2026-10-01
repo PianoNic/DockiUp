@@ -7,7 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ProblemDetailsStatus } from './problemDetailsStatus';
+import { AdoptProjectDtoPeriodicIntervalInMinutes } from './adoptProjectDtoPeriodicIntervalInMinutes';
 
 
 export interface SetupProjectDto { 
@@ -21,7 +21,7 @@ export interface SetupProjectDto {
     envFile?: string | null;
     nodeId?: string | null;
     projectUpdateMethod: number;
-    periodicIntervalInMinutes?: ProblemDetailsStatus | null;
+    periodicIntervalInMinutes?: AdoptProjectDtoPeriodicIntervalInMinutes | null;
     gitCredentialId?: string | null;
 }
 

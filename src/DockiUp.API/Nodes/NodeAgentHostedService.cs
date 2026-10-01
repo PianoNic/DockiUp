@@ -180,7 +180,8 @@ namespace DockiUp.API.Nodes
                 WithDocker(async d => { await d.WriteEnvFileAsync(path, composePath, secrets); return true; }));
 
             // New project flow
-            c.On<ComposeValidationRequest, ComposeValidationDto>("ValidateCompose", request => WithDocker(d => d.ValidateComposeAsync(request)));
+            c.On<ComposeValidationRequest, Application.Git.GitCredentials?, ComposeValidationDto>("ValidateCompose", (request, credentials) =>
+                WithDocker(d => d.ValidateComposeAsync(request, credentials)));
 
 
             // Project files: confined to this node's projects folder by DockerService itself.

@@ -84,8 +84,9 @@ namespace DockiUp.API.Nodes
             => Node().InvokeAsync<bool>("WriteEnvFile", projectPath, composePath, new Dictionary<string, string>(secrets), cancellationToken);
 
         // New project flow: validate where the project will run (the node's compose version and filesystem).
-        public Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default)
-            => Node().InvokeAsync<ComposeValidationDto>("ValidateCompose", request, cancellationToken);
+        // Credentials travel only inside the invocation payload, never in the request record the API exposes.
+        public Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, Application.Git.GitCredentials? credentials = null, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<ComposeValidationDto>("ValidateCompose", request, credentials, cancellationToken);
 
         #region Project files (#65/#66/#67)
         public Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default)

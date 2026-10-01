@@ -7,14 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { CleanupScheduleDtoHourUtc } from './cleanupScheduleDtoHourUtc';
 import { ActivityEntryDto } from './activityEntryDto';
-import { DashboardStatsDtoTotalProjects } from './dashboardStatsDtoTotalProjects';
 
 
 export interface DashboardStatsDto { 
-    totalProjects: DashboardStatsDtoTotalProjects;
-    totalContainers: DashboardStatsDtoTotalProjects;
-    runningContainers: DashboardStatsDtoTotalProjects;
+    totalProjects: CleanupScheduleDtoHourUtc;
+    totalContainers: CleanupScheduleDtoHourUtc;
+    runningContainers: CleanupScheduleDtoHourUtc;
     recentActivity: Array<ActivityEntryDto>;
     localDockerVersion?: string | null;
 }

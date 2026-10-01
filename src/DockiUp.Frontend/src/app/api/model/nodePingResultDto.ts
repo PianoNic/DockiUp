@@ -7,11 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { DashboardStatsDtoTotalProjects } from './dashboardStatsDtoTotalProjects';
+import { CleanupScheduleDtoHourUtc } from './cleanupScheduleDtoHourUtc';
 
 
 export interface NodePingResultDto { 
     reply: string;
-    roundTripMs: DashboardStatsDtoTotalProjects;
+    roundTripMs: CleanupScheduleDtoHourUtc;
 }
 

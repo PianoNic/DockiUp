@@ -36,6 +36,7 @@ public class ProjectFileSystemTests : IDisposable
     [InlineData("C:foo")]
     [InlineData(".git/config")]
     [InlineData("sub/.GIT/HEAD")]
+    [InlineData(".dockiup.env")]
     public void Resolve_RejectsPathsLeavingTheFolderOrTouchingGit(string path)
     {
         Assert.Throws<ArgumentException>(() => ProjectFileSystem.Resolve(_root, path));
@@ -82,6 +83,7 @@ public class ProjectFileSystemTests : IDisposable
         Put("A.env", "a");
         Put("conf/x.conf", "x");
         Directory.CreateDirectory(Path.Combine(_root, ".git"));
+        Put(".dockiup.env", "SECRET=x"); // decrypted vault values: never listed
 
         var entries = ProjectFileSystem.List(_root, null, new HashSet<string> { "b.txt", "conf/x.conf" });
 

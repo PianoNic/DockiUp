@@ -7,8 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { StringSegment } from './stringSegment';
 
 
-export interface StopProjectProjectIdParameter { 
+export interface EntityTagHeaderValue { 
+    tag?: StringSegment;
+    isWeak?: boolean;
 }
 

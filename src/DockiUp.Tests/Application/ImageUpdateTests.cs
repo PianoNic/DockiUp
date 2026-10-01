@@ -223,7 +223,7 @@ public class ImageUpdateHandlerTests
         Assert.Equal(New, by["web"].LatestDigest);
         Assert.False(by["cache"].UpdateAvailable);
         Assert.Null(by["cache"].Note);
-        Assert.Contains("Built locally", by["api"].Note);
+        Assert.StartsWith("No registry digest", by["api"].Note);
         Assert.Contains("digest", by["pinned"].Note);
         Assert.NotNull(by["bad"].Note);
         _registry.Verify(r => r.GetDigestAsync(It.IsAny<ImageReference>(), It.IsAny<CancellationToken>()), Times.Exactly(2));

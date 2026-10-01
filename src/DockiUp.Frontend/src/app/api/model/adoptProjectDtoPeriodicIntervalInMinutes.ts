@@ -9,6 +9,6 @@
  */
 
 
-export interface ProblemDetailsStatus { 
+export interface AdoptProjectDtoPeriodicIntervalInMinutes { 
 }
 

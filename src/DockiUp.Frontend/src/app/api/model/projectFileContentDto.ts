@@ -7,12 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ContainerStatsDtoMemoryUsage } from './containerStatsDtoMemoryUsage';
 
 
 export interface ProjectFileContentDto { 
     path: string;
     content: string;
-    size: number;
+    size: ContainerStatsDtoMemoryUsage;
     modifiedAt: string;
     tracked: boolean;
 }

@@ -9,6 +9,6 @@
  */
 
 
-export interface NodePingResultDtoRoundTripMs { 
+export interface GetContainerStatsHistoryHoursParameter { 
 }
 

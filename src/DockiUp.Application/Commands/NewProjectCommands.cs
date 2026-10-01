@@ -42,9 +42,9 @@ namespace DockiUp.Application.Commands
     {
         public async ValueTask<ComposeValidationDto> Handle(ValidateComposeQuery request, CancellationToken cancellationToken)
         {
-            // Never trust client-sent credentials: resolve them here from the stored id.
+            // Resolved here from the stored id; never part of what a client sends.
             var credentials = gitCredentials is null ? null : await gitCredentials.GetAsync(request.Request.GitCredentialId, cancellationToken);
-            return await dockerResolver.Resolve(request.Request.NodeId).ValidateComposeAsync(request.Request with { Credentials = credentials }, cancellationToken);
+            return await dockerResolver.Resolve(request.Request.NodeId).ValidateComposeAsync(request.Request, credentials, cancellationToken);
         }
     }
 

@@ -8,7 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import { DeploymentDto, ProjectFileEntryDto, ProjectFilesDto, ProjectFilesService } from '../api';
+import { HttpClient } from '@angular/common/http';
+import { Configuration, DeploymentDto, ProjectFileEntryDto, ProjectFilesDto, ProjectFilesService } from '../api';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { NotificationService } from '../shared/services/notification.service';
@@ -38,6 +39,8 @@ export class ProjectFiles {
   readonly deployed = output<DeploymentDto>();
 
   private readonly api = inject(ProjectFilesService);
+  private readonly http = inject(HttpClient);
+  private readonly basePath = (inject(Configuration).basePath ?? '').replace(/\/$/, '');
   private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
   private readonly dialog = inject(MatDialog);
@@ -152,7 +155,7 @@ export class ProjectFiles {
           continue;
         }
         try {
-          const result = await firstValueFrom(this.api.uploadProjectFile(this.projectId(), f, this.path() || undefined));
+          const result = await firstValueFrom(this.api.uploadProjectFile(this.projectId(), this.path() || undefined, f));
           this.notifications.success(result.commit ? `Uploaded ${f.name} and committed ${result.commit.slice(0, 7)}` : `Uploaded ${f.name}`);
         } catch (err) {
           this.notifications.showError(`Failed to upload ${f.name}`, err);
@@ -172,7 +175,9 @@ export class ProjectFiles {
 
   protected async download(entry: ProjectFileEntryDto): Promise<void> {
     try {
-      const blob = await firstValueFrom(this.api.downloadProjectFile(this.projectId(), entry.path));
+      // Raw bytes: fetched as a blob directly (the generated client can't type a binary response).
+      const blob = await firstValueFrom(this.http.get(`${this.basePath}/api/Project/${this.projectId()}/Files/Download`,
+        { params: { path: entry.path }, responseType: 'blob' }));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

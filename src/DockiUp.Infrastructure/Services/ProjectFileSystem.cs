@@ -29,8 +29,8 @@ namespace DockiUp.Infrastructure.Services
             var segments = rel.Split('/', StringSplitOptions.RemoveEmptyEntries);
             if (segments.Any(s => s is "." or ".."))
                 throw new ArgumentException($"'{relative}' must not contain '.' or '..' segments.");
-            if (segments.Any(s => s.Equals(".git", StringComparison.OrdinalIgnoreCase)))
-                throw new ArgumentException("The .git folder is managed by DockiUp and can't be accessed here.");
+            if (segments.Any(Hidden))
+                throw new ArgumentException($"'{relative}' is managed by DockiUp and can't be accessed here.");
 
             var full = Path.GetFullPath(Path.Combine([root, .. segments]));
             if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
@@ -50,6 +50,10 @@ namespace DockiUp.Infrastructure.Services
             return full;
         }
 
+        // .git, and the generated env file: it holds the decrypted vault secrets.
+        private static bool Hidden(string name)
+            => name.Equals(".git", StringComparison.OrdinalIgnoreCase) || name.Equals(Application.Deployments.EnvFile.GeneratedFileName, StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Relative, '/'-separated form of a path under root.</summary>
         private static string Relative(string root, string full) => Path.GetRelativePath(root, full).Replace('\\', '/');
 
@@ -59,7 +63,7 @@ namespace DockiUp.Infrastructure.Services
             if (!Directory.Exists(dir)) throw new KeyNotFoundException($"Folder '{relative}' not found.");
             var fullRoot = Resolve(root, null);
             return new DirectoryInfo(dir).EnumerateFileSystemInfos()
-                .Where(i => !i.Name.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                .Where(i => !Hidden(i.Name))
                 .Select(i =>
                 {
                     var path = Relative(fullRoot, i.FullName);

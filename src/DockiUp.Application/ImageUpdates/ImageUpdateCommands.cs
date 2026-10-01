@@ -136,7 +136,7 @@ namespace DockiUp.Application.ImageUpdates
             if (image.Digest is not null) { row.Note = "Pinned by digest"; return; }
 
             row.CurrentDigest = ImageDigests.CurrentDigest(image, service.RepoDigests);
-            if (row.CurrentDigest is null) { row.Note = "Built locally (no registry digest)"; return; }
+            if (row.CurrentDigest is null) { row.Note = "No registry digest (built locally, or the tag has moved on: redeploy to use the newer image)"; return; }
 
             try
             {

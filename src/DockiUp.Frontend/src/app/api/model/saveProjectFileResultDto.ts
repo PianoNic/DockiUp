@@ -10,9 +10,6 @@
 import { DeploymentDto } from './deploymentDto';
 
 
-/**
- * <c>Tracked</c>: the file is versioned in git; <c>Commit</c>: the pushed commit (git projects); <c>Deployment</c>: the queued deployment when asked to deploy.
- */
 export interface SaveProjectFileResultDto { 
     tracked: boolean;
     commit: string | null;

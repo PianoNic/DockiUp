@@ -1,5 +1,6 @@
 namespace DockiUp.Domain
 {
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<NotificationChannelType>))]
     public enum NotificationChannelType
     {
         Discord = 0,
@@ -11,6 +12,7 @@ namespace DockiUp.Domain
 
     /// <summary>Things a channel can subscribe to. Flags, so a channel stores its whole selection in one column.</summary>
     [Flags]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<NotificationEvent>))]
     public enum NotificationEvent
     {
         None = 0,

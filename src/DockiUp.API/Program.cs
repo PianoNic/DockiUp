@@ -60,7 +60,11 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DockiUp.API.Deploy
 builder.Services.AddHostedService<DockiUp.API.HostedServices.PeriodicUpdateHostedService>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStateBroadcastHostedService>();
 
-builder.Services.AddSignalR();
+// A node's replies (project files, resources, stats) come back as one message, often over the 32 KB
+// default; nodes are token-authenticated, so allow up to the 25 MB file limit (base64) plus envelope.
+// (Configure<HubOptions<NodeHub>> alone does not take effect; AddHubOptions is the supported way.)
+builder.Services.AddSignalR()
+    .AddHubOptions<NodeHub>(o => o.MaximumReceiveMessageSize = 40 * 1024 * 1024);
 builder.Services.AddSingleton<IDockiUpHubBroadcastService, DockiUpHubBroadcastService>();
 builder.Services.AddSingleton<DockiUp.API.SignalR.IExecRelay, DockiUp.API.SignalR.ExecRelay>();
 
@@ -81,9 +85,6 @@ builder.Services.AddScoped<IDockerServiceResolver, DockerServiceResolver>();
 builder.Services.AddSingleton<DeployLogRelay>();
 builder.Services.AddSingleton<INodeRpc, NodeRpc>();
 builder.Services.AddSingleton<INodeDirectory, NodeDirectory>();
-// Project files read from / downloaded off a node come back as one message (default limit 32 KB);
-// nodes are token-authenticated, so allow up to the 25 MB file limit (base64) plus envelope.
-builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions<NodeHub>>(o => o.MaximumReceiveMessageSize = 40 * 1024 * 1024);
 #endregion
 
 #region Notifications, project secrets, git credentials (#75-#77)

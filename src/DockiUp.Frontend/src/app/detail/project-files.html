@@ -37,10 +37,9 @@
       @for (e of listing()?.entries ?? []; track e.path) {
         <div class="file-row" [class.selected]="e.path === file()?.path" role="button" tabindex="0" (click)="open(e)" (keydown.enter)="open(e)">
           <mat-icon class="kind">{{ e.isDirectory ? 'folder' : e.path === listing()?.composeFile ? 'layers' : 'description' }}</mat-icon>
-          <span class="name" [title]="e.path">{{ e.name }}</span>
+          <span class="name" [title]="e.path + ' · ' + (e.modifiedAt | localDate: 'short')">{{ e.name }}</span>
           @if (e.tracked && !e.isDirectory) { <mat-icon class="git" matTooltip="Tracked in git">commit</mat-icon> }
           <span class="meta">{{ formatSize(e) }}</span>
-          <span class="meta date">{{ e.modifiedAt | localDate: 'short' }}</span>
           <span class="actions" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
             @if (!e.isDirectory) {
               <button mat-icon-button (click)="download(e)" matTooltip="Download" aria-label="Download"><mat-icon>download</mat-icon></button>
