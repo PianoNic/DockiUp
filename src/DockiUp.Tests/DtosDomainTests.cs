@@ -257,7 +257,7 @@ public class DtosDomainTests
         Assert.Equal(0, (int)ProjectOriginType.Unknown);
         Assert.Equal(1, (int)ProjectOriginType.Git);
         Assert.Equal(2, (int)ProjectOriginType.Compose);
-        Assert.Equal(3, (int)ProjectOriginType.Import);
+        Assert.Equal(3, (int)ProjectOriginType.Adopted);
         Assert.Equal(4, Enum.GetValues<ProjectOriginType>().Length);
     }
 
@@ -487,7 +487,7 @@ public class DtosDomainTests
             ProjectOrigin = ProjectOriginType.Git,
             GitUrl = "https://git/x.git",
             Compose = "services: {}",
-            Path = "/srv/myapp",
+            EnvFile = "A=1",
             NodeId = node,
             ProjectUpdateMethod = ProjectUpdateMethod.Periodically,
             Branch = "main",
@@ -500,7 +500,7 @@ public class DtosDomainTests
         Assert.Equal(ProjectOriginType.Git, dto.ProjectOrigin);
         Assert.Equal("https://git/x.git", dto.GitUrl);
         Assert.Equal("services: {}", dto.Compose);
-        Assert.Equal("/srv/myapp", dto.Path);
+        Assert.Equal("A=1", dto.EnvFile);
         Assert.Equal(node, dto.NodeId);
         Assert.Equal(ProjectUpdateMethod.Periodically, dto.ProjectUpdateMethod);
         Assert.Equal("main", dto.Branch);
@@ -520,7 +520,7 @@ public class DtosDomainTests
         Assert.Null(dto.Description);
         Assert.Null(dto.GitUrl);
         Assert.Null(dto.Compose);
-        Assert.Null(dto.Path);
+        Assert.Null(dto.EnvFile);
         Assert.Null(dto.NodeId);
         Assert.Null(dto.Branch);
         Assert.Null(dto.ComposeFile);

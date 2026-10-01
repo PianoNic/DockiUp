@@ -1,1 +1,4 @@
 .env
+# Local tooling output (agent worktrees, Playwright MCP snapshots)
+.claude/worktrees/
+.playwright-mcp/

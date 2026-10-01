@@ -34,13 +34,6 @@ namespace DockiUp.Application.Commands
         {
             var dto = request.SetupContainerDto;
 
-            // Import has nothing to write or start yet (parity with the previous handler).
-            if (dto.ProjectOrigin == ProjectOriginType.Import)
-            {
-                await activityLogger.LogAsync("deploy", dto.ProjectName, details: dto.ProjectOrigin.ToString(), cancellationToken: cancellationToken);
-                return null;
-            }
-
             // Private repo: decrypted here, handed to the clone in-process or inside the node's RPC payload.
             var credentials = dto.ProjectOrigin == ProjectOriginType.Git && gitCredentials is not null
                 ? await gitCredentials.GetAsync(dto.GitCredentialId, cancellationToken)

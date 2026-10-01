@@ -1,309 +1,369 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators, FormGroup } from '@angular/forms';
-import { MatDialogContent, MatDialogModule, MatDialogRef } from "@angular/material/dialog";
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatStepperModule } from '@angular/material/stepper';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatSelectModule } from '@angular/material/select';
-import { GitCredentialDto, GitCredentialsService, NodeDto, NodesService, SetupProjectDto } from '../../../../api';
-import { ProjectOriginType, ProjectUpdateMethod, UpdateMethodType } from '../../../models/api-enums';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { firstValueFrom } from 'rxjs';
+import { ComposeValidationDto, GitCredentialDto, GitCredentialsService, NodeDto, NodesService, ProjectDto, ProjectService, RepositoryInspectionDto, SetupProjectDto } from '../../../../api';
+import { ProjectOriginType, ProjectUpdateMethod } from '../../../models/api-enums';
+import { errorMessage } from '../../../services/notification.service';
+import { ProjectStore } from '../../../stores/project.store';
 
+/** What the dialog closes with: the compose project name to open (its first deployment streams there). */
+export interface CreateProjectResult { dockerProjectName: string; }
 
+type Source = 'git' | 'compose' | 'image' | 'existing';
+type ComposeMode = 'editor' | 'run';
+
+// Mirrors the server limits (DeployProjectCommandValidator).
+const MAX_COMPOSE_CHARS = 100_000;
+const MAX_ENV_CHARS = 50_000;
+// Mirrors the server rule: it becomes a folder name and the compose project name.
+const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _-]*$/;
+
+/** New project flow: Source -> Where & environment -> Updates -> Review (validated with
+ * `docker compose config` on the target host before anything is created). */
 @Component({
   selector: 'app-create-project-modal',
   imports: [
-    MatDialogModule,
-    MatDialogContent,
-    MatProgressBarModule,
-    MatStepperModule,
-    FormsModule,
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatRadioModule,
-    MatAutocompleteModule,
-    MatSelectModule
+    MatButtonModule, MatButtonToggleModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule,
+    MatProgressBarModule, MatProgressSpinnerModule, MatRadioModule, MatSelectModule, MatStepperModule, MatTooltipModule,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './create-project-modal.html',
-  styleUrl: './create-project-modal.scss'
+  styleUrl: './create-project-modal.scss',
 })
 export class CreateProjectModal implements OnInit {
-  public isloading = signal(false);
-  private fb = inject(FormBuilder);
-  private dialogRef = inject(MatDialogRef<CreateProjectModal>);
-  private nodesService = inject(NodesService);
-  private gitCredentialsService = inject(GitCredentialsService);
+  private readonly dialogRef = inject<MatDialogRef<CreateProjectModal, CreateProjectResult | undefined>>(MatDialogRef);
+  private readonly nodesService = inject(NodesService);
+  private readonly projectService = inject(ProjectService);
+  private readonly gitCredentialsService = inject(GitCredentialsService);
+  private readonly projectStore = inject(ProjectStore);
+  private readonly stepper = viewChild.required<MatStepper>('stepper');
 
-  // Stored credentials for private repositories (managed under Settings).
-  readonly gitCredentials = signal<GitCredentialDto[]>([]);
-
-  // Online nodes the project can be deployed to; empty means single-host (local only).
-  readonly nodes = signal<NodeDto[]>([]);
-
-  // Enums for template
-  readonly ProjectOriginType = ProjectOriginType;
   readonly ProjectUpdateMethod = ProjectUpdateMethod;
+  readonly restartPolicies = ['', 'no', 'always', 'unless-stopped', 'on-failure'];
 
-  // Autocomplete data
-  readonly paths: string[] = [
-    '/home/user/project1',
-    '/var/www/app',
-    '/opt/docker/project2',
-    '/srv/data/project3',
-    '/usr/local/share/project4'
-  ];
+  // Every node (offline ones too, to name the host of a running project); only online ones are targets.
+  readonly allNodes = signal<NodeDto[]>([]);
+  readonly nodes = computed(() => this.allNodes().filter(n => n.online));
 
-  pathValue = signal('');
-  filteredPaths = computed(() =>
-    this.paths.filter(path =>
-      path.toLowerCase().includes(this.pathValue().toLowerCase())
-    )
-  );
+  readonly busy = signal(false);
+  readonly error = signal<string | null>(null);
 
-  // Form groups
-  projectInformationFormGroup: FormGroup;
-  projectOriginFormGroup: FormGroup;
-  updateMethodFormGroup: FormGroup;
+  // ---- Step 1: source ----
+  readonly source = signal<Source>('git');
 
-  // Signals for validation state to avoid ExpressionChangedAfterItHasBeenCheckedError
-  isStep1Valid = signal(false);
-  isStep2Valid = signal(false);
-  isStep3Valid = signal(false);
+  readonly gitUrl = signal('');
+  // Stored credentials for private repositories (managed under Settings); '' = public.
+  readonly gitCredentials = signal<GitCredentialDto[]>([]);
+  readonly gitCredentialId = signal('');
+  readonly repo = signal<RepositoryInspectionDto | null>(null);
+  readonly inspectedUrl = signal('');
+  readonly branch = signal('');
+  readonly composeFile = signal('');
+  readonly selectedComposeFile = computed(() => this.repo()?.composeFiles.find(f => f.path === this.composeFile()) ?? null);
 
-  constructor() {
-    // Initialize forms
-    this.projectInformationFormGroup = this.fb.group({
-      // Mirrors the server rule: it becomes a folder name and the compose project name.
-      projectName: ['', [Validators.required, Validators.maxLength(100), Validators.pattern(/^[A-Za-z0-9][A-Za-z0-9 _-]*$/)]],
-      description: [''],
-      // Empty string = deploy on the local control-plane host; a node id = deploy to that node.
-      nodeId: ['']
-    });
+  readonly composeMode = signal<ComposeMode>('editor');
+  readonly compose = signal('');
+  readonly dockerRun = signal('');
+  readonly conversionWarnings = signal<string[]>([]);
 
-    this.projectOriginFormGroup = this.fb.group({
-      originType: [ProjectOriginType.Compose, Validators.required],
-      gitUrl: [''],
-      branch: [''],
-      composeFile: [''],
-      gitCredentialId: [''],
-      composeContent: ['', Validators.required],
-      path: ['']
-    });
+  readonly image = signal('');
+  readonly tag = signal('');
+  readonly ports = signal('');
+  readonly volumes = signal('');
+  readonly environment = signal('');
+  readonly restart = signal('unless-stopped');
+  readonly generatedCompose = signal('');
 
-    this.updateMethodFormGroup = this.fb.group({
-      updateMethod: [ProjectUpdateMethod.Webhook, Validators.required],
-      periodicInterval: ['']
-    });
-  }
+  readonly existingName = signal('');
+  // Running compose projects DockiUp doesn't manage yet, from the shared project list.
+  readonly adoptable = computed(() => this.projectStore.projectDtos()
+    .filter(p => !p.managedByDockiUp)
+    .sort((a, b) => this.hostName(a.nodeId).localeCompare(this.hostName(b.nodeId)) || a.dockerProjectName.localeCompare(b.dockerProjectName)));
+  readonly existing = computed(() => this.adoptable().find(p => this.adoptKey(p) === this.existingName()) ?? null);
+
+  // ---- Step 2: where & environment ----
+  readonly projectName = signal('');
+  readonly description = signal('');
+  readonly nodeId = signal('');
+  readonly envFile = signal('');
+
+  // ---- Step 3: updates ----
+  readonly updateMethod = signal<number>(ProjectUpdateMethod.Webhook);
+  readonly interval = signal('');
+
+  // ---- Step 4: review ----
+  readonly validation = signal<ComposeValidationDto | null>(null);
+  readonly validating = signal(false);
+
+  readonly sourceValid = computed(() => {
+    switch (this.source()) {
+      case 'git': return !!this.repo() && this.inspectedUrl() === this.gitUrl().trim() && !!this.selectedComposeFile();
+      case 'compose': return this.composeMode() === 'editor' && !!this.compose().trim() && this.compose().length <= MAX_COMPOSE_CHARS;
+      case 'image': return !!this.image().trim();
+      case 'existing': return !!this.existing()?.composeWorkingDir;
+    }
+  });
+  readonly nameError = computed(() => {
+    const name = this.projectName().trim();
+    if (this.source() === 'existing') return null;
+    if (!name) return 'Project name is required';
+    if (name.length > 100) return 'Project name must be 100 characters or less';
+    if (!PROJECT_NAME.test(name)) return 'Letters, digits, spaces, - and _ only; start with a letter or digit';
+    return null;
+  });
+  readonly whereValid = computed(() => !this.nameError() && this.envFile().length <= MAX_ENV_CHARS);
+  readonly updatesValid = computed(() =>
+    this.updateMethod() !== ProjectUpdateMethod.Periodically || Number(this.interval()) >= 1);
+  readonly canCreate = computed(() => this.sourceValid() && this.whereValid() && this.updatesValid() && !this.busy() && !this.validating()
+    && (this.source() === 'existing' || !!this.validation()?.valid));
+
+  /** The compose content that will be stored (compose and image sources). */
+  private readonly composeContent = computed(() => this.source() === 'image' ? this.generatedCompose() : this.compose());
 
   ngOnInit() {
-    // Offer online nodes as deploy targets; if none are connected the selector stays hidden.
-    this.nodesService.apiNodesGet().subscribe({
-      next: nodes => this.nodes.set(nodes.filter(n => n.online)),
-      error: () => this.nodes.set([])
-    });
-
     this.gitCredentialsService.listGitCredentials().subscribe({
       next: credentials => this.gitCredentials.set(credentials),
-      error: () => this.gitCredentials.set([])
+      error: () => this.gitCredentials.set([]),
     });
-
-    // Setup path autocomplete
-    this.pathValue.set(this.projectOriginFormGroup.get('path')?.value || '');
-    this.projectOriginFormGroup.get('path')?.valueChanges.subscribe(val => {
-      this.pathValue.set(val || '');
+    this.nodesService.apiNodesGet().subscribe({
+      next: nodes => this.allNodes.set(nodes),
+      error: () => this.allNodes.set([]),
     });
-
-    // Initial validation setup
-    this.updateValidationForOriginType(ProjectOriginType.Compose);
-    // Initialize validation for preselected webhook
-    this.updateValidationForUpdateMethod(ProjectUpdateMethod.Webhook);
-    this.updateValidationStates();
-
-    // Listen for form validation changes
-    this.projectInformationFormGroup.statusChanges.subscribe(() => {
-      this.updateValidationStates();
-    });
-
-    this.projectOriginFormGroup.statusChanges.subscribe(() => {
-      this.updateValidationStates();
-    });
-
-    this.updateMethodFormGroup.statusChanges.subscribe(() => {
-      this.updateValidationStates();
-    });
-
-    // Listen for origin type changes
-    this.projectOriginFormGroup.get('originType')?.valueChanges.subscribe(originType => {
-      this.updateValidationForOriginType(originType);
-    });
-
-    // Listen for update method changes
-    this.updateMethodFormGroup.get('updateMethod')?.valueChanges.subscribe(updateMethod => {
-      this.updateValidationForUpdateMethod(updateMethod);
-    });
+    // Fresh list of running projects for the "existing" source.
+    this.projectStore.loadContainers();
   }
 
-  private updateValidationForOriginType(originType: ProjectOriginType) {
-    const originControls = this.projectOriginFormGroup.controls;
-
-    // Clear all validators first
-    originControls['gitUrl'].clearValidators();
-    originControls['composeContent'].clearValidators();
-    originControls['path'].clearValidators();
-
-    // Reset values for unused fields (but don't call updateValueAndValidity yet)
-    originControls['gitUrl'].setValue('', { emitEvent: false });
-    originControls['composeContent'].setValue('', { emitEvent: false });
-    originControls['path'].setValue('', { emitEvent: false });
-
-    // Reset update method form when origin type changes, but keep webhook preselected
-    this.updateMethodFormGroup.get('updateMethod')?.setValue(ProjectUpdateMethod.Webhook, { emitEvent: false });
-    this.updateMethodFormGroup.get('periodicInterval')?.setValue('', { emitEvent: false });
-
-    // Apply validators based on origin type
-    switch (originType) {
-      case ProjectOriginType.Import:
-        originControls['path'].setValidators([Validators.required]);
-        break;
-
-      case ProjectOriginType.Compose:
-        originControls['composeContent'].setValidators([Validators.required]);
-        break;
-
-      case ProjectOriginType.Git:
-        originControls['gitUrl'].setValidators([Validators.required]);
-        break;
-    }
-
-    // Always require update method selection
-    this.updateMethodFormGroup.get('updateMethod')?.setValidators([Validators.required]);
-
-    // Update validity for relevant controls only
-    originControls['gitUrl'].updateValueAndValidity();
-    originControls['composeContent'].updateValueAndValidity();
-    originControls['path'].updateValueAndValidity();
-    this.updateMethodFormGroup.get('updateMethod')?.updateValueAndValidity();
-
-    // Initialize validation for the preselected webhook
-    this.updateValidationForUpdateMethod(ProjectUpdateMethod.Webhook);
-
-    // Update validation states
-    setTimeout(() => this.updateValidationStates(), 0);
+  hostName(nodeId?: string | null): string {
+    if (!nodeId) return 'Local (this host)';
+    return this.allNodes().find(n => n.id === nodeId)?.name ?? 'Node';
   }
 
-  private updateValidationForUpdateMethod(updateMethod: ProjectUpdateMethod) {
-    const intervalControl = this.updateMethodFormGroup.get('periodicInterval');
-
-    // Clear validators
-    intervalControl?.clearValidators();
-
-    // Reset values
-    intervalControl?.setValue('', { emitEvent: false });
-
-    // Apply validators based on update method
-    switch (updateMethod) {
-      case ProjectUpdateMethod.Periodically:
-        intervalControl?.setValidators([Validators.required, Validators.min(1)]);
-        break;
-
-      case ProjectUpdateMethod.Manual:
-        // No additional validation needed
-        break;
-    }
-
-    // Update validity
-    intervalControl?.updateValueAndValidity();
-
-    // Update validation states
-    setTimeout(() => this.updateValidationStates(), 0);
+  adoptKey(p: ProjectDto): string {
+    return `${p.nodeId ?? ''}/${p.dockerProjectName}`;
   }
 
-  private updateValidationStates() {
-    // Step 1 validation
-    this.isStep1Valid.set(this.projectInformationFormGroup.valid);
-
-    // Step 2 validation
-    const originType = this.projectOriginFormGroup.get('originType')?.value;
-    let step2Valid = false;
-
-    switch (originType) {
-      case ProjectOriginType.Import:
-        step2Valid = !!this.projectOriginFormGroup.get('path')?.valid;
-        break;
-      case ProjectOriginType.Compose:
-        step2Valid = !!this.projectOriginFormGroup.get('composeContent')?.valid;
-        break;
-      case ProjectOriginType.Git:
-        step2Valid =
-          !!this.projectOriginFormGroup.get('gitUrl')?.valid &&
-          !!this.projectOriginFormGroup.get('composeContent')?.valid;
-        break;
-      default:
-        step2Valid = false;
-    }
-    this.isStep2Valid.set(step2Valid);
-
-    // Step 3 validation - always validate update method
-    const updateMethod = this.updateMethodFormGroup.get('updateMethod')?.value;
-    let step3Valid = false;
-
-    if (!updateMethod) {
-      step3Valid = false;
-    } else {
-      switch (updateMethod) {
-        case ProjectUpdateMethod.Webhook:
-          step3Valid = true; // DockiUp generates the webhook URL and secret
-          break;
-        case ProjectUpdateMethod.Periodically:
-          step3Valid = !!this.updateMethodFormGroup.get('periodicInterval')?.valid;
-          break;
-        case ProjectUpdateMethod.Manual:
-          step3Valid = true;
-          break;
-        default:
-          step3Valid = false;
-      }
-    }
-    this.isStep3Valid.set(step3Valid);
+  setSource(source: Source) {
+    this.source.set(source);
+    this.error.set(null);
+    this.validation.set(null);
   }
+
+  // ---- Git ----
+
+  /** A different credential can make a private repo readable: inspect again. */
+  changeCredential(id: string) {
+    this.gitCredentialId.set(id);
+    if (this.gitUrl().trim()) this.inspect();
+  }
+
+  async inspect(branch?: string) {
+    const url = this.gitUrl().trim();
+    if (!url) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const repo = await firstValueFrom(this.projectService.inspectRepository({ gitUrl: url, branch: branch ?? null, gitCredentialId: this.gitCredentialId() || null }));
+      this.repo.set(repo);
+      this.inspectedUrl.set(url);
+      this.branch.set(repo.branch);
+      this.composeFile.set(repo.defaultComposeFile ?? '');
+      this.validation.set(null);
+      if (!this.projectName()) this.projectName.set(this.nameFromUrl(url));
+    } catch (err) {
+      this.repo.set(null);
+      this.error.set(errorMessage(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  changeBranch(branch: string) {
+    if (branch !== this.branch()) this.inspect(branch);
+  }
+
+  private nameFromUrl(url: string): string {
+    const last = url.replace(/\/+$/, '').split(/[/:]/).pop() ?? '';
+    return last.replace(/\.git$/, '').replace(/[^A-Za-z0-9 _-]/g, '-').replace(/^[^A-Za-z0-9]+/, '').slice(0, 100);
+  }
+
+  // ---- Compose ----
+
+  async uploadCompose(event: Event) {
+    const text = await this.readUpload(event, ['.yml', '.yaml'], MAX_COMPOSE_CHARS, 'compose file');
+    if (text !== null) {
+      this.compose.set(text);
+      this.composeMode.set('editor');
+    }
+  }
+
+  async convertDockerRun() {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const result = await firstValueFrom(this.projectService.convertDockerRun({ command: this.dockerRun() }));
+      this.compose.set(result.compose);
+      this.conversionWarnings.set(result.warnings);
+      this.composeMode.set('editor');
+    } catch (err) {
+      this.error.set(errorMessage(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  // ---- Image ----
+
+  private async generateImageCompose(): Promise<boolean> {
+    const lines = (text: string) => text.split('\n').map(l => l.trim()).filter(Boolean);
+    try {
+      const result = await firstValueFrom(this.projectService.generateImageCompose({
+        image: this.image().trim(),
+        tag: this.tag().trim() || null,
+        ports: lines(this.ports()),
+        volumes: lines(this.volumes()),
+        environment: lines(this.environment()),
+        restart: this.restart() || null,
+      }));
+      this.generatedCompose.set(result.compose);
+      return true;
+    } catch (err) {
+      this.error.set(errorMessage(err));
+      return false;
+    }
+  }
+
+  // ---- .env ----
+
+  async uploadEnv(event: Event) {
+    const text = await this.readUpload(event, ['.env', '.txt', ''], MAX_ENV_CHARS, '.env file');
+    if (text !== null) this.envFile.set(text);
+  }
+
+  private async readUpload(event: Event, extensions: string[], maxChars: number, what: string): Promise<string | null> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // picking the same file again should fire again
+    if (!file) return null;
+    const dot = file.name.lastIndexOf('.');
+    const ext = dot > 0 ? file.name.slice(dot).toLowerCase() : file.name.startsWith('.') ? file.name.toLowerCase() : '';
+    if (!extensions.includes(ext)) {
+      this.error.set(`${file.name} is not a ${what} (${extensions.filter(Boolean).join(', ')}).`);
+      return null;
+    }
+    if (file.size > maxChars * 4) {
+      this.error.set(`${file.name} is too large (max ${Math.round(maxChars / 1000)} KB).`);
+      return null;
+    }
+    const text = await file.text();
+    if (text.length > maxChars) {
+      this.error.set(`${file.name} is too large (max ${Math.round(maxChars / 1000)} KB).`);
+      return null;
+    }
+    this.error.set(null);
+    return text;
+  }
+
+  // ---- Navigation ----
+
+  async next() {
+    const index = this.stepper().selectedIndex;
+    this.error.set(null);
+    if (index === 0 && this.source() === 'image') {
+      this.busy.set(true);
+      const ok = await this.generateImageCompose();
+      this.busy.set(false);
+      if (!ok) return;
+    }
+    // The stepper is linear: let the [completed] bindings settle before moving on.
+    setTimeout(() => this.stepper().next());
+  }
+
+  // Anything may have changed on the way back and forth: always re-check on reaching the review.
+  onStepChange(index: number) {
+    if (index === 3) this.validate();
+  }
+
+  async validate() {
+    if (this.source() === 'existing') return;
+    const run = ++this.validationRun; // only the latest run may report
+    this.validating.set(true);
+    this.validation.set(null);
+    try {
+      const git = this.source() === 'git';
+      const result = await firstValueFrom(this.projectService.validateCompose({
+        nodeId: this.nodeId() || null,
+        compose: git ? null : this.composeContent(),
+        envFile: this.envFile() || null,
+        gitUrl: git ? this.gitUrl().trim() : null,
+        gitCredentialId: git ? this.gitCredentialId() || null : null,
+        branch: git ? this.branch() : null,
+        composeFile: git ? this.composeFile() : null,
+      }));
+      if (run === this.validationRun) this.validation.set(result);
+    } catch (err) {
+      if (run === this.validationRun) this.validation.set({ valid: false, errors: [errorMessage(err)], warnings: [], services: [] });
+    } finally {
+      if (run === this.validationRun) this.validating.set(false);
+    }
+  }
+  private validationRun = 0;
 
   cancel() {
     this.dialogRef.close();
   }
 
-  finish() {
-    if (!this.isStep1Valid() || !this.isStep2Valid() || !this.isStep3Valid()) {
-      return;
+  async create() {
+    if (!this.canCreate()) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const periodic = this.updateMethod() === ProjectUpdateMethod.Periodically ? Number(this.interval()) : null;
+      if (this.source() === 'existing') {
+        const project = this.existing()!;
+        const adopted = await firstValueFrom(this.projectService.adoptProject({
+          dockerProjectName: project.dockerProjectName,
+          nodeId: project.nodeId ?? null,
+          description: this.description().trim() || null,
+          projectUpdateMethod: this.updateMethod(),
+          periodicIntervalInMinutes: periodic,
+        }));
+        await this.projectStore.loadContainers();
+        this.dialogRef.close({ dockerProjectName: adopted.dockerProjectName });
+        return;
+      }
+
+      const git = this.source() === 'git';
+      const dto: SetupProjectDto = {
+        projectName: this.projectName().trim(),
+        description: this.description().trim() || null,
+        nodeId: this.nodeId() || null,
+        projectOrigin: git ? ProjectOriginType.Git : ProjectOriginType.Compose,
+        gitUrl: git ? this.gitUrl().trim() : null,
+        gitCredentialId: git ? this.gitCredentialId() || null : null,
+        branch: git ? this.branch() : null,
+        composeFile: git ? this.composeFile() : null,
+        compose: git ? null : this.composeContent(),
+        envFile: this.envFile() || null,
+        projectUpdateMethod: this.updateMethod(),
+        periodicIntervalInMinutes: periodic,
+      };
+      if (await this.projectStore.deployProject(dto))
+        this.dialogRef.close({ dockerProjectName: dto.projectName.toLowerCase().replace(/\s+/g, '') });
+    } catch (err) {
+      this.error.set(errorMessage(err));
+    } finally {
+      this.busy.set(false);
     }
-
-    const info = this.projectInformationFormGroup.value;
-    const origin = this.projectOriginFormGroup.value;
-    const update = this.updateMethodFormGroup.value;
-
-    const result: SetupProjectDto = {
-      projectName: info.projectName ?? null,
-      description: info.description ?? null,
-      nodeId: info.nodeId || null,
-      projectOrigin: origin.originType,
-      gitUrl: origin.originType === ProjectOriginType.Git ? origin.gitUrl ?? null : null,
-      // Git projects use the repo's own compose file; compose projects send the pasted content.
-      branch: origin.originType === ProjectOriginType.Git ? origin.branch?.trim() || null : null,
-      composeFile: origin.originType === ProjectOriginType.Git ? origin.composeFile?.trim() || null : null,
-      gitCredentialId: origin.originType === ProjectOriginType.Git ? origin.gitCredentialId || null : null,
-      compose: origin.originType === ProjectOriginType.Compose ? origin.composeContent ?? null : null,
-      path: origin.originType === ProjectOriginType.Import ? origin.path ?? null : null,
-      projectUpdateMethod: update.updateMethod,
-      periodicIntervalInMinutes: update.updateMethod === ProjectUpdateMethod.Periodically
-        ? (update.periodicInterval ? Number(update.periodicInterval) : null)
-        : null
-    };
-
-    this.dialogRef.close(result);
   }
 }

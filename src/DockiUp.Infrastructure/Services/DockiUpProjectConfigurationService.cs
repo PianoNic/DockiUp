@@ -80,5 +80,59 @@ namespace DockiUp.Infrastructure.Services
                 };
 
         private static string Short(string? sha) => sha is null ? "(none)" : sha[..Math.Min(7, sha.Length)];
+
+        public Task<RepositoryInspectionDto> InspectRepositoryAsync(string gitUrl, string? branch, CancellationToken cancellationToken = default, GitCredentials? credentials = null) => Task.Run(() =>
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "dockiup-inspect-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                try
+                {
+                    Repository.Clone(gitUrl, dir, InspectCloneOptions(branch, credentials));
+                }
+                catch (LibGit2SharpException ex)
+                {
+                    throw new ArgumentException(
+                        $"Could not read the repository (unreachable, misspelled, or private - only public repositories are supported for now): {ex.Message}", ex);
+                }
+
+                using var repo = new Repository(dir);
+                const string remotePrefix = "origin/";
+                var branches = repo.Branches
+                    .Where(b => b.IsRemote && b.FriendlyName.StartsWith(remotePrefix) && b.FriendlyName != "origin/HEAD")
+                    .Select(b => b.FriendlyName[remotePrefix.Length..])
+                    .Order(StringComparer.Ordinal)
+                    .ToArray();
+                // origin/HEAD names the remote's default branch; without it, an unpinned clone is on it anyway.
+                var defaultBranch = (repo.Refs["refs/remotes/origin/HEAD"] as SymbolicReference)?.Target.CanonicalName
+                    .Replace("refs/remotes/origin/", "")
+                    ?? (branch is null ? repo.Head.FriendlyName : null);
+
+                var composeFiles = DockiUp.Application.Compose.ComposeFiles.Find(dir);
+                return new RepositoryInspectionDto(repo.Head.FriendlyName, defaultBranch, branches, composeFiles,
+                    DockiUp.Application.Compose.ComposeFiles.DefaultFile(composeFiles.Select(f => f.Path).ToArray()));
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(dir))
+                    {
+                        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                            File.SetAttributes(file, FileAttributes.Normal); // pack files are read-only
+                        Directory.Delete(dir, recursive: true);
+                    }
+                }
+                catch { /* best effort: it's a temp folder */ }
+            }
+        }, cancellationToken);
+
+        // The one place inspection builds its clone options, including credentials for private repos.
+        private static CloneOptions InspectCloneOptions(string? branch, GitCredentials? credentials)
+        {
+            var options = new CloneOptions { BranchName = string.IsNullOrWhiteSpace(branch) ? null : branch };
+            options.FetchOptions.CredentialsProvider = CredentialsProvider(credentials);
+            return options;
+        }
     }
 }

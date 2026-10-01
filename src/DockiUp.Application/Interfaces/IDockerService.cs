@@ -53,5 +53,10 @@ namespace DockiUp.Application.Interfaces
         /// <c>--env-file</c>. No secrets removes the generated file, so compose falls back to plain <c>.env</c>.
         /// Runs where the project lives; values are never logged.</summary>
         Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default);
+
+        /// <summary>`docker compose config` on this host for a compose file that isn't a project yet
+        /// (inline, or from a git repo cloned to a temp folder). Never throws for a bad file: the problems
+        /// come back as errors.</summary>
+        Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default);
     }
 }

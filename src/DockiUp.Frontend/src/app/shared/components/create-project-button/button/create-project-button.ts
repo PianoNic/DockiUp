@@ -6,8 +6,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { CreateProjectModal } from '../create-project-modal/create-project-modal';
-import { ProjectService, SetupProjectDto } from '../../../../api';
+import { CreateProjectModal, CreateProjectResult } from '../create-project-modal/create-project-modal';
+import { ProjectService } from '../../../../api';
 import { firstValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ProjectStore } from '../../../stores/project.store';
@@ -35,14 +35,11 @@ export class CreateProjectButton {
   ) { }
 
   async openCreateDialog() {
-    const dialogRef = this.dialog.open(CreateProjectModal, { minWidth: '750px' });
+    const dialogRef = this.dialog.open(CreateProjectModal, { width: '920px', maxWidth: '95vw' });
 
-    dialogRef.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (result: SetupProjectDto | undefined) => {
-      // Open the new project right away: its first deployment streams live there.
-      if (result && await this.projectStore.deployProject(result)) {
-        const dockerName = result.projectName.toLowerCase().replace(/\s+/g, '');
-        await this.router.navigate(['/project', dockerName]);
-      }
+    // The dialog creates (or adopts) the project itself; open it right away: its first deployment streams there.
+    dialogRef.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (result: CreateProjectResult | undefined) => {
+      if (result) await this.router.navigate(['/project', result.dockerProjectName]);
     });
   }
 }

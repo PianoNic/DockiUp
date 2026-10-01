@@ -95,6 +95,7 @@ public class WriteEnvFileTests : IDisposable
     [Fact]
     public async Task Writes_MergedEnvFile_AndComposeGetsIt()
     {
+        File.WriteAllText(Compose, "services: {}");
         File.WriteAllText(Path.Combine(_project, ".env"), "PORT=80\nDB_PASSWORD=old\n");
 
         await _docker.WriteEnvFileAsync(_project, Compose, new Dictionary<string, string> { ["DB_PASSWORD"] = "new" });
@@ -112,11 +113,35 @@ public class WriteEnvFileTests : IDisposable
     [Fact]
     public async Task NoSecrets_RemovesGeneratedFile_SoComposeUsesPlainDotEnv()
     {
+        File.WriteAllText(Compose, "services: {}");
         await _docker.WriteEnvFileAsync(_project, Compose, new Dictionary<string, string> { ["A"] = "1" });
         await _docker.WriteEnvFileAsync(_project, Compose, new Dictionary<string, string>());
 
         Assert.False(File.Exists(Generated));
         Assert.Equal(["-p", "app", "-f", Compose], DockerService.ComposeProjectArgs(new ComposeTarget(_project, Compose, "app")));
+
+        // With no generated file, a plain .env next to the compose file is what compose gets.
+        var dotEnv = Path.Combine(_project, ".env");
+        File.WriteAllText(dotEnv, "PORT=80\n");
+        Assert.Equal(["-p", "app", "-f", Compose, "--env-file", dotEnv], DockerService.ComposeProjectArgs(new ComposeTarget(_project, Compose, "app")));
+    }
+
+    [Fact]
+    public async Task AdoptedProjectOutsideTheRoot_DeploysWithoutSecrets_ButRefusesToWriteThem()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), "agenttest-adopted-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        try
+        {
+            var a = Path.Combine(outside, "compose.yml");
+            var b = Path.Combine(outside, "compose.prod.yml");
+            // Adopted projects record several compose files, comma-separated, outside the projects root.
+            await _docker.WriteEnvFileAsync(outside, $"{a},{b}", new Dictionary<string, string>()); // no-op, no throw
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                _docker.WriteEnvFileAsync(outside, $"{a},{b}", new Dictionary<string, string> { ["X"] = "1" }));
+            Assert.Empty(Directory.EnumerateFiles(outside));
+        }
+        finally { Directory.Delete(outside, true); }
     }
 
     [Fact]

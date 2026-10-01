@@ -82,5 +82,9 @@ namespace DockiUp.API.Nodes
         // Secret values travel only inside the invocation payload; the node writes the file on its own disk.
         public Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
             => Node().InvokeAsync<bool>("WriteEnvFile", projectPath, composePath, new Dictionary<string, string>(secrets), cancellationToken);
+
+        // New project flow: validate where the project will run (the node's compose version and filesystem).
+        public Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<ComposeValidationDto>("ValidateCompose", request, cancellationToken);
     }
 }

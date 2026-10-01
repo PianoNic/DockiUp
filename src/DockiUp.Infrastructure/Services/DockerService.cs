@@ -29,6 +29,7 @@ namespace DockiUp.Infrastructure.Services
         {
             var containers = await _dockiUpDockerClient.DockerClient.Containers
                 .ListContainersAsync(new ContainersListParameters { All = true });
+            var composeFiles = ComposeFileLabels(containers);
 
             return containers
                 .Select(container =>
@@ -62,7 +63,11 @@ namespace DockiUp.Infrastructure.Services
                     DockerProjectName = group.Key,
                     Containers = group.ToArray(),
                     ProjectPath = null,
-                    UpdateMethod = null
+                    UpdateMethod = null,
+                    ComposeWorkingDir = composeFiles.GetValueOrDefault(group.Key).WorkingDir,
+                    ComposeConfigFiles = composeFiles.GetValueOrDefault(group.Key).ConfigFiles,
+                    ComposeFilesReachable = composeFiles.GetValueOrDefault(group.Key).ConfigFiles is { } files
+                        && files.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).All(File.Exists),
                 }).ToArray();
         }
 
@@ -161,7 +166,7 @@ namespace DockiUp.Infrastructure.Services
         [ExcludeFromCodeCoverage] // shells out to the `docker compose` CLI; covered by integration/E2E
         public async Task<ComposeUpResult> ComposeUpAsync(ComposeTarget target, Func<string, Task> log, CancellationToken cancellationToken = default)
         {
-            string[] project = ComposeProjectArgs(target);
+            var project = ComposeProjectArgs(target);
             var before = await ProjectContainerIdsAsync(target.DockerProjectName, cancellationToken);
 
             // Pull first, while the old containers still serve traffic. Buildable services are skipped here
@@ -269,30 +274,25 @@ namespace DockiUp.Infrastructure.Services
         }
 
         #region Vault secrets -> env file (#76)
-        // `-p NAME -f FILE`, plus `--env-file` when a deploy generated one (vault secrets mapped).
-        public static string[] ComposeProjectArgs(ComposeTarget target)
-        {
-            var envFile = Path.Combine(target.ProjectPath, Application.Deployments.EnvFile.GeneratedFileName);
-            return File.Exists(envFile)
-                ? ["-p", target.DockerProjectName, "-f", target.ComposePath, "--env-file", envFile]
-                : ["-p", target.DockerProjectName, "-f", target.ComposePath];
-        }
-
         public async Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
         {
             // Paths come from the control plane; still only ever write inside the projects root.
             var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var project = Path.GetFullPath(projectPath);
-            var compose = Path.GetFullPath(composePath);
-            if (!project.StartsWith(root, StringComparison.Ordinal) || !compose.StartsWith(project + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-                throw new ArgumentException($"Refusing to write an env file for '{projectPath}': it is outside the projects folder.");
+            // Adopted projects list several compose files, comma-separated; .env sits next to the first.
+            var compose = Path.GetFullPath(composePath.Split(',')[0].Trim());
+            var insideRoot = project.StartsWith(root, StringComparison.Ordinal)
+                && compose.StartsWith(project + Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
             var target = Path.Combine(project, Application.Deployments.EnvFile.GeneratedFileName);
             if (secrets.Count == 0)
             {
-                File.Delete(target); // no-op when missing
+                // Nothing to write. Adopted projects live outside the projects root; leave their folder alone.
+                if (insideRoot) File.Delete(target); // no-op when missing
                 return;
             }
+            if (!insideRoot)
+                throw new ArgumentException($"Vault secrets can only be used by projects inside DockiUp's projects folder; '{projectPath}' is outside it (an adopted project).");
 
             // compose reads .env from the compose file's folder by default.
             var dotEnv = Path.Combine(Path.GetDirectoryName(compose)!, ".env");
@@ -350,6 +350,115 @@ namespace DockiUp.Infrastructure.Services
             }
 
             return sb.ToString();
+        }
+
+        // ---- New project flow: compose file args, adoption labels, validation ----
+
+        /// <summary>`-p NAME -f FILE...` plus one `--env-file`: the deploy-generated one (the project's .env merged
+        /// with mapped vault secrets, #76) when it exists, otherwise a .env next to the (first) compose file.
+        /// Adopted projects can have several files, comma-separated as compose records them in its labels.
+        /// Throws a clear message when a file isn't reachable from here (an adopted project whose folder is
+        /// not mounted into DockiUp).</summary>
+        public static string[] ComposeProjectArgs(ComposeTarget target)
+        {
+            var files = target.ComposePath.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var args = new List<string> { "-p", target.DockerProjectName };
+            foreach (var file in files)
+            {
+                if (!File.Exists(file))
+                    throw new InvalidOperationException(
+                        $"The compose file {file} is not reachable from DockiUp. Mount its folder into the DockiUp container (at the same path) to deploy this project from here.");
+                args.AddRange(["-f", file]);
+            }
+            var generated = Path.Combine(target.ProjectPath, Application.Deployments.EnvFile.GeneratedFileName);
+            var envFile = File.Exists(generated) ? generated : Application.ProjectPreparer.EnvFilePath(target.ComposePath);
+            if (File.Exists(envFile)) args.AddRange(["--env-file", envFile]);
+            return [.. args];
+        }
+
+        // compose's own labels say where a project's files are: the same on every container of the project.
+        private static Dictionary<string, (string? WorkingDir, string? ConfigFiles)> ComposeFileLabels(IEnumerable<ContainerListResponse> containers)
+            => containers
+                .Where(c => c.Labels.ContainsKey("com.docker.compose.project"))
+                .GroupBy(c => c.Labels["com.docker.compose.project"])
+                .ToDictionary(g => g.Key, g =>
+                {
+                    var labels = g.First().Labels;
+                    labels.TryGetValue("com.docker.compose.project.working_dir", out var workingDir);
+                    labels.TryGetValue("com.docker.compose.project.config_files", out var configFiles);
+                    return (workingDir, configFiles);
+                });
+
+        [ExcludeFromCodeCoverage] // clones and spawns the `docker` CLI; the parsing is unit-tested (ComposeValidation)
+        public async Task<ComposeValidationDto> ValidateComposeAsync(ComposeValidationRequest request, CancellationToken cancellationToken = default)
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "dockiup-validate-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string composePath;
+                if (!string.IsNullOrWhiteSpace(request.GitUrl))
+                {
+                    await _projectFiles.CloneRepositoryAsync(dir, request.GitUrl.Trim(), string.IsNullOrWhiteSpace(request.Branch) ? null : request.Branch.Trim(), request.Credentials);
+                    var file = string.IsNullOrWhiteSpace(request.ComposeFile) ? Application.ProjectPreparer.DefaultRepoComposeFile : request.ComposeFile.Trim();
+                    composePath = Application.ProjectPreparer.ResolveInside(dir, file, "The compose file must be inside the repository.");
+                    if (!File.Exists(composePath))
+                        return new ComposeValidationDto(false, [$"'{file}' was not found in the repository."], [], []);
+                }
+                else
+                {
+                    Directory.CreateDirectory(dir);
+                    composePath = await _projectFiles.WriteComposeFileAsync(dir, request.Compose ?? "");
+                }
+                if (!string.IsNullOrEmpty(request.EnvFile))
+                    await File.WriteAllTextAsync(Application.ProjectPreparer.EnvFilePath(composePath), request.EnvFile, cancellationToken);
+
+                var (exitCode, stdout, stderr) = await RunComposeCaptureAsync(
+                    [.. ComposeProjectArgs(new ComposeTarget(dir, composePath, "dockiup-validate")), "config", "--format", "json"], dir, cancellationToken);
+                // Messages name the temp copy; show paths relative to the project instead.
+                return Application.Compose.ComposeValidation.Parse(exitCode, stdout,
+                    stderr.Replace(dir + Path.DirectorySeparatorChar, "").Replace(dir, "."));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return new ComposeValidationDto(false, [ex.Message], [], []);
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(dir))
+                    {
+                        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                            File.SetAttributes(file, FileAttributes.Normal); // pack files are read-only
+                        Directory.Delete(dir, recursive: true);
+                    }
+                }
+                catch { /* best effort: it's a temp folder */ }
+            }
+        }
+
+        // Like RunComposeAsync, but keeps stdout (the resolved file) apart from stderr (compose's messages).
+        [ExcludeFromCodeCoverage] // spawns the `docker` CLI process
+        private async Task<(int ExitCode, string Stdout, string Stderr)> RunComposeCaptureAsync(string[] args, string workingDirectory, CancellationToken cancellationToken)
+        {
+            var startInfo = new ProcessStartInfo("docker")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = workingDirectory,
+            };
+            foreach (var arg in (string[])["compose", "--ansi", "never", .. args])
+                startInfo.ArgumentList.Add(arg);
+            if (!string.IsNullOrWhiteSpace(_systemPaths.DockerSocket))
+                startInfo.Environment["DOCKER_HOST"] = _systemPaths.DockerSocket;
+
+            using var process = Process.Start(startInfo)!;
+            var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            return (process.ExitCode, await stdout, await stderr);
         }
     }
 }

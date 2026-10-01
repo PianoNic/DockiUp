@@ -1,42 +1,224 @@
-<h2 mat-dialog-title>
-  <span>Create Container</span>
-  <div class="sizer"></div>
-</h2>
+<h2 mat-dialog-title>New project</h2>
 
 <mat-dialog-content>
-  @if(isloading()){
+  @if (busy()) {
   <mat-progress-bar mode="indeterminate" class="progress-bar" />
   }
 
-  <mat-stepper [linear]="true" class="stepper-module" #stepper>
-    <!-- Step 1: Project Information -->
-    <mat-step [stepControl]="projectInformationFormGroup">
-      <ng-template matStepLabel>Project Information</ng-template>
+  <mat-stepper [linear]="true" #stepper (selectionChange)="onStepChange($event.selectedIndex)">
+    <!-- Step 1: what to deploy -->
+    <mat-step [completed]="sourceValid()">
+      <ng-template matStepLabel>Source</ng-template>
 
-      <form [formGroup]="projectInformationFormGroup" class="form-content">
-        <mat-form-field appearance="outline" class="full-width">
+      <div class="source-grid" role="radiogroup" aria-label="Source">
+        <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'git'"
+          [class.selected]="source() === 'git'" (click)="setSource('git')">
+          <mat-icon>commit</mat-icon>
+          <span class="title">Git repository</span>
+          <span class="hint">Deploy a compose file from a repo; redeploys on new commits</span>
+        </button>
+        <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'compose'"
+          [class.selected]="source() === 'compose'" (click)="setSource('compose')">
+          <mat-icon>description</mat-icon>
+          <span class="title">Compose</span>
+          <span class="hint">Write or upload a compose file, or convert a docker run command</span>
+        </button>
+        <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'image'"
+          [class.selected]="source() === 'image'" (click)="setSource('image')">
+          <mat-icon>deployed_code</mat-icon>
+          <span class="title">Image</span>
+          <span class="hint">Run a single image with ports, volumes and environment</span>
+        </button>
+        <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'existing'"
+          [class.selected]="source() === 'existing'" (click)="setSource('existing')">
+          <mat-icon>move_down</mat-icon>
+          <span class="title">Existing on a host</span>
+          <span class="hint">Adopt a running compose project in place, nothing is moved or restarted</span>
+        </button>
+      </div>
+
+      @switch (source()) {
+      @case ('git') {
+      <div class="row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Repository URL</mat-label>
+          <input matInput type="url" placeholder="https://github.com/owner/repo.git" [value]="gitUrl()"
+            (input)="gitUrl.set($any($event.target).value)" (keydown.enter)="inspect()" (blur)="gitUrl().trim() !== inspectedUrl() && inspect()">
+          <mat-hint>For a private repository, pick its credential first</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="credential">
+          <mat-label>Credential</mat-label>
+          <mat-select [value]="gitCredentialId()" (selectionChange)="changeCredential($event.value)" [disabled]="busy()">
+            <mat-option value="">None (public)</mat-option>
+            @for (c of gitCredentials(); track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button mat-icon-button type="button" class="row-button" (click)="inspect()" [disabled]="busy() || !gitUrl().trim()"
+          matTooltip="Load branches and compose files" aria-label="Load branches and compose files">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+
+      @if (repo(); as r) {
+      <div class="row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Branch</mat-label>
+          <mat-select [value]="branch()" (selectionChange)="changeBranch($event.value)" [disabled]="busy()">
+            @for (b of r.branches; track b) {
+            <mat-option [value]="b">{{ b }}@if (b === r.defaultBranch) { <span class="muted"> (default)</span> }</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Compose file</mat-label>
+          <mat-select [value]="composeFile()" (selectionChange)="composeFile.set($event.value)" [disabled]="busy() || r.composeFiles.length === 0">
+            @for (f of r.composeFiles; track f.path) {
+            <mat-option [value]="f.path">{{ f.path }}</mat-option>
+            }
+          </mat-select>
+          @if (r.composeFiles.length === 0) {
+          <mat-hint class="warn-text">No compose files on this branch</mat-hint>
+          }
+        </mat-form-field>
+      </div>
+
+      @if (selectedComposeFile(); as f) {
+      <div class="services">
+        <span class="muted">Services</span>
+        @for (s of f.services; track s) { <span class="chip">{{ s }}</span> } @empty { <span class="muted">none</span> }
+      </div>
+      <pre class="code">{{ f.content }}</pre>
+      }
+      }
+      }
+
+      @case ('compose') {
+      <div class="row toolbar">
+        <mat-button-toggle-group [value]="composeMode()" (change)="composeMode.set($event.value)" aria-label="Compose input" hideSingleSelectionIndicator>
+          <mat-button-toggle value="editor">Editor</mat-button-toggle>
+          <mat-button-toggle value="run">docker run</mat-button-toggle>
+        </mat-button-toggle-group>
+        @if (composeMode() === 'editor') {
+        <button mat-button type="button" (click)="composeUpload.click()" matTooltip="Load a .yml or .yaml file into the editor">
+          <mat-icon>upload_file</mat-icon>Upload
+        </button>
+        <input #composeUpload type="file" accept=".yml,.yaml" hidden (change)="uploadCompose($event)">
+        }
+      </div>
+
+      @if (composeMode() === 'editor') {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Compose file</mat-label>
+        <textarea matInput class="mono" rows="12" placeholder="services:&#10;  web:&#10;    image: nginx" [value]="compose()"
+          (input)="compose.set($any($event.target).value)"></textarea>
+        <mat-hint align="end">{{ compose().length }} / 100000</mat-hint>
+      </mat-form-field>
+      @for (w of conversionWarnings(); track $index) {
+      <p class="message warn"><mat-icon>warning</mat-icon>{{ w }}</p>
+      }
+      } @else {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>docker run command</mat-label>
+        <textarea matInput class="mono" rows="6" placeholder="docker run -d --name web -p 8080:80 nginx" [value]="dockerRun()"
+          (input)="dockerRun.set($any($event.target).value)"></textarea>
+      </mat-form-field>
+      <button mat-flat-button type="button" (click)="convertDockerRun()" [disabled]="busy() || !dockerRun().trim()">
+        <mat-icon>transform</mat-icon>Convert to compose
+      </button>
+      }
+      }
+
+      @case ('image') {
+      <div class="row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Image</mat-label>
+          <input matInput placeholder="nginx or ghcr.io/owner/app" [value]="image()" (input)="image.set($any($event.target).value)">
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="narrow">
+          <mat-label>Tag</mat-label>
+          <input matInput placeholder="latest" [value]="tag()" (input)="tag.set($any($event.target).value)">
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="narrow">
+          <mat-label>Restart</mat-label>
+          <mat-select [value]="restart()" (selectionChange)="restart.set($event.value)">
+            @for (r of restartPolicies; track r) { <mat-option [value]="r">{{ r || 'default' }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="row">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Ports</mat-label>
+          <textarea matInput class="mono" rows="3" placeholder="8080:80" [value]="ports()" (input)="ports.set($any($event.target).value)"></textarea>
+          <mat-hint>One per line, host:container</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Volumes</mat-label>
+          <textarea matInput class="mono" rows="3" placeholder="./data:/data" [value]="volumes()" (input)="volumes.set($any($event.target).value)"></textarea>
+          <mat-hint>One per line, source:target[:ro]</mat-hint>
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Environment</mat-label>
+        <textarea matInput class="mono" rows="3" placeholder="TZ=Europe/Zurich" [value]="environment()" (input)="environment.set($any($event.target).value)"></textarea>
+        <mat-hint>One KEY=value per line. Secrets fit better in the .env on the next step.</mat-hint>
+      </mat-form-field>
+      }
+
+      @case ('existing') {
+      @if (adoptable().length === 0) {
+      <p class="muted empty">No unmanaged compose projects are running on this host or on any online node.</p>
+      } @else {
+      <mat-radio-group class="adopt-list" [value]="existingName()" (change)="existingName.set($event.value)" aria-label="Project to adopt">
+        @for (p of adoptable(); track adoptKey(p)) {
+        <mat-radio-button [value]="adoptKey(p)" [disabled]="!p.composeWorkingDir" class="adopt-option">
+          <span class="adopt-name">{{ p.dockerProjectName }}</span>
+          <span class="muted"> on {{ hostName(p.nodeId) }} · {{ p.containers.length }} container{{ p.containers.length === 1 ? '' : 's' }}</span>
+          @if (!p.composeWorkingDir) {
+          <span class="adopt-path warn-text">Not started by docker compose v2: its files are unknown</span>
+          } @else {
+          <span class="adopt-path mono">{{ p.composeWorkingDir }}</span>
+          @if (!p.composeFilesReachable) {
+          <mat-icon class="warn-icon" matTooltip="DockiUp can't read these files from where it runs. Adopting works; deploys need the folder mounted into DockiUp at the same path."
+            aria-label="Files not reachable from DockiUp">warning</mat-icon>
+          }
+          }
+        </mat-radio-button>
+        }
+      </mat-radio-group>
+      }
+      }
+      }
+
+      @if (error(); as err) {
+      <p class="message error"><mat-icon>error</mat-icon>{{ err }}</p>
+      }
+    </mat-step>
+
+    <!-- Step 2: where & environment -->
+    <mat-step [completed]="sourceValid() && whereValid()">
+      <ng-template matStepLabel>Where &amp; environment</ng-template>
+
+      @if (source() === 'existing') {
+      @if (existing(); as p) {
+      <p class="muted">{{ p.dockerProjectName }} stays where it is, on {{ hostName(p.nodeId) }}, with its own environment.</p>
+      }
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Description</mat-label>
+        <input matInput [value]="description()" (input)="description.set($any($event.target).value)" maxlength="500">
+      </mat-form-field>
+      } @else {
+      <div class="row">
+        <mat-form-field appearance="outline" class="grow">
           <mat-label>Project Name</mat-label>
-          <input matInput placeholder="Project Name" formControlName="projectName" required maxlength="100">
-          @if (projectInformationFormGroup.get('projectName')?.hasError('required')) {
-          <mat-error>Project name is required</mat-error>
-          }
-          @if (projectInformationFormGroup.get('projectName')?.hasError('pattern')) {
-          <mat-error>Letters, digits, spaces, - and _ only; start with a letter or digit</mat-error>
-          }
-          @if (projectInformationFormGroup.get('projectName')?.hasError('maxlength')) {
-          <mat-error>Project name must be 100 characters or less</mat-error>
-          }
+          <input matInput [value]="projectName()" (input)="projectName.set($any($event.target).value)" maxlength="100" required>
+          @if (nameError(); as e) { <mat-hint class="warn-text">{{ e }}</mat-hint> }
         </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Description</mat-label>
-          <textarea matInput placeholder="Describe your project" rows="5" formControlName="description"></textarea>
-        </mat-form-field>
-
         @if (nodes().length > 0) {
-        <mat-form-field appearance="outline" class="full-width">
+        <mat-form-field appearance="outline" class="grow">
           <mat-label>Deploy to</mat-label>
-          <mat-select formControlName="nodeId">
+          <mat-select [value]="nodeId()" (selectionChange)="nodeId.set($event.value)">
             <mat-option [value]="''">Local (this host)</mat-option>
             @for (node of nodes(); track node.id) {
             <mat-option [value]="node.id">{{ node.name }}</mat-option>
@@ -44,169 +226,152 @@
           </mat-select>
         </mat-form-field>
         }
-      </form>
+      </div>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Description</mat-label>
+        <input matInput [value]="description()" (input)="description.set($any($event.target).value)" maxlength="500">
+      </mat-form-field>
+
+      <div class="row toolbar">
+        <span class="section-title">.env <span class="muted">(optional)</span></span>
+        <button mat-button type="button" (click)="envUpload.click()" matTooltip="Load a .env file">
+          <mat-icon>upload_file</mat-icon>Upload
+        </button>
+        <input #envUpload type="file" hidden (change)="uploadEnv($event)">
+      </div>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Environment variables</mat-label>
+        <textarea matInput class="mono" rows="8" placeholder="POSTGRES_PASSWORD=change-me" [value]="envFile()"
+          (input)="envFile.set($any($event.target).value)"></textarea>
+        <mat-hint>Written as .env next to the compose file and passed with --env-file; ${{ '{' }}VAR{{ '}' }} in the compose file resolves from it.</mat-hint>
+      </mat-form-field>
+      }
+
+      @if (error(); as err) {
+      <p class="message error"><mat-icon>error</mat-icon>{{ err }}</p>
+      }
     </mat-step>
 
-    <!-- Step 2: Deployment Method -->
-    <mat-step [stepControl]="projectOriginFormGroup">
-      <ng-template matStepLabel>Deployment Method</ng-template>
+    <!-- Step 3: updates -->
+    <mat-step [completed]="sourceValid() && whereValid() && updatesValid()">
+      <ng-template matStepLabel>Updates</ng-template>
+      <mat-radio-group class="update-method-group" [value]="updateMethod()" (change)="updateMethod.set($event.value)">
+        <mat-radio-button [value]="ProjectUpdateMethod.Webhook" class="update-method-option">
+          <div class="radio-content">
+            <h3>Use Webhook (Recommended)</h3>
+            <p>Your git provider (or anything that can send a request) notifies DockiUp, and it redeploys right away.</p>
+          </div>
+        </mat-radio-button>
+        <mat-radio-button [value]="ProjectUpdateMethod.Manual" class="update-method-option">
+          <div class="radio-content">
+            <h3>Update Manually</h3>
+            <p>Deploy from the project page whenever you want.</p>
+          </div>
+        </mat-radio-button>
+        <mat-radio-button [value]="ProjectUpdateMethod.Periodically" class="update-method-option">
+          <div class="radio-content">
+            <h3>Check Periodically</h3>
+            <p>DockiUp checks for new commits (or newer images) at an interval and redeploys only when something changed.</p>
+          </div>
+        </mat-radio-button>
+      </mat-radio-group>
 
-      <form [formGroup]="projectOriginFormGroup" class="form-content">
-        <mat-radio-group formControlName="originType" class="update-method-group">
-          <mat-radio-button [value]="ProjectOriginType.Compose" class="update-method-option">
-            <div class="radio-content">
-              <h3>Compose File (Recommended)</h3>
-              <p>Define your application using a compose file</p>
-            </div>
-          </mat-radio-button>
-
-          <mat-radio-button [value]="ProjectOriginType.Git" class="update-method-option">
-            <div class="radio-content">
-              <h3>Git URL</h3>
-              <p>Clone your project directly from a Git URL</p>
-            </div>
-          </mat-radio-button>
-
-          <mat-radio-button [value]="ProjectOriginType.Import" class="update-method-option">
-            <div class="radio-content">
-              <h3>Import Existing Project</h3>
-              <p>Use a project already located on your server</p>
-            </div>
-          </mat-radio-button>
-        </mat-radio-group>
-
-        <!-- Git URL Input -->
-        @if (projectOriginFormGroup.get('originType')?.value === ProjectOriginType.Git) {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Git URL</mat-label>
-          <input matInput placeholder="Enter Git repository URL" formControlName="gitUrl" required type="url">
-          @if (projectOriginFormGroup.get('gitUrl')?.hasError('required')) {
-          <mat-error>Git URL is required</mat-error>
-          }
-        </mat-form-field>
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Branch</mat-label>
-            <input matInput placeholder="Repository default" formControlName="branch">
-            <mat-hint>Leave empty to track the repository's default branch</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Compose file in repository</mat-label>
-            <input matInput placeholder="docker-compose.yml" formControlName="composeFile">
-            <mat-hint>Relative to the repository root</mat-hint>
-          </mat-form-field>
-        </div>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Git credential</mat-label>
-          <mat-select formControlName="gitCredentialId">
-            <mat-option value="">None (public repository)</mat-option>
-            @for (c of gitCredentials(); track c.id) {
-            <mat-option [value]="c.id">{{ c.name }} ({{ c.username }})</mat-option>
-            }
-          </mat-select>
-          <mat-hint>Private repositories need a token: add one under Settings, Git credentials</mat-hint>
-        </mat-form-field>
-        }
-
-        <!-- Compose Content Input -->
-        @else if (projectOriginFormGroup.get('originType')?.value === ProjectOriginType.Compose) {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Compose File</mat-label>
-          <textarea matInput placeholder="Paste compose file content here" rows="15" formControlName="composeContent"
-            required></textarea>
-          @if (projectOriginFormGroup.get('composeContent')?.hasError('required')) {
-          <mat-error>Compose file content is required</mat-error>
-          }
-        </mat-form-field>
-        }
-
-        <!-- Local Path Input -->
-        @else if (projectOriginFormGroup.get('originType')?.value === ProjectOriginType.Import) {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Project Path</mat-label>
-          <input matInput type="text" placeholder="Select or enter a path" formControlName="path"
-            [matAutocomplete]="pathAuto" required>
-          <mat-autocomplete autoActiveFirstOption #pathAuto="matAutocomplete">
-            @for (path of filteredPaths(); track path) {
-            <mat-option [value]="path">{{path}}</mat-option>
-            }
-          </mat-autocomplete>
-          @if (projectOriginFormGroup.get('path')?.hasError('required')) {
-          <mat-error>Project path is required</mat-error>
-          }
-        </mat-form-field>
-        }
-      </form>
+      @if (updateMethod() === ProjectUpdateMethod.Webhook) {
+      <p class="muted">After creating, the project page shows the webhook URL and secret.</p>
+      }
+      @if (updateMethod() === ProjectUpdateMethod.Periodically) {
+      <mat-form-field appearance="outline" class="narrow">
+        <mat-label>Check interval (minutes)</mat-label>
+        <input matInput type="number" min="1" [value]="interval()" (input)="interval.set($any($event.target).value)" required>
+      </mat-form-field>
+      }
     </mat-step>
 
-    <!-- Step 3: Update Method (now shown for all deployment methods) -->
-    <mat-step [stepControl]="updateMethodFormGroup">
-      <ng-template matStepLabel>Update Method</ng-template>
-      <form [formGroup]="updateMethodFormGroup" class="form-content">
-        <mat-radio-group formControlName="updateMethod" class="update-method-group">
-          <mat-radio-button [value]="ProjectUpdateMethod.Webhook" class="update-method-option">
-            <div class="radio-content">
-              <h3>Use Webhook (Recommended)</h3>
-              <p>Your git provider notifies DockiUp on every push, and it redeploys right away.</p>
-              <p class="note">This option requires admin access to the repository.</p>
-            </div>
-          </mat-radio-button>
+    <!-- Step 4: review -->
+    <mat-step>
+      <ng-template matStepLabel>Review</ng-template>
 
-          <mat-radio-button [value]="ProjectUpdateMethod.Manual" class="update-method-option">
-            <div class="radio-content">
-              <h3>Update Manually</h3>
-              <p>You will be prompted to update the container when you press a button.</p>
-            </div>
-          </mat-radio-button>
-
-          <mat-radio-button [value]="ProjectUpdateMethod.Periodically" class="update-method-option">
-            <div class="radio-content">
-              <h3>Check Periodically</h3>
-              <p>DockiUp checks for new commits (or newer images) at an interval and redeploys only when something changed.</p>
-            </div>
-          </mat-radio-button>
-        </mat-radio-group>
-
-        @if (updateMethodFormGroup.get('updateMethod')?.value === ProjectUpdateMethod.Webhook) {
-        <p class="hint">After creating, the project page shows the webhook URL and secret to add in your git provider.</p>
-        }
-
-        <!-- Periodic interval input -->
-        @if (updateMethodFormGroup.get('updateMethod')?.value === ProjectUpdateMethod.Periodically) {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Check Interval (minutes)</mat-label>
-          <input matInput placeholder="Interval in minutes" formControlName="periodicInterval" required type="number"
-            min="1">
-          @if (updateMethodFormGroup.get('periodicInterval')?.hasError('required')) {
-          <mat-error>Check interval is required</mat-error>
+      <dl class="summary">
+        <dt>Project</dt>
+        <dd>{{ source() === 'existing' ? existing()?.dockerProjectName : projectName() }}</dd>
+        <dt>Source</dt>
+        <dd>
+          @switch (source()) {
+          @case ('git') { {{ gitUrl() }} <span class="muted">· {{ branch() }} · {{ composeFile() }}</span> }
+          @case ('compose') { Compose file }
+          @case ('image') { Image {{ image() }}{{ tag() ? ':' + tag() : '' }} }
+          @case ('existing') { Adopt <span class="mono">{{ existing()?.composeWorkingDir }}</span> in place }
           }
-          @if (updateMethodFormGroup.get('periodicInterval')?.hasError('min')) {
-          <mat-error>Interval must be at least 1 minute</mat-error>
-          }
-        </mat-form-field>
+        </dd>
+        <dt>Host</dt>
+        <dd>{{ hostName(source() === 'existing' ? existing()?.nodeId : nodeId()) }}</dd>
+        @if (source() !== 'existing') {
+        <dt>.env</dt>
+        <dd>{{ envFile().trim() ? 'Yes' : 'None' }}</dd>
         }
-      </form>
+        <dt>Updates</dt>
+        <dd>
+          @switch (updateMethod()) {
+          @case (ProjectUpdateMethod.Webhook) { Webhook }
+          @case (ProjectUpdateMethod.Manual) { Manual }
+          @default { Every {{ interval() }} min }
+          }
+        </dd>
+      </dl>
+
+      @if (source() === 'existing') {
+      <p class="muted">Nothing is restarted now. Deploys use the project's own compose files
+        ({{ existing()?.composeConfigFiles }}).</p>
+      } @else {
+      <div class="row toolbar">
+        <span class="section-title">Validation <span class="muted">(docker compose config on {{ hostName(nodeId()) }})</span></span>
+        <button mat-icon-button type="button" (click)="validate()" [disabled]="validating()" matTooltip="Validate again" aria-label="Validate again">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+      @if (validating()) {
+      <p class="message"><mat-spinner diameter="18" />Validating…</p>
+      } @else if (validation(); as v) {
+      @if (v.valid) {
+      <p class="message ok"><mat-icon>check_circle</mat-icon>Valid</p>
+      <div class="services">
+        <span class="muted">Services</span>
+        @for (s of v.services; track s.name) {
+        <span class="chip">{{ s.name }}@if (s.image) { <span class="muted"> · {{ s.image }}</span> }</span>
+        }
+      </div>
+      }
+      @for (e of v.errors; track $index) {
+      <p class="message error"><mat-icon>error</mat-icon><span class="mono">{{ e }}</span></p>
+      }
+      @for (w of v.warnings; track $index) {
+      <p class="message warn"><mat-icon>warning</mat-icon><span class="mono">{{ w }}</span></p>
+      }
+      }
+      @if (source() === 'image' || source() === 'compose') {
+      <pre class="code">{{ source() === 'image' ? generatedCompose() : compose() }}</pre>
+      }
+      }
+
+      @if (error(); as err) {
+      <p class="message error"><mat-icon>error</mat-icon>{{ err }}</p>
+      }
     </mat-step>
   </mat-stepper>
 </mat-dialog-content>
 
 <mat-dialog-actions>
-  <button mat-button style="margin-right:auto;" (click)="cancel()">Cancel</button>
-
-  <button mat-button (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0">
-    Back
-  </button>
-
-  @if (stepper.selectedIndex === stepper.steps.length - 1) {
-  <button mat-button color="primary" (click)="finish()"
-    [disabled]="!isStep1Valid() || !isStep2Valid() || !isStep3Valid()">
-    Finish
+  <button mat-button class="cancel" (click)="cancel()">Cancel</button>
+  <button mat-button (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0 || busy()">Back</button>
+  @if (stepper.selectedIndex === 3) {
+  <button mat-flat-button (click)="create()" [disabled]="!canCreate()">
+    {{ source() === 'existing' ? 'Adopt' : 'Create' }}
   </button>
   } @else {
-  <button mat-button (click)="stepper.next()" [disabled]="
-      (stepper.selectedIndex === 0 && !isStep1Valid()) ||
-      (stepper.selectedIndex === 1 && !isStep2Valid())
-    ">
+  <button mat-flat-button (click)="next()" [disabled]="busy() ||
+      (stepper.selectedIndex === 0 && !sourceValid()) ||
+      (stepper.selectedIndex === 1 && !whereValid()) ||
+      (stepper.selectedIndex === 2 && !updatesValid())">
     Next
   </button>
   }

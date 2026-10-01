@@ -22,5 +22,12 @@ namespace DockiUp.Application.Dtos
         public string? DeployedCommit { get; set; }
         public string? DeployedCommitMessage { get; set; }
         public DateTime? DeployedAt { get; set; }
+
+        // From compose's own container labels: where an existing project's files are, so it can be adopted.
+        public string? ComposeWorkingDir { get; set; }
+        /// <summary>Comma-separated, as compose records them.</summary>
+        public string? ComposeConfigFiles { get; set; }
+        /// <summary>Whether DockiUp can read those files from where it runs (needed to deploy, not to adopt).</summary>
+        public bool ComposeFilesReachable { get; set; }
     }
 }

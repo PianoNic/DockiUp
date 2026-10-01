@@ -20,7 +20,7 @@ export const ProjectOriginType = {
   Unknown: 0,
   Git: 1,
   Compose: 2,
-  Import: 3,
+  Adopted: 3,
 } as const;
 
 export type ProjectOriginType = (typeof ProjectOriginType)[keyof typeof ProjectOriginType];

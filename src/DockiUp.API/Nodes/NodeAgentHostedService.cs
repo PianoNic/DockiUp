@@ -178,6 +178,9 @@ namespace DockiUp.API.Nodes
             c.On<string, int?, string>("GetContainerLogs", (id, tail) => WithDocker(d => d.GetContainerLogsAsync(id, tail)));
             c.On<string, string, Dictionary<string, string>, bool>("WriteEnvFile", (path, composePath, secrets) =>
                 WithDocker(async d => { await d.WriteEnvFileAsync(path, composePath, secrets); return true; }));
+
+            // New project flow
+            c.On<ComposeValidationRequest, ComposeValidationDto>("ValidateCompose", request => WithDocker(d => d.ValidateComposeAsync(request)));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node

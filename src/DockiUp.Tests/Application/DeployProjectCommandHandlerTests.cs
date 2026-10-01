@@ -112,16 +112,80 @@ public class DeployProjectCommandHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Import_LogsOnly_DoesNotPersistOrQueue()
+    public async Task Compose_WithEnvFile_WritesItNextToTheComposeFile()
     {
-        var dto = new SetupProjectDto { ProjectName = "imported", ProjectOrigin = ProjectOriginType.Import, ProjectUpdateMethod = ProjectUpdateMethod.Manual };
+        var dto = Compose("with-env");
+        dto.EnvFile = "TAG=1.2\nB=2";
 
-        var result = await Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None);
+        await Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None);
 
-        Assert.Null(result);
+        Assert.Equal("TAG=1.2\nB=2", File.ReadAllText(Path.Combine(_projectsRoot, "with-env", ".env")));
+    }
+
+    [Fact]
+    public async Task Compose_WithoutEnvFile_WritesNoEnvFile()
+    {
+        await Handler().Handle(new DeployProjectCommand(Compose("no-env")), CancellationToken.None);
+
+        Assert.False(File.Exists(Path.Combine(_projectsRoot, "no-env", ".env")));
+    }
+
+    [Fact]
+    public async Task Git_WithEnvFile_WritesItNextToTheRepoComposeFile()
+    {
+        _files.Setup(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git", null, null))
+            .Callback((string path, string _, string? _, DockiUp.Application.Git.GitCredentials? _) =>
+            {
+                Directory.CreateDirectory(Path.Combine(path, "deploy"));
+                File.WriteAllText(Path.Combine(path, "deploy", "compose.yml"), "services: {}");
+            })
+            .ReturnsAsync("main");
+        var dto = new SetupProjectDto
+        {
+            ProjectName = "git-env", ProjectOrigin = ProjectOriginType.Git, GitUrl = "file:///repo.git",
+            ComposeFile = "deploy/compose.yml", EnvFile = "A=1", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        };
+
+        await Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None);
+
+        Assert.Equal("A=1", File.ReadAllText(Path.Combine(_projectsRoot, "git-env", "deploy", ".env")));
+    }
+
+    [Fact]
+    public async Task Git_WithEnvFile_RefusesToOverwriteATrackedEnv_AndCleansUp()
+    {
+        _files.Setup(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git", null, null))
+            .Callback((string path, string _, string? _, DockiUp.Application.Git.GitCredentials? _) =>
+            {
+                Directory.CreateDirectory(path);
+                File.WriteAllText(Path.Combine(path, "docker-compose.yml"), "services: {}");
+                File.WriteAllText(Path.Combine(path, ".env"), "FROM_REPO=1");
+            })
+            .ReturnsAsync("main");
+        var dto = new SetupProjectDto
+        {
+            ProjectName = "tracked-env", ProjectOrigin = ProjectOriginType.Git, GitUrl = "file:///repo.git",
+            EnvFile = "A=1", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None).AsTask());
+
+        Assert.Contains(".env", ex.Message);
+        Assert.False(Directory.Exists(Path.Combine(_projectsRoot, "tracked-env")));
         Assert.Empty(_db.ProjectInfo);
-        _mediator.Verify(m => m.Send(It.IsAny<QueueDeploymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
-        _activity.Verify(a => a.LogAsync("deploy", "imported", null, "Import", It.IsAny<CancellationToken>(), null), Times.Once);
+    }
+
+    [Fact]
+    public async Task Git_ComposeFileOutsideTheRepo_IsRefused()
+    {
+        _files.Setup(c => c.CloneRepositoryAsync(It.IsAny<string>(), "file:///repo.git", null)).ReturnsAsync("main");
+        var dto = new SetupProjectDto
+        {
+            ProjectName = "escape", ProjectOrigin = ProjectOriginType.Git, GitUrl = "file:///repo.git",
+            ComposeFile = "../other/compose.yml", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => Handler().Handle(new DeployProjectCommand(dto), CancellationToken.None).AsTask());
     }
 
     public void Dispose()

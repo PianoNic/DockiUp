@@ -13,5 +13,10 @@ namespace DockiUp.Application.Interfaces
         /// when null), or to <paramref name="commit"/> when given (redeploying an earlier version).
         /// Untracked files - like a UI-written compose file - are kept.</summary>
         Task<Dtos.GitSyncResult> SyncRepositoryAsync(string projectPath, string? branch, string? commit, Func<string, Task> log, Git.GitCredentials? credentials = null);
+
+        /// <summary>Clones the repo into a temp folder (deleted afterwards) and lists its branches and the
+        /// compose files on <paramref name="branch"/> (the default branch when null). Throws
+        /// ArgumentException when the repository can't be read.</summary>
+        Task<Dtos.RepositoryInspectionDto> InspectRepositoryAsync(string gitUrl, string? branch, CancellationToken cancellationToken = default, Git.GitCredentials? credentials = null);
     }
 }

@@ -1,4 +1,4 @@
-﻿using DockiUp.Domain.Enums;
+using DockiUp.Domain.Enums;
 
 namespace DockiUp.Application.Dtos
 {
@@ -14,7 +14,8 @@ namespace DockiUp.Application.Dtos
         /// <summary>Git: compose file path inside the repo (default docker-compose.yml).</summary>
         public string? ComposeFile { get; set; }
         public string? Compose { get; set; }
-        public string? Path { get; set; }
+        /// <summary>Optional .env content, written next to the compose file and passed with --env-file.</summary>
+        public string? EnvFile { get; set; }
 
         /// <summary>Optional target node. When set, the project is deployed to (and managed on) that
         /// node over SignalR; when null it runs on the local control-plane host.</summary>

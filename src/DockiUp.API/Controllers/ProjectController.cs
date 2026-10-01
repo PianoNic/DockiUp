@@ -19,7 +19,7 @@ namespace DockiUp.API.Controllers
         // Only set when OIDC is on; queued work is attributed to whoever asked for it.
         private string? Actor => currentUser?.IsAuthenticated == true ? currentUser.Name : null;
 
-        /// <summary>Creates a project and queues its first deployment (returned; null for imports).</summary>
+        /// <summary>Creates a project and queues its first deployment (returned).</summary>
         [HttpPost("DeployProject", Name = "DeployProject")]
         [ProducesResponseType(typeof(DeploymentDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -130,6 +130,44 @@ namespace DockiUp.API.Controllers
                 ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
             return Ok(new WebhookInfoDto($"{baseUrl}/api/Webhook/{project.Id}", project.WebhookSecret, project.Branch));
         }
+
+        // ---- New project flow (source -> where & environment -> updates -> review) ----
+
+        /// <summary>Lists a public git repo's branches and the compose files on a branch, with their services.</summary>
+        [HttpPost("InspectRepository", Name = "InspectRepository")]
+        [ProducesResponseType(typeof(RepositoryInspectionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<RepositoryInspectionDto>> InspectRepository([FromBody] InspectRepositoryRequest request)
+            => Ok(await mediator.Send(new InspectRepositoryQuery(request), HttpContext.RequestAborted));
+
+        /// <summary>Converts a `docker run` command into a compose file; unsupported flags come back as warnings.</summary>
+        [HttpPost("ConvertDockerRun", Name = "ConvertDockerRun")]
+        [ProducesResponseType(typeof(GeneratedComposeDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public ActionResult<GeneratedComposeDto> ConvertDockerRun([FromBody] ConvertDockerRunRequest request)
+            => Ok(DockiUp.Application.Compose.DockerRunConverter.Convert(request.Command ?? ""));
+
+        /// <summary>Generates a one-service compose file from an image, ports, volumes, env and restart policy.</summary>
+        [HttpPost("GenerateImageCompose", Name = "GenerateImageCompose")]
+        [ProducesResponseType(typeof(GeneratedComposeDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public ActionResult<GeneratedComposeDto> GenerateImageCompose([FromBody] ImageProjectDto request)
+            => Ok(DockiUp.Application.Compose.ImageComposeGenerator.Generate(request));
+
+        /// <summary>Runs `docker compose config` on the target host/node; returns errors or the resolved services.</summary>
+        [HttpPost("ValidateCompose", Name = "ValidateCompose")]
+        [ProducesResponseType(typeof(ComposeValidationDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ComposeValidationDto>> ValidateCompose([FromBody] ComposeValidationRequest request)
+            => Ok(await mediator.Send(new ValidateComposeQuery(request), HttpContext.RequestAborted));
+
+        /// <summary>Adopts a compose project already running on a host, in place (nothing moved or restarted).</summary>
+        [HttpPost("AdoptProject", Name = "AdoptProject")]
+        [ProducesResponseType(typeof(AdoptedProjectDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<AdoptedProjectDto>> AdoptProject([FromBody] AdoptProjectDto request)
+            => Ok(await mediator.Send(new AdoptProjectCommand(request), HttpContext.RequestAborted));
     }
 
     public record WebhookInfoDto(string Url, string Secret, string? Branch);

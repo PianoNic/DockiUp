@@ -7,9 +7,12 @@ test('create-project modal offers an online node as a deploy target', async ({ p
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   // Open the deploy modal (the button appears in both the toolbar and the dashboard).
-  await page.getByRole('button', { name: /Deploy Container/i }).first().click();
+  await page.getByRole('button', { name: /Deploy a new project/i }).first().click();
+  await page.getByRole('radio', { name: /^Compose/ }).click();
+  await page.getByLabel('Compose file').fill('services:\n  web:\n    image: nginx');
+  await page.getByRole('button', { name: 'Next' }).click();
 
-  // Step 1 shows the node selector (only rendered when a node is online).
+  // "Where & environment" shows the node selector (only rendered when a node is online).
   const deployTo = page.getByLabel('Deploy to');
   await expect(deployTo).toBeVisible();
 

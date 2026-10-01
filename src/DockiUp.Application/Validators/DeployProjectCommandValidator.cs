@@ -1,4 +1,4 @@
-﻿using DockiUp.Application.Commands;
+using DockiUp.Application.Commands;
 using DockiUp.Application.Validators.Helpers;
 using DockiUp.Domain.Enums;
 using FluentValidation;
@@ -7,6 +7,9 @@ namespace DockiUp.Application.Validators
 {
     public class DeployProjectCommandValidator : AbstractValidator<DeployProjectCommand>
     {
+        public const int MaxComposeLength = 100_000;
+        public const int MaxEnvFileLength = 50_000;
+
         public DeployProjectCommandValidator()
         {
             RuleFor(command => command.SetupContainerDto.ProjectName)
@@ -19,7 +22,9 @@ namespace DockiUp.Application.Validators
                 .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
 
             RuleFor(command => command.SetupContainerDto.ProjectOrigin)
-                .IsValidEnum().WithMessage("Invalid project origin type.");
+                .IsValidEnum().WithMessage("Invalid project origin type.")
+                // Adopting has its own endpoint: it takes over a running project instead of creating files.
+                .Must(o => o != ProjectOriginType.Adopted).WithMessage("Existing projects are adopted, not created.");
 
             When(command => command.SetupContainerDto.ProjectOrigin == ProjectOriginType.Git, () =>
             {
@@ -36,23 +41,16 @@ namespace DockiUp.Application.Validators
                     .NotNull().NotEmpty().WithMessage("Compose content is required when Project Origin is 'Compose'.");
             });
 
-            When(command => command.SetupContainerDto.ProjectOrigin == ProjectOriginType.Import, () =>
-            {
-                RuleFor(command => command.SetupContainerDto.Path)
-                    .NotNull().NotEmpty().WithMessage("Path is required when Project Origin is 'Import'.");
-            });
-
             RuleFor(command => command.SetupContainerDto.GitUrl)
                 .MaximumLength(2000).WithMessage("Git URL must not exceed 2000 characters.")
                 .When(command => !string.IsNullOrWhiteSpace(command.SetupContainerDto.GitUrl));
 
             RuleFor(command => command.SetupContainerDto.Compose)
-                .MaximumLength(10000).WithMessage("Compose content must not exceed 10000 characters.")
+                .MaximumLength(MaxComposeLength).WithMessage($"Compose content must not exceed {MaxComposeLength} characters.")
                 .When(command => !string.IsNullOrWhiteSpace(command.SetupContainerDto.Compose));
 
-            RuleFor(command => command.SetupContainerDto.Path)
-                .MaximumLength(500).WithMessage("Path must not exceed 500 characters.")
-                .When(command => !string.IsNullOrWhiteSpace(command.SetupContainerDto.Path));
+            RuleFor(command => command.SetupContainerDto.EnvFile)
+                .MaximumLength(MaxEnvFileLength).WithMessage($".env content must not exceed {MaxEnvFileLength} characters.");
 
             RuleFor(command => command.SetupContainerDto.ProjectUpdateMethod)
                 .IsValidEnum().WithMessage("Invalid project update method.");

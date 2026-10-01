@@ -66,7 +66,9 @@ namespace DockiUp.Application.Commands
 
             if (projectId is { } id && await db.ProjectInfo.FirstOrDefaultAsync(p => p.Id == id, cancellationToken) is { } project)
             {
-                await docker.DeleteProjectFilesAsync(project.ProjectPath);
+                // An adopted project's files were never DockiUp's: forget it, leave them where they are.
+                if (project.ProjectOrigin != Domain.Enums.ProjectOriginType.Adopted)
+                    await docker.DeleteProjectFilesAsync(project.ProjectPath);
                 db.Deployments.RemoveRange(db.Deployments.Where(d => d.ProjectId == id));
                 db.ProjectInfo.Remove(project);
                 await db.SaveChangesAsync(cancellationToken);

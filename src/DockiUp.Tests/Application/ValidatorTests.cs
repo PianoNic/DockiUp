@@ -54,11 +54,8 @@ public class DeployProjectCommandValidatorTests
     }
 
     [Fact]
-    public void Import_RequiresPath()
-    {
-        Assert.False(_validator.Validate(Cmd(d => { d.ProjectOrigin = ProjectOriginType.Import; d.Compose = null; })).IsValid);
-        Assert.True(_validator.Validate(Cmd(d => { d.ProjectOrigin = ProjectOriginType.Import; d.Compose = null; d.Path = "/opt/app"; })).IsValid);
-    }
+    public void Adopted_IsNotCreatedThroughDeployProject()
+        => Assert.False(_validator.Validate(Cmd(d => d.ProjectOrigin = ProjectOriginType.Adopted)).IsValid);
 
     [Fact]
     public void TooLongGitUrl_Fails()
@@ -66,11 +63,15 @@ public class DeployProjectCommandValidatorTests
 
     [Fact]
     public void TooLongCompose_Fails()
-        => Assert.False(_validator.Validate(Cmd(d => d.Compose = new string('x', 10001))).IsValid);
+        => Assert.False(_validator.Validate(Cmd(d => d.Compose = new string('x', 100_001))).IsValid);
 
     [Fact]
-    public void TooLongPath_Fails()
-        => Assert.False(_validator.Validate(Cmd(d => { d.ProjectOrigin = ProjectOriginType.Import; d.Compose = null; d.Path = new string('x', 501); })).IsValid);
+    public void LargeComposeUpTo100k_Passes()
+        => Assert.True(_validator.Validate(Cmd(d => d.Compose = "services: {}" + new string(' ', 50_000))).IsValid);
+
+    [Fact]
+    public void TooLongEnvFile_Fails()
+        => Assert.False(_validator.Validate(Cmd(d => d.EnvFile = new string('x', 50_001))).IsValid);
 
     [Fact]
     public void InvalidUpdateMethod_Fails()

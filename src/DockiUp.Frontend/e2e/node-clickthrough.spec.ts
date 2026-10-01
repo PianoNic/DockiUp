@@ -11,24 +11,28 @@ test('deploy to a node, operate the container, and open its terminal — all via
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   // ---- Deploy wizard ----
-  await page.getByRole('button', { name: /Deploy Container/i }).first().click();
+  await page.getByRole('button', { name: /Deploy a new project/i }).first().click();
+  // Source -> Where & environment -> Updates -> Review (validated on the node before creating).
+  await page.getByRole('radio', { name: /^Compose/ }).click();
+  await page.getByLabel('Compose file').fill(compose);
+  await page.getByRole('button', { name: 'Next' }).click();
+
   await page.getByLabel('Project Name').fill('uinode');
   await page.getByLabel('Deploy to').click();
   await page.getByRole('option', { name: 'e2e-node' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
 
-  await page.getByPlaceholder('Paste compose file content here').fill(compose);
-  await page.getByRole('button', { name: 'Next' }).click();
-
   await page.locator('mat-radio-button:has-text("Update Manually")').click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Valid', { exact: true })).toBeVisible({ timeout: 20000 });
 
   // Capture the deploy call so a server-side failure is visible instead of a silent empty list.
   const deployResp = page.waitForResponse((r) => r.url().includes('/api/Project/DeployProject'), { timeout: 20000 });
-  await page.getByRole('button', { name: 'Finish' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
   const resp = await deployResp;
   const body = await resp.text().catch(() => '');
   console.log(`DEPLOY status=${resp.status()} body=${body.slice(0, 300)}`);
-  expect(resp.status(), `deploy failed: ${body.slice(0, 300)}`).toBe(204);
+  expect(resp.status(), `deploy failed: ${body.slice(0, 300)}`).toBe(200);
 
   // ---- Detail page: wait for the node-hosted container to come up ----
   const card = page.locator('.containers-list mat-card');

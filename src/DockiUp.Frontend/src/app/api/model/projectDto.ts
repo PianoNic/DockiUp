@@ -23,5 +23,8 @@ export interface ProjectDto {
     deployedCommit?: string | null;
     deployedCommitMessage?: string | null;
     deployedAt?: string | null;
+    composeWorkingDir?: string | null;
+    composeConfigFiles?: string | null;
+    composeFilesReachable?: boolean;
 }
 
