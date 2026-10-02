@@ -15,6 +15,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <!-- Pinned: EF Core Design 10.0.0 pulls 9.0.0 via Microsoft.Build.Tasks.Core, which has known
+         vulnerabilities (NU1903). Drop this once EF Core is upgraded past it. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
     <PackageReference Include="Toamaisutaa.Abstractions" Version="0.7.0" />
   </ItemGroup>
 
