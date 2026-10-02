@@ -7,7 +7,8 @@ export type EditorLanguage = 'compose' | 'yaml' | 'env' | 'json' | 'python' | 'j
 /** Picks the language from a file name. Compose files get schema-aware completion, hover help and linting. */
 export function languageFor(path: string): EditorLanguage {
   const name = path.split('/').pop()?.toLowerCase() ?? '';
-  if (/^(docker-)?compose(\.[\w.-]+)?\.ya?ml$/.test(name)) return 'compose';
+  // compose.yaml, docker-compose.yml, compose.prod.yml, and DockiUp's own dockiup_compose.yml.
+  if (/\.ya?ml$/.test(name) && name.includes('compose')) return 'compose';
   if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
   if (name === '.env' || name.startsWith('.env.') || name.endsWith('.env')) return 'env';
   if (name.endsWith('.json')) return 'json';

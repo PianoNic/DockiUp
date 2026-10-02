@@ -50,6 +50,8 @@ body {
   font: var(--mat-sys-body-medium);
   // A notch above Material's 14px body: the expressive layout reads better at 15px.
   font-size: 15px;
+  // Proportional, not Material's fixed 20px: larger text that truncates (overflow: hidden) keeps the tails of g/p/y.
+  line-height: 1.4;
   margin: 0;
 }
 

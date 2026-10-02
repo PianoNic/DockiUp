@@ -20,7 +20,7 @@ const DAY = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
   imports: [NgClass, RouterLink, MatBadgeModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 4px 8px 12px; }
+    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 4px 0 12px 8px; } /* right edge flush with the rows below */
     .head-text { display: flex; flex-direction: column; }
     .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mat-sys-primary); }
     .title { font-size: 22px; font-weight: 800; color: var(--mat-sys-on-surface); }
