@@ -35,8 +35,8 @@
 
     <div class="file-list">
       @for (e of listing()?.entries ?? []; track e.path) {
-        <div class="file-row" [class.selected]="e.path === file()?.path" role="button" tabindex="0" (click)="open(e)" (keydown.enter)="open(e)">
-          <mat-icon class="kind">{{ e.isDirectory ? 'folder' : e.path === listing()?.composeFile ? 'layers' : 'description' }}</mat-icon>
+        <div class="file-row" [class.selected]="e.path === file()?.path || e.path === db()?.path" role="button" tabindex="0" (click)="open(e)" (keydown.enter)="open(e)">
+          <mat-icon class="kind">{{ e.isDirectory ? 'folder' : e.path === listing()?.composeFile ? 'layers' : isSqlite(e.path) ? 'database' : 'description' }}</mat-icon>
           <span class="name" [title]="e.path + ' · ' + (e.modifiedAt | localDate: 'short')">{{ e.name }}</span>
           @if (e.tracked && !e.isDirectory) { <mat-icon class="git" matTooltip="Tracked in git">commit</mat-icon> }
           <span class="meta">{{ formatSize(e) }}</span>
@@ -67,8 +67,17 @@
       </div>
       @if (listing()?.isGit) { <p class="hint">{{ saveNote(f) }}</p> }
       <app-code-editor class="editor" [(value)]="content" [language]="language()" [label]="f.path" (save)="save(false)" />
+    } @else if (db(); as d) {
+      <div class="toolbar">
+        <span class="path" [title]="d.path">
+          @if (folderOf(d.path); as dir) { <span class="dir">{{ dir }}/</span> }<span class="file-name">{{ nameOf(d.path) }}</span>
+        </span>
+        <span class="grow"></span>
+        <button mat-icon-button (click)="closeFile()" matTooltip="Close" aria-label="Close"><mat-icon>close</mat-icon></button>
+      </div>
+      <app-sqlite-viewer [bytes]="d.bytes" />
     } @else {
-      <p class="hint">Select a text file to edit it, or create a new one. Compose and .env files are highlighted; the compose file is validated before saving.</p>
+      <p class="hint">Select a text file to edit it or a SQLite database to browse it, or create a new one. Compose and .env files are highlighted; the compose file is validated before saving.</p>
     }
   </section>
 </div>

@@ -24,12 +24,18 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "sql-wasm-browser.wasm",
+                "input": "node_modules/sql.js/dist",
+                "output": "sqljs"
               }
             ],
             "styles": [
               "src/styles.scss"
             ],
             "allowedCommonJsDependencies": [
+              "sql.js",
               "@sagold/json-pointer",
               "best-effort-json-parser",
               "deepmerge",

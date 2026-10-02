@@ -15,6 +15,7 @@ import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { NotificationService } from '../shared/services/notification.service';
 import { CodeEditor, languageFor } from './code-editor';
 import { FileDiffData, FileDiffDialog } from './file-diff-dialog';
+import { isSqlite, SqliteViewer } from './sqlite-viewer';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -28,7 +29,7 @@ interface OpenFile {
 /** Browse, upload, download, delete and edit the files in a DockiUp project's folder (on its host). */
 @Component({
   selector: 'app-project-files',
-  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, MatTooltipModule, LocalDatePipe, CodeEditor],
+  imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, MatTooltipModule, LocalDatePipe, CodeEditor, SqliteViewer],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './project-files.html',
   styleUrl: './project-files.scss',
@@ -54,6 +55,8 @@ export class ProjectFiles {
   protected newName = '';
 
   protected readonly file = signal<OpenFile | null>(null);
+  /** A SQLite database open in the viewer (instead of a text file in the editor). */
+  protected readonly db = signal<{ path: string; bytes: Uint8Array } | null>(null);
   protected readonly content = signal('');
   protected readonly dirty = computed(() => this.file() !== null && this.content() !== this.file()!.original);
   protected readonly language = computed(() => languageFor(this.file()?.path ?? ''));
@@ -69,6 +72,7 @@ export class ProjectFiles {
       this.projectId();
       untracked(() => {
         this.file.set(null);
+        this.db.set(null);
         void this.load('');
       });
     });
@@ -90,7 +94,14 @@ export class ProjectFiles {
     }
     if (!(await this.canLeaveFile())) return;
     try {
+      if (isSqlite(entry.path)) {
+        const bytes = new Uint8Array(await (await this.fetchBytes(entry.path)).arrayBuffer());
+        this.file.set(null);
+        this.db.set({ path: entry.path, bytes });
+        return;
+      }
       const f = await firstValueFrom(this.api.readProjectFile(this.projectId(), entry.path));
+      this.db.set(null);
       this.file.set({ path: f.path, original: f.content, tracked: f.tracked });
       this.content.set(f.content);
     } catch (err) {
@@ -100,6 +111,7 @@ export class ProjectFiles {
 
   protected async closeFile(): Promise<void> {
     if (await this.canLeaveFile()) this.file.set(null);
+    this.db.set(null);
   }
 
   private async canLeaveFile(): Promise<boolean> {
@@ -175,9 +187,7 @@ export class ProjectFiles {
 
   protected async download(entry: ProjectFileEntryDto): Promise<void> {
     try {
-      // Raw bytes: fetched as a blob directly (the generated client can't type a binary response).
-      const blob = await firstValueFrom(this.http.get(`${this.basePath}/api/Project/${this.projectId()}/Files/Download`,
-        { params: { path: entry.path }, responseType: 'blob' }));
+      const blob = await this.fetchBytes(entry.path);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -187,6 +197,11 @@ export class ProjectFiles {
     } catch (err) {
       this.notifications.showError(`Failed to download ${entry.name}`, err);
     }
+  }
+
+  /** Raw bytes: fetched as a blob directly (the generated client can't type a binary response). */
+  private fetchBytes(path: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`${this.basePath}/api/Project/${this.projectId()}/Files/Download`, { params: { path }, responseType: 'blob' }));
   }
 
   protected async remove(entry: ProjectFileEntryDto): Promise<void> {
@@ -200,6 +215,7 @@ export class ProjectFiles {
     try {
       await firstValueFrom(this.api.deleteProjectFile(this.projectId(), entry.path));
       if (this.file()?.path === entry.path || this.file()?.path.startsWith(entry.path + '/')) this.file.set(null);
+      if (this.db()?.path === entry.path || this.db()?.path.startsWith(entry.path + '/')) this.db.set(null);
       await this.load(this.path());
     } catch (err) {
       this.notifications.showError(`Failed to delete ${entry.name}`, err);
@@ -246,6 +262,8 @@ export class ProjectFiles {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
+
+  protected readonly isSqlite = isSqlite;
 
   protected nameOf(path: string): string {
     return path.split('/').pop() ?? path;
