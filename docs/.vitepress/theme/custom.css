@@ -1,0 +1,21 @@
+/* DockiUp brand color: #006DB8 (the logo's blue). Light mode uses it directly; dark mode lightens the
+   link/text shade for contrast while keeping the brand blue on buttons. */
+:root {
+  --vp-c-brand-1: #006db8;
+  --vp-c-brand-2: #0a82d6;
+  --vp-c-brand-3: #006db8;
+  --vp-c-brand-soft: rgba(0, 109, 184, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: #8ab4f8;
+  --vp-c-brand-2: #5d9cec;
+  --vp-c-brand-3: #0a6fc0;
+  --vp-c-brand-soft: rgba(0, 109, 184, 0.24);
+}
+
+/* Hero title in the brand blue. */
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #006db8, #5d9cec);
+}

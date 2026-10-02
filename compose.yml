@@ -1,47 +1,37 @@
-# Production-style compose: build app + DB. Uses .env for POSTGRES_*, PROJECTS_PATH, etc.
+# DockiUp with its database. Settings come from .env next to this file (see .env.example).
 services:
-  postgres:
-    image: postgres:15
-    container_name: dockiup-db
-    env_file: .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      retries: 5
-      start_period: 20s
-      timeout: 5s
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
   dockiup:
-    build:
-      context: .
-      dockerfile: src/DockiUp.API/Dockerfile
+    image: pianonic/dockiup:latest # or ghcr.io/pianonic/dockiup:latest
     container_name: dockiup
-    env_file: .env
     environment:
-      ASPNETCORE_URLS: "http://+:8080"
-      ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DockiUpDatabase: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
-      SystemPaths__DockerSocket: ${DOCKER_SOCKET_PATH}
-      SystemPaths__ProjectsPath: ${PROJECTS_PATH}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ConnectionStrings__DockiUpDatabase: "Host=db;Port=5432;Database=dockiup;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      SystemPaths__ProjectsPath: /app/projects
       Vault__MasterKey: ${VAULT_MASTER_KEY}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      PUBLIC_URL: ${PUBLIC_URL:-}
     ports:
       - "8080:8080"
     volumes:
-      - dockiup-projects:${PROJECTS_PATH:-/app/projects}
-      # Leading // guards against Git-Bash path mangling on Windows; harmless on Linux.
-      - //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
+      - projects:/app/projects
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     restart: unless-stopped
 
+  db:
+    image: postgres:15
+    container_name: dockiup-db
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: dockiup
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
-  postgres_data:
-  dockiup-projects:
+  projects:
+  db:
