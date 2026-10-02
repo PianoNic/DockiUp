@@ -26,6 +26,10 @@
   gap: 12px;
   flex-wrap: wrap;
   line-height: 1.05;
+
+  // The badge's host is inline and would inherit the title's 40px line box, dropping the chip onto the
+  // title's baseline. As a flex box it's just the chip, centred by align-items.
+  app-image-update-badge { display: flex; }
 }
 
 .deployed {
