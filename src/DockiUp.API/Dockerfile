@@ -4,8 +4,12 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Build stages run on the build machine's own architecture ($BUILDPLATFORM): the Angular bundle and the
+# framework-dependent .NET output are architecture-independent, so a multi-arch release only emulates the
+# final stage instead of compiling everything under QEMU.
+
 # Frontend build stage (DockiUp.Frontend - in-repo at src/DockiUp.Frontend)
-FROM node:22 AS frontend-build
+FROM --platform=$BUILDPLATFORM node:22 AS frontend-build
 WORKDIR /src/frontend
 COPY src/DockiUp.Frontend/package*.json ./
 COPY src/DockiUp.Frontend/ ./
@@ -14,7 +18,7 @@ RUN npx ng build --configuration=production 2>/dev/null || npm run build -- --co
 RUN mkdir -p /artifacts/frontend && (cp -r dist/DockiUp.Frontend/browser/* /artifacts/frontend/ 2>/dev/null || cp -r dist/*/browser/* /artifacts/frontend/ 2>/dev/null || cp -r dist/* /artifacts/frontend/ || true)
 
 # Backend build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["src/DockiUp.API/DockiUp.API.csproj", "src/DockiUp.API/"]

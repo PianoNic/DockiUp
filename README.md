@@ -7,16 +7,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PianoNic/DockiUpp"><img src="https://badgetrack.pianonic.ch/badge?tag=dockiup&label=visits&color=006db8&style=flat" alt="visits"/></a>
-  <a href="https://github.com/PianoNic/DockiUpp/blob/main/LICENSE"><img src="https://img.shields.io/github/license/PianoNic/DockiUpp?color=006db8&label=License" alt="License"/></a>
+  <a href="https://github.com/PianoNic/DockiUp"><img src="https://badgetrack.pianonic.ch/badge?tag=dockiup&label=visits&color=006db8&style=flat" alt="visits"/></a>
+  <a href="https://github.com/PianoNic/DockiUp/releases"><img src="https://img.shields.io/github/v/release/PianoNic/DockiUp?include_prereleases&color=006db8&label=Latest%20Release" alt="Latest release"/></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-006db8.svg" alt="PolyForm Noncommercial"/></a>
   <a href="#quick-start"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
   <a href="#development"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
 </p>
 
 ---
 
-> **Heads up:** DockiUp is in active development and not released yet. Expect breaking changes, and build
-> it from source for now.
+> **Heads up:** DockiUp is in active development. Expect breaking changes before 1.0.
+> **PolyForm Noncommercial 1.0.0** - free for noncommercial use; commercial use needs a separate
+> licence. Not an OSI-approved open-source licence.
 
 ## Screenshots
 
@@ -76,8 +78,8 @@ DockiUp needs Docker with Compose v2 on the host.
 **1. Get the code and create `.env`:**
 
 ```bash
-git clone https://github.com/PianoNic/DockiUpp.git
-cd DockiUpp
+git clone https://github.com/PianoNic/DockiUp.git
+cd DockiUp
 cp .env.example .env
 ```
 
@@ -144,8 +146,9 @@ cd src/DockiUp.Frontend && npm install && npm start
 ```
 
 Tests: `dotnet test src/DockiUp.Tests`. After changing an endpoint or DTO, regenerate the frontend client
-with `npm run apigen` while the API runs. More in the [development guide](docs/dev_setup.md).
+with `npm run apigen` while the API runs. More in the [development guide](docs/dev_setup.md); releases are
+described in [releasing](docs/releasing.md).
 
-## License
+## Licence
 
-This project is licensed under the GPL-3.0 License. See [LICENSE](LICENSE) for details.
+[PolyForm Noncommercial 1.0.0](LICENSE.md).
