@@ -143,7 +143,7 @@
           <span class="side-sub">{{ onlineNodeCount() }} online</span>
         </div>
         <div class="x-list">
-          <a class="x-row" routerLink="/nodes">
+          <a class="x-row" routerLink="/containers" [queryParams]="{ host: 'Local host' }">
             <span class="x-shape sm round ok"><mat-icon>dns</mat-icon></span>
             <span class="row-main">
               <span class="row-title">Local host</span>
@@ -151,7 +151,7 @@
             </span>
           </a>
           @for (node of nodes(); track node.id) {
-            <a class="x-row" routerLink="/nodes">
+            <a class="x-row" routerLink="/containers" [queryParams]="{ host: node.name }">
               <span class="x-shape sm round" [class.ok]="node.online"><mat-icon>dns</mat-icon></span>
               <span class="row-main">
                 <span class="row-title">{{ node.name }}</span>
