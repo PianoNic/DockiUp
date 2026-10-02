@@ -1,18 +1,20 @@
 # DockiUp with its database. Settings come from .env next to this file (see .env.example).
+# Everything it keeps lives in /data/dockiup on the host: the database and the projects it creates.
 services:
   dockiup:
     image: pianonic/dockiup:latest # or ghcr.io/pianonic/dockiup:latest
     container_name: dockiup
     environment:
       ConnectionStrings__DockiUpDatabase: "Host=db;Port=5432;Database=dockiup;Username=postgres;Password=${POSTGRES_PASSWORD}"
-      SystemPaths__ProjectsPath: /app/projects
+      SystemPaths__ProjectsPath: /data/dockiup/projects
       Vault__MasterKey: ${VAULT_MASTER_KEY}
       PUBLIC_URL: ${PUBLIC_URL:-}
     ports:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - projects:/app/projects
+      # Same path inside and out, so relative mounts in your projects point at the right host folder.
+      - /data/dockiup:/data/dockiup
     depends_on:
       db:
         condition: service_healthy
@@ -25,13 +27,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: dockiup
     volumes:
-      - db:/var/lib/postgresql/data
+      - /data/dockiup/db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 20
     restart: unless-stopped
-
-volumes:
-  projects:
-  db:

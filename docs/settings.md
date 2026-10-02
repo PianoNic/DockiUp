@@ -26,7 +26,7 @@ services:
 | Setting | Default | What it does |
 |---|---|---|
 | `ImageUpdates__IntervalHours` | `6` | How often running images are checked for updates. `0` turns the automatic check off; **Check for updates** in the UI still works |
-| `SystemPaths__ProjectsPath` | `/app/projects` (set in `compose.yml`) | Where DockiUp keeps the projects it creates. Keep it on a volume |
+| `SystemPaths__ProjectsPath` | `/data/dockiup/projects` (set in `compose.yml`) | Where DockiUp keeps the projects it creates. Mount it at the same path inside and out |
 | `SystemPaths__DockerSocket` | the mounted socket | Another Docker endpoint, e.g. `tcp://docker-proxy:2375` for a socket proxy |
 | `ConnectionStrings__DockiUpDatabase` | built from `POSTGRES_PASSWORD` | Use your own PostgreSQL: `Host=…;Port=5432;Database=dockiup;Username=…;Password=…` |
 | `CORS_ALLOWED_ORIGINS` | none | Only needed when the web UI is served from another address than the API. A warning about it in the log is harmless otherwise |
@@ -57,4 +57,4 @@ The compose file from **Add node** already fills these in. You only need them to
 | `Node__ServerUrl` | Address of your DockiUp. Setting it runs the container as a node instead of a full DockiUp |
 | `Node__Token` | The node's token from **Add node** |
 | `Node__Name` | Name the node reports. The name given in **Add node** takes precedence |
-| `SystemPaths__ProjectsPath` | Where the node keeps project files (`/app/projects`) |
+| `SystemPaths__ProjectsPath` | Where the node keeps project files (`/data/dockiup/projects`) |
