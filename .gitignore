@@ -2,3 +2,8 @@
 # Local tooling output (agent worktrees, Playwright MCP snapshots)
 .claude/worktrees/
 .playwright-mcp/
+
+# Node / VitePress docs
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
