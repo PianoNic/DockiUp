@@ -109,6 +109,22 @@ public class DeploymentRunnerTests
     }
 
     [Fact]
+    public async Task Manual_Deploy_ClearsPendingImageUpdates()
+    {
+        var p = Seed(ProjectOriginType.Compose);
+        _db.ImageUpdates.Add(new ImageUpdateStatus { ProjectId = p.Id, ServiceName = "web", Image = "nginx", UpdateAvailable = true, CurrentDigest = "sha256:old", LatestDigest = "sha256:new" });
+        _db.SaveChanges();
+        var d = Queued(p, DeploymentTrigger.Manual);
+        Compose(changed: false);
+
+        await Runner().RunAsync(new DeploymentRequest(p.Id, DeploymentTrigger.Manual, d.Id), CancellationToken.None);
+
+        var row = await _db.ImageUpdates.SingleAsync();
+        Assert.False(row.UpdateAvailable);
+        Assert.Equal("sha256:new", row.CurrentDigest);
+    }
+
+    [Fact]
     public async Task Periodic_Git_NoNewCommits_LeavesNoRecord_AndDoesNotTouchContainers()
     {
         var p = Seed(ProjectOriginType.Git);

@@ -94,7 +94,7 @@ namespace DockiUp.Application.Deployments
 
                 var up = await docker.ComposeUpAsync(
                     new ComposeTarget(project.ProjectPath, project.ComposePath, project.DockerProjectName, services), Log, cancellationToken);
-                if (services is not null) await ClearImageUpdatesAsync(project.Id, services, cancellationToken);
+                await ClearImageUpdatesAsync(project.Id, services, cancellationToken);
 
                 if (deployment is null && !up.Changed && sync is null)
                 {
@@ -142,9 +142,11 @@ namespace DockiUp.Application.Deployments
         }
 
         // The pulled images are now the registry's latest: the badge goes away without waiting for the next check.
-        private async Task ClearImageUpdatesAsync(Guid projectId, string[] services, CancellationToken cancellationToken)
+        // Null services: a full deploy, which pulled every service.
+        private async Task ClearImageUpdatesAsync(Guid projectId, string[]? services, CancellationToken cancellationToken)
         {
-            var rows = await db.ImageUpdates.Where(u => u.ProjectId == projectId && services.Contains(u.ServiceName)).ToListAsync(cancellationToken);
+            var rows = await db.ImageUpdates.Where(u => u.ProjectId == projectId && (services == null || services.Contains(u.ServiceName)))
+                .ToListAsync(cancellationToken);
             foreach (var row in rows)
             {
                 row.UpdateAvailable = false;
