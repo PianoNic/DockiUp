@@ -47,12 +47,6 @@
           <span class="title">Image</span>
           <span class="hint">Run a single image with ports, volumes and environment</span>
         </button>
-        <button type="button" class="source-card" role="radio" [attr.aria-checked]="source() === 'existing'"
-          [class.selected]="source() === 'existing'" (click)="setSource('existing')">
-          <span class="ic"><mat-icon>move_down</mat-icon></span>
-          <span class="title">Existing on a host</span>
-          <span class="hint">Adopt a running compose project in place, nothing is moved or restarted</span>
-        </button>
       </div>
 
       @switch (source()) {
@@ -114,10 +108,12 @@
 
       @case ('compose') {
       <div class="row toolbar">
-        <mat-button-toggle-group [value]="composeMode()" (change)="composeMode.set($event.value)" aria-label="Compose input" hideSingleSelectionIndicator>
-          <mat-button-toggle value="editor">Editor</mat-button-toggle>
-          <mat-button-toggle value="run">docker run</mat-button-toggle>
-        </mat-button-toggle-group>
+        <div class="x-group" role="radiogroup" aria-label="Compose input">
+          <button type="button" role="radio" [matButton]="composeMode() === 'editor' ? 'filled' : 'tonal'" [class.x-on]="composeMode() === 'editor'"
+            [attr.aria-checked]="composeMode() === 'editor'" (click)="composeMode.set('editor')">Editor</button>
+          <button type="button" role="radio" [matButton]="composeMode() === 'run' ? 'filled' : 'tonal'" [class.x-on]="composeMode() === 'run'"
+            [attr.aria-checked]="composeMode() === 'run'" (click)="composeMode.set('run')">docker run</button>
+        </div>
         @if (composeMode() === 'editor') {
         <button mat-button type="button" (click)="composeUpload.click()" matTooltip="Load a .yml or .yaml file into the editor">
           <mat-icon>upload_file</mat-icon>Upload
@@ -184,29 +180,6 @@
       </mat-form-field>
       }
 
-      @case ('existing') {
-      @if (adoptable().length === 0) {
-      <p class="muted empty">No unmanaged compose projects are running on this host or on any online node.</p>
-      } @else {
-      <mat-radio-group class="adopt-list" [value]="existingName()" (change)="existingName.set($event.value)" aria-label="Project to adopt">
-        @for (p of adoptable(); track adoptKey(p)) {
-        <mat-radio-button [value]="adoptKey(p)" [disabled]="!p.composeWorkingDir" class="adopt-option">
-          <span class="adopt-name">{{ p.dockerProjectName }}</span>
-          <span class="muted"> on {{ hostName(p.nodeId) }} · {{ p.containers.length }} container{{ p.containers.length === 1 ? '' : 's' }}</span>
-          @if (!p.composeWorkingDir) {
-          <span class="adopt-path warn-text">Not started by docker compose v2: its files are unknown</span>
-          } @else {
-          <span class="adopt-path mono">{{ p.composeWorkingDir }}</span>
-          @if (!p.composeFilesReachable) {
-          <mat-icon class="warn-icon" matTooltip="DockiUp can't read these files from where it runs. Adopting works; deploys need the folder mounted into DockiUp at the same path."
-            aria-label="Files not reachable from DockiUp">warning</mat-icon>
-          }
-          }
-        </mat-radio-button>
-        }
-      </mat-radio-group>
-      }
-      }
       }
 
       @if (error(); as err) {
@@ -218,15 +191,6 @@
     <mat-step [completed]="sourceValid() && whereValid()">
       <ng-template matStepLabel>Where &amp; environment</ng-template>
 
-      @if (source() === 'existing') {
-      @if (existing(); as p) {
-      <p class="muted">{{ p.dockerProjectName }} stays where it is, on {{ hostName(p.nodeId) }}, with its own environment.</p>
-      }
-      <mat-form-field appearance="fill" class="full-width">
-        <mat-label>Description</mat-label>
-        <input matInput [value]="description()" (input)="description.set($any($event.target).value)" maxlength="500">
-      </mat-form-field>
-      } @else {
       <div class="row">
         <mat-form-field appearance="fill" class="grow">
           <mat-label>Project Name</mat-label>
@@ -263,7 +227,6 @@
           (input)="envFile.set($any($event.target).value)"></textarea>
         <mat-hint>Written as .env next to the compose file and passed with --env-file; ${{ '{' }}VAR{{ '}' }} in the compose file resolves from it.</mat-hint>
       </mat-form-field>
-      }
 
       @if (error(); as err) {
       <p class="message error"><mat-icon>error</mat-icon>{{ err }}</p>
@@ -311,22 +274,19 @@
 
       <dl class="summary">
         <dt>Project</dt>
-        <dd>{{ source() === 'existing' ? existing()?.dockerProjectName : projectName() }}</dd>
+        <dd>{{ projectName() }}</dd>
         <dt>Source</dt>
         <dd>
           @switch (source()) {
           @case ('git') { {{ gitUrl() }} <span class="muted">· {{ branch() }} · {{ composeFile() }}</span> }
           @case ('compose') { Compose file }
           @case ('image') { Image {{ image() }}{{ tag() ? ':' + tag() : '' }} }
-          @case ('existing') { Adopt <span class="mono">{{ existing()?.composeWorkingDir }}</span> in place }
           }
         </dd>
         <dt>Host</dt>
-        <dd>{{ hostName(source() === 'existing' ? existing()?.nodeId : nodeId()) }}</dd>
-        @if (source() !== 'existing') {
+        <dd>{{ hostName(nodeId()) }}</dd>
         <dt>.env</dt>
         <dd>{{ envFile().trim() ? 'Yes' : 'None' }}</dd>
-        }
         <dt>Updates</dt>
         <dd>
           @switch (updateMethod()) {
@@ -337,10 +297,6 @@
         </dd>
       </dl>
 
-      @if (source() === 'existing') {
-      <p class="muted">Nothing is restarted now. Deploys use the project's own compose files
-        ({{ existing()?.composeConfigFiles }}).</p>
-      } @else {
       <div class="row toolbar">
         <span class="section-title">Validation <span class="muted">(docker compose config on {{ hostName(nodeId()) }})</span></span>
         <button mat-icon-button type="button" (click)="validate()" [disabled]="validating()" matTooltip="Validate again" aria-label="Validate again">
@@ -369,7 +325,6 @@
       @if (source() === 'image' || source() === 'compose') {
       <pre class="code">{{ source() === 'image' ? generatedCompose() : compose() }}</pre>
       }
-      }
 
       @if (error(); as err) {
       <p class="message error"><mat-icon>error</mat-icon>{{ err }}</p>
@@ -383,7 +338,7 @@
   <button mat-button class="back" (click)="stepper.previous()" [disabled]="stepper.selectedIndex === 0 || busy()">Back</button>
   @if (stepper.selectedIndex === 3) {
   <button mat-flat-button class="primary-action" (click)="create()" [disabled]="!canCreate()">
-    {{ source() === 'existing' ? 'Adopt' : 'Create' }}
+    Create
     <mat-icon iconPositionEnd>rocket_launch</mat-icon>
   </button>
   } @else {

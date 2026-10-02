@@ -3,7 +3,7 @@
     (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
     <div class="toolbar">
       <nav class="crumbs" aria-label="Folder">
-        <button class="crumb" (click)="load('')" matTooltip="Project folder" aria-label="Project folder"><mat-icon>folder</mat-icon></button>
+        <button mat-icon-button (click)="load('')" matTooltip="Project folder" aria-label="Project folder"><mat-icon>folder</mat-icon></button>
         @for (c of crumbs(); track c.path) {
           <span class="sep">/</span>
           <button class="crumb" (click)="load(c.path)">{{ c.name }}</button>
@@ -56,14 +56,16 @@
   <section class="panel">
     @if (file(); as f) {
       <div class="toolbar">
-        <code class="path" [title]="f.path">{{ f.path }}</code>
+        <span class="path" [title]="f.path">
+          @if (folderOf(f.path); as dir) { <span class="dir">{{ dir }}/</span> }<span class="file-name">{{ nameOf(f.path) }}</span>
+        </span>
         @if (dirty()) { <span class="dirty" matTooltip="Unsaved changes">●</span> }
         <span class="grow"></span>
         <button matButton="tonal" (click)="save(false)" [disabled]="busy()"><mat-icon>save</mat-icon> Save</button>
         <button mat-flat-button (click)="save(true)" [disabled]="busy()"><mat-icon>rocket_launch</mat-icon> Save and deploy</button>
         <button mat-icon-button (click)="closeFile()" matTooltip="Close" aria-label="Close"><mat-icon>close</mat-icon></button>
       </div>
-      <p class="hint">{{ saveNote(f) }}</p>
+      @if (listing()?.isGit) { <p class="hint">{{ saveNote(f) }}</p> }
       <app-code-editor class="editor" [(value)]="content" [language]="language()" [label]="f.path" (save)="save(false)" />
     } @else {
       <p class="hint">Select a text file to edit it, or create a new one. Compose and .env files are highlighted; the compose file is validated before saving.</p>

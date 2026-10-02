@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, signal } from '@angular/core';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatButtonModule } from '@angular/material/button';
 import { firstValueFrom } from 'rxjs';
 import { ContainerStatsPointDto, StatsService } from '../../../api';
 import { ChartPoint, LineChart } from '../line-chart/line-chart';
@@ -8,14 +8,17 @@ import { formatBytes, num } from '../../stores/container-stats.store';
 /** CPU and memory history (1-minute points) of one container over the last 1/6/24 hours. Two charts, one measure each. */
 @Component({
   selector: 'app-container-stats-history',
-  imports: [LineChart, MatButtonToggleModule],
+  imports: [LineChart, MatButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="range">
       <span>History</span>
-      <mat-button-toggle-group hideSingleSelectionIndicator [value]="hours()" (change)="hours.set($event.value)" aria-label="History range">
-        @for (h of ranges; track h) { <mat-button-toggle [value]="h">{{ h }}h</mat-button-toggle> }
-      </mat-button-toggle-group>
+      <div class="x-group" role="radiogroup" aria-label="History range">
+        @for (h of ranges; track h) {
+          <button type="button" role="radio" [matButton]="hours() === h ? 'filled' : 'tonal'" [class.x-on]="hours() === h"
+            [attr.aria-checked]="hours() === h" (click)="hours.set(h)">{{ h }}h</button>
+        }
+      </div>
     </div>
     <app-line-chart label="CPU" [points]="cpu()" [floor]="1" [format]="percent" [from]="from()" [to]="to()" />
     <app-line-chart label="Memory" [points]="memory()" [format]="bytes" [from]="from()" [to]="to()" />
@@ -23,7 +26,7 @@ import { formatBytes, num } from '../../stores/container-stats.store';
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
     .range { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--mat-sys-on-surface-variant); }
-    mat-button-toggle-group { --mat-button-toggle-height: 26px; font-size: 12px; }
+    .x-group button { height: 32px; padding: 0 14px; font-size: 13px; }
   `,
 })
 export class ContainerStatsHistory {

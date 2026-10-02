@@ -246,4 +246,12 @@ export class ProjectFiles {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
+
+  protected nameOf(path: string): string {
+    return path.split('/').pop() ?? path;
+  }
+
+  protected folderOf(path: string): string {
+    return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  }
 }

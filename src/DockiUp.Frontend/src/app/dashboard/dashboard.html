@@ -88,12 +88,12 @@
               <div class="project-meta">
                 <span class="state-badge" [attr.data-state]="getProjectStatusClass(project)">{{ getRunningCount(project) }}/{{ getTotalCount(project) }} running</span>
                 @if (project.deployedCommit; as sha) {
-                  <span class="x-chip" [matTooltip]="project.deployedCommitMessage ?? ''"><mat-icon>commit</mat-icon><span class="mono">{{ sha.slice(0, 7) }}</span></span>
+                  <span class="x-chip" [matTooltip]="project.deployedCommitMessage ?? ''" matTooltipShowDelay="800"><mat-icon>commit</mat-icon><span class="mono">{{ sha.slice(0, 7) }}</span></span>
                 }
                 @if (projectNodeName(project); as nodeName) {
                   <span class="x-chip"><mat-icon>dns</mat-icon>{{ nodeName }}</span>
                 }
-                <app-image-update-badge [projectId]="project.id" />
+                <app-image-update-badge [projectId]="project.id" [dockerProjectName]="project.dockerProjectName" />
               </div>
 
               <!-- Buttons act on the project; they must not also open it. -->
@@ -170,7 +170,7 @@
       <section class="side-section">
         <div class="side-head">
           <h2 class="x-section-title">Recent activity</h2>
-          <a class="table-link" routerLink="/activity">See all</a>
+          <a matButton routerLink="/activity">See all</a>
         </div>
         @if (recentActivity().length !== 0) {
           <div class="x-list">

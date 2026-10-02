@@ -1,45 +1,35 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, input, model, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, model, output, viewChild } from '@angular/core';
+import type { Extension, Transaction as TransactionType } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 
-export type EditorLanguage = 'yaml' | 'env' | 'plain';
+export type EditorLanguage = 'compose' | 'yaml' | 'env' | 'json' | 'python' | 'javascript' | 'dockerfile' | 'shell' | 'plain';
 
-/** Picks the highlighter from a file name: compose/YAML files, .env files, or none. */
+/** Picks the language from a file name. Compose files get schema-aware completion, hover help and linting. */
 export function languageFor(path: string): EditorLanguage {
   const name = path.split('/').pop()?.toLowerCase() ?? '';
+  if (/^(docker-)?compose(\.[\w.-]+)?\.ya?ml$/.test(name)) return 'compose';
   if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
   if (name === '.env' || name.startsWith('.env.') || name.endsWith('.env')) return 'env';
+  if (name.endsWith('.json')) return 'json';
+  if (name.endsWith('.py')) return 'python';
+  if (/\.(m?[jt]sx?|cjs)$/.test(name)) return 'javascript';
+  if (name === 'dockerfile' || name.startsWith('dockerfile.') || name.endsWith('.dockerfile')) return 'dockerfile';
+  if (/\.(sh|bash|zsh)$/.test(name)) return 'shell';
   return 'plain';
 }
 
 /**
- * A small code editor: a plain textarea (native undo, selection, IME) over a highlighted copy of the same
- * text, plus line numbers. Deliberately not CodeMirror/Monaco - those would multiply the bundle for what is
- * mostly editing compose and .env files.
+ * CodeMirror 6, loaded on first use (its own chunk, so it only costs something once the Files tab opens).
+ * Compose files are checked against the official compose-spec schema (public/compose-spec.json, self-hosted):
+ * completion of keys, hover descriptions and red underlines for mistakes.
  */
 @Component({
   selector: 'app-code-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <pre class="gutter" #gutter aria-hidden="true">{{ lineNumbers() }}</pre>
-    <div class="area">
-      <pre class="layer" #layer aria-hidden="true" [innerHTML]="highlighted()"></pre>
-      <textarea #text class="layer" wrap="off" spellcheck="false" autocapitalize="off" [attr.aria-label]="label()"
-        [value]="value()" (input)="value.set(text.value)" (scroll)="sync()" (keydown)="onKey($event)"></textarea>
-    </div>
-  `,
+  template: `<div class="host" #host></div>`,
   styles: `
-    :host { display: flex; min-height: 0; overflow: hidden; border-radius: 20px;
-      background: var(--mat-sys-surface-container-lowest); font: 13px/1.6 var(--x-mono); }
-    pre, textarea { margin: 0; padding: 14px; font: inherit; tab-size: 2; white-space: pre; box-sizing: border-box; }
-    .gutter { flex-shrink: 0; min-width: 3.5em; overflow: hidden; text-align: right; color: var(--mat-sys-outline);
-      background: var(--mat-sys-surface-container-low); user-select: none; }
-    .area { position: relative; flex: 1; min-width: 0; }
-    .layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: auto; }
-    pre.layer { overflow: hidden; color: var(--mat-sys-on-surface); pointer-events: none; }
-    textarea { border: 0; outline: 0; resize: none; background: transparent; color: transparent; caret-color: var(--mat-sys-on-surface); }
-    textarea::selection { background: color-mix(in srgb, var(--mat-sys-primary) 30%, transparent); }
-    :host ::ng-deep .t-k { color: var(--mat-sys-primary); }
-    :host ::ng-deep .t-s { color: var(--mat-sys-tertiary); }
-    :host ::ng-deep .t-c { color: var(--mat-sys-outline); font-style: italic; }
+    :host { display: flex; min-height: 0; overflow: hidden; border-radius: 28px; background: #1d2433; }
+    .host { flex: 1; min-width: 0; min-height: 0; display: flex; }
   `,
 })
 export class CodeEditor {
@@ -49,62 +39,131 @@ export class CodeEditor {
   /** Ctrl/Cmd+S. */
   readonly save = output<void>();
 
-  private readonly gutter = viewChild.required<ElementRef<HTMLElement>>('gutter');
-  private readonly layer = viewChild.required<ElementRef<HTMLElement>>('layer');
-  private readonly text = viewChild.required<ElementRef<HTMLTextAreaElement>>('text');
+  private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
+  private view?: EditorView;
+  private reconfigure?: (language: EditorLanguage) => Promise<void>;
+  private setSeparator?: (text: string) => void;
+  private notInHistory?: ReturnType<typeof TransactionType.addToHistory.of>;
 
-  protected readonly lineNumbers = computed(() => {
-    const count = this.value().split('\n').length;
-    return Array.from({ length: count }, (_, i) => i + 1).join('\n');
-  });
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    void this.create().then(() => destroyRef.onDestroy(() => this.view?.destroy()));
 
-  // The trailing newline keeps the layer as tall as the textarea when the text ends in an empty line.
-  protected readonly highlighted = computed(() => highlight(this.value(), this.language()) + '\n ');
-
-  protected sync(): void {
-    const { scrollTop, scrollLeft } = this.text().nativeElement;
-    this.layer().nativeElement.scrollTop = scrollTop;
-    this.layer().nativeElement.scrollLeft = scrollLeft;
-    this.gutter().nativeElement.scrollTop = scrollTop;
+    // A newly opened file (or a reload) replaces the document; typing doesn't come back through here.
+    effect(() => {
+      const value = this.value();
+      const view = this.view;
+      if (view && view.state.sliceDoc() !== value) {
+        this.setSeparator?.(value);
+        // Loading a file is not an edit: keep it out of the undo history.
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value }, annotations: this.notInHistory });
+      }
+    });
+    effect(() => {
+      const language = this.language();
+      void this.reconfigure?.(language);
+    });
   }
 
-  protected onKey(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      this.save.emit();
-    } else if (event.key === 'Tab' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
-      // YAML is indented with spaces; keep focus in the editor. execCommand keeps native undo working.
-      event.preventDefault();
-      document.execCommand('insertText', false, '  ');
+  private async create(): Promise<void> {
+    const [{ basicSetup }, { EditorState, Compartment, Transaction }, { EditorView, keymap }, { indentWithTab }, { syntaxHighlighting, HighlightStyle, indentUnit }, { tags }] =
+      await Promise.all([
+        import('codemirror'),
+        import('@codemirror/state'),
+        import('@codemirror/view'),
+        import('@codemirror/commands'),
+        import('@codemirror/language'),
+        import('@lezer/highlight'),
+      ]);
+
+    this.notInHistory = Transaction.addToHistory.of(false);
+    const languageSlot = new Compartment();
+    // Keep each file's own line endings: CodeMirror would otherwise write a CRLF file back as LF on the first edit.
+    const separatorSlot = new Compartment();
+    const separatorFor = (text: string) => EditorState.lineSeparator.of(text.includes('\r\n') ? '\r\n' : '\n');
+    const highlight = HighlightStyle.define([
+      { tag: [tags.keyword, tags.propertyName, tags.definition(tags.propertyName)], color: '#8ab4f8' },
+      { tag: [tags.string, tags.special(tags.string)], color: '#c3e88d' },
+      { tag: [tags.number, tags.bool, tags.null, tags.atom], color: '#ffcb8b' },
+      { tag: [tags.comment, tags.lineComment, tags.blockComment], color: '#8a94a8', fontStyle: 'italic' },
+      { tag: [tags.variableName, tags.attributeName], color: '#dbe2f9' },
+      { tag: [tags.function(tags.variableName), tags.typeName, tags.className], color: '#ffd8e7' },
+      { tag: [tags.operator, tags.punctuation, tags.separator], color: '#aab4cc' },
+      { tag: tags.invalid, color: '#ffb4ab' },
+    ]);
+    // The dark code surface used for logs: Roboto Mono, soft gutter, rounded tooltips that match the app's menus.
+    const theme = EditorView.theme(
+      {
+        '&': { height: '100%', width: '100%', color: '#dbe2f9', backgroundColor: '#1d2433', fontSize: '13px' },
+        '.cm-scroller': { fontFamily: 'var(--x-mono)', lineHeight: '1.6' },
+        '.cm-content': { padding: '14px 0', caretColor: '#dbe2f9' },
+        '.cm-gutters': { backgroundColor: '#1d2433', color: '#5f6b84', border: 'none', paddingLeft: '8px' },
+        '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(219, 226, 249, 0.05)' },
+        '.cm-cursor': { borderLeftColor: '#dbe2f9' },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'rgba(138, 180, 248, 0.28) !important' },
+        '.cm-matchingBracket': { backgroundColor: 'rgba(138, 180, 248, 0.25)', outline: 'none' },
+        '.cm-searchMatch': { backgroundColor: 'rgba(255, 203, 139, 0.25)' },
+        '.cm-panels': { backgroundColor: '#262e40', color: '#dbe2f9', borderTop: 'none' },
+        '.cm-panels input, .cm-panels button': { fontFamily: 'inherit' },
+        '.cm-tooltip': { border: 'none', borderRadius: '14px', backgroundColor: '#262e40', color: '#dbe2f9', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,.35)' },
+        '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'rgba(138, 180, 248, 0.25)', color: '#fff' },
+        '.cm-tooltip-hover, .cm-tooltip-lint': { padding: '8px 12px', maxWidth: '420px', fontFamily: 'var(--x-mono)' },
+        '.cm-foldPlaceholder': { backgroundColor: '#262e40', border: 'none', color: '#aab4cc' },
+      },
+      { dark: true },
+    );
+
+    this.view = new EditorView({
+      parent: this.host().nativeElement,
+      state: EditorState.create({
+        doc: this.value(),
+        extensions: [
+          basicSetup,
+          keymap.of([
+            { key: 'Mod-s', preventDefault: true, run: () => { this.save.emit(); return true; } },
+            indentWithTab,
+          ]),
+          indentUnit.of('  '),
+          separatorSlot.of(separatorFor(this.value())),
+          theme,
+          syntaxHighlighting(highlight),
+          languageSlot.of(await languageExtension(this.language())),
+          EditorView.contentAttributes.of({ 'aria-label': this.label() }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) this.value.set(update.state.sliceDoc()); // sliceDoc honours the line separator; doc.toString() is always LF
+          }),
+        ],
+      }),
+    });
+    this.setSeparator = (text) => this.view?.dispatch({ effects: separatorSlot.reconfigure(separatorFor(text)) });
+    this.reconfigure = async (language) => {
+      this.view?.dispatch({ effects: languageSlot.reconfigure(await languageExtension(language)) });
+    };
+  }
+}
+
+let composeSchema: Promise<object> | undefined;
+
+async function languageExtension(language: EditorLanguage): Promise<Extension> {
+  const legacy = async (mode: Promise<{ [name: string]: unknown }>, name: string) => {
+    const { StreamLanguage } = await import('@codemirror/language');
+    return StreamLanguage.define((await mode)[name] as never);
+  };
+  switch (language) {
+    case 'compose': {
+      const [{ yamlSchema }, schema] = await Promise.all([
+        import('codemirror-json-schema/yaml'),
+        (composeSchema ??= fetch('compose-spec.json').then((r) => r.json())),
+      ]);
+      return yamlSchema(schema as never);
     }
+    case 'yaml': return (await import('@codemirror/lang-yaml')).yaml();
+    case 'json': return (await import('@codemirror/lang-json')).json();
+    case 'python': return (await import('@codemirror/lang-python')).python();
+    case 'javascript': return (await import('@codemirror/lang-javascript')).javascript({ typescript: true });
+    case 'env': return legacy(import('@codemirror/legacy-modes/mode/properties'), 'properties');
+    case 'dockerfile': return legacy(import('@codemirror/legacy-modes/mode/dockerfile'), 'dockerFile');
+    case 'shell': return legacy(import('@codemirror/legacy-modes/mode/shell'), 'shell');
+    default: return [];
   }
-}
-
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const span = (cls: string, s: string) => (s ? `<span class="t-${cls}">${escapeHtml(s)}</span>` : '');
-
-/** A value: quoted strings, then an optional trailing " # comment". */
-function valueHtml(v: string): string {
-  const comment = v.search(/(^|\s)#/);
-  const body = comment >= 0 ? v.slice(0, comment) : v;
-  const tail = comment >= 0 ? v.slice(comment) : '';
-  const quoted = /^(\s*)("[^"]*"?|'[^']*'?)(.*)$/.exec(body);
-  const bodyHtml = quoted ? escapeHtml(quoted[1]) + span('s', quoted[2]) + escapeHtml(quoted[3]) : escapeHtml(body);
-  return bodyHtml + span('c', tail);
-}
-
-function highlightLine(line: string, lang: EditorLanguage): string {
-  const comment = /^(\s*)(#.*)$/.exec(line);
-  if (comment) return escapeHtml(comment[1]) + span('c', comment[2]);
-  const kv =
-    lang === 'env'
-      ? /^(\s*(?:export\s+)?)([\w.-]+)(=)(.*)$/.exec(line)
-      : /^(\s*(?:-\s+)?)("[^"]*"|'[^']*'|[^\s#'"][^:#]*?)(:)((?:\s.*)?)$/.exec(line);
-  if (kv) return escapeHtml(kv[1]) + span('k', kv[2]) + escapeHtml(kv[3]) + valueHtml(kv[4]);
-  const item = /^(\s*-\s+)(.*)$/.exec(line);
-  return item ? escapeHtml(item[1]) + valueHtml(item[2]) : valueHtml(line);
-}
-
-function highlight(text: string, lang: EditorLanguage): string {
-  return lang === 'plain' ? escapeHtml(text) : text.split('\n').map((l) => highlightLine(l, lang)).join('\n');
 }

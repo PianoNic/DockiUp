@@ -71,9 +71,9 @@
                   <a class="table-link" [routerLink]="['/project', g.name]" (click)="$event.stopPropagation()">{{ g.name }}</a>
                 </div>
               </td>
-              <td><span class="state-badge" [attr.data-state]="g.running ? 'running' : 'stopped'">{{ g.running }}/{{ g.rows.length }} running</span></td>
+              <td><a class="state-badge badge-link" [attr.data-state]="g.running ? 'running' : 'stopped'" [routerLink]="['/project', g.name]" (click)="$event.stopPropagation()">{{ g.running }}/{{ g.rows.length }} running</a></td>
               <td colspan="4">
-                <app-image-update-badge [projectId]="g.projectId" />
+                <app-image-update-badge [projectId]="g.projectId" [dockerProjectName]="g.name" />
               </td>
               <!-- Host on the far right, above the row actions. -->
               <td class="group-host">
@@ -95,7 +95,7 @@
                 <td class="when">–</td>
               }
               <td class="details">
-                <span class="service-cell">{{ r.serviceName }} <app-image-update-badge [projectId]="r.projectId" [service]="r.serviceName" /></span>
+                <span class="service-cell">{{ r.serviceName }} <app-image-update-badge [projectId]="r.projectId" [service]="r.serviceName" [dockerProjectName]="r.dockerProjectName" /></span>
               </td>
               <td class="when status">{{ r.status }}</td>
               <td>

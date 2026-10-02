@@ -1,7 +1,6 @@
 import { MatMenuModule } from '@angular/material/menu';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -51,7 +50,6 @@ export function utcToLocal(day: number, hour: number): { day: number; hour: numb
     MatMenuModule,
     LocalDatePipe,
     MatButtonModule,
-    MatButtonToggleModule,
     MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,

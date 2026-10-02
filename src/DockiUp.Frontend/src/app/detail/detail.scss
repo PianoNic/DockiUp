@@ -18,9 +18,14 @@
   min-width: 0;
 }
 
-.x-title app-image-update-badge {
-  margin-left: 12px;
-  vertical-align: middle;
+// The update chip sits on the centre of the letters: a tight line box (no extra space under the text),
+// then centre alignment.
+.x-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  line-height: 1.05;
 }
 
 .deployed {
@@ -39,17 +44,8 @@
 .x-actions {
   align-self: center;
 
-  .deploy {
-    height: 48px;
-    border-radius: 24px;
-    padding: 0 24px;
-  }
-
-  .x-group button { height: 48px; }
-
+  // Default 40px buttons, like the rest of the app.
   .remove {
-    width: 48px;
-    height: 48px;
     background: var(--mat-sys-error-container);
     color: var(--mat-sys-on-error-container);
   }

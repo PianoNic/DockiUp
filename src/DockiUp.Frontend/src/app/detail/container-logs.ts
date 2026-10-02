@@ -1,3 +1,5 @@
+import { DomSanitizer } from '@angular/platform-browser';
+import { renderLogLine, stripAnsi } from './log-format';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, model, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -71,6 +73,13 @@ export class ContainerLogs {
   protected readonly message = signal<string | null>(null);
 
   protected readonly visible = computed(() => filterLines(this.lines(), searchTerms(this.search()), this.invert()));
+  // Coloured lines (timestamps in local time, container prefixes, ANSI and log levels). renderLogLine escapes all
+  // log text itself, so trusting the result keeps the inline ANSI colours the sanitizer would otherwise strip.
+  private readonly sanitizer = inject(DomSanitizer);
+  protected readonly html = computed(() => {
+    const names = this.containers().map((c) => c.name);
+    return this.sanitizer.bypassSecurityTrustHtml(this.visible().map((l) => renderLogLine(l, names)).join('\n'));
+  });
 
   private readonly output = viewChild<ElementRef<HTMLDivElement>>('output');
 
@@ -142,7 +151,7 @@ export class ContainerLogs {
 
   protected download(): void {
     const name = this.selected() ? (this.containers().find((c) => c.id === this.selected())?.name ?? 'container') : this.projectName();
-    const blob = new Blob([this.visible().join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([this.visible().map(stripAnsi).join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

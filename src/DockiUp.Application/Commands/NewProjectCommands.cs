@@ -68,6 +68,59 @@ namespace DockiUp.Application.Commands
         }
     }
 
+    /// <summary>Registers every compose project on the local host and the online nodes that DockiUp doesn't know yet,
+    /// exactly like a manual adopt (nothing moved, written or restarted). Skipped: DockiUp's own project, projects
+    /// whose compose files DockiUp can't read (deploys would fail), and a name already registered on any host.
+    /// Returns how many were adopted.</summary>
+    public sealed record AutoAdoptCommand : IRequest<int>;
+
+    public sealed class AutoAdoptCommandHandler(IDockerServiceResolver dockerResolver, INodeDirectory nodes, IDockiUpDbContext db, IActivityLogger activity)
+        : IRequestHandler<AutoAdoptCommand, int>
+    {
+        public async ValueTask<int> Handle(AutoAdoptCommand request, CancellationToken cancellationToken)
+        {
+            // ponytail: one name per DockiUp — the same stack name on a second host is left for a manual adopt
+            // (this also keeps a node that shares the local daemon from adopting everything twice).
+            var known = (await db.ProjectInfo.Select(p => p.DockerProjectName).ToListAsync(cancellationToken))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var adopted = 0;
+
+            foreach (var nodeId in new Guid?[] { null }.Concat(nodes.GetOnlineNodeIds().Select(id => (Guid?)id)))
+            {
+                ProjectDto[] projects;
+                try
+                {
+                    projects = await dockerResolver.Resolve(nodeId).GetRawProjectsAsync();
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    continue; // a node dropping out mid-scan is picked up on the next one
+                }
+
+                foreach (var p in projects.Where(p => !p.IsDockiUp && p.ComposeFilesReachable
+                    && !string.IsNullOrWhiteSpace(p.ComposeWorkingDir) && !string.IsNullOrWhiteSpace(p.ComposeConfigFiles)))
+                {
+                    if (!known.Add(p.DockerProjectName)) continue;
+                    var project = new ProjectInfo
+                    {
+                        ProjectName = p.DockerProjectName,
+                        DockerProjectName = p.DockerProjectName,
+                        ProjectOrigin = ProjectOriginType.Adopted,
+                        NodeId = nodeId,
+                        ProjectPath = p.ComposeWorkingDir!,
+                        ComposePath = p.ComposeConfigFiles!,
+                        ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+                    };
+                    db.ProjectInfo.Add(project);
+                    await db.SaveChangesAsync(cancellationToken);
+                    await activity.LogAsync("adopt", project.ProjectName, project.Id, "automatically", cancellationToken);
+                    adopted++;
+                }
+            }
+            return adopted;
+        }
+    }
+
     /// <summary>Takes over a compose project that already runs on a host: stores it with the working dir and
     /// compose files compose recorded in its container labels. Nothing is moved, written or restarted.</summary>
     public sealed record AdoptProjectCommand(AdoptProjectDto Dto) : IRequest<AdoptedProjectDto>;

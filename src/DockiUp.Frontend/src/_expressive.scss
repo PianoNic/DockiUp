@@ -482,3 +482,12 @@ code, pre, kbd, samp, .mono, .x-code {
 
 // An icon inside a shape is centred by the shape; menu-item icon spacing must not shift it.
 .x-shape .mat-icon { margin: 0 !important; }
+
+// A status badge that is also a link (update available → Images tab, x/y running → project).
+a.state-badge.badge-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.15s, box-shadow 0.15s;
+  &:hover { filter: brightness(0.95); box-shadow: inset 0 0 0 1px var(--state); }
+  &:focus-visible { outline: 2px solid var(--mat-sys-primary); outline-offset: 2px; }
+}

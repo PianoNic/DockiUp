@@ -29,5 +29,7 @@ namespace DockiUp.Application.Dtos
         public string? ComposeConfigFiles { get; set; }
         /// <summary>Whether DockiUp can read those files from where it runs (needed to deploy, not to adopt).</summary>
         public bool ComposeFilesReachable { get; set; }
+        /// <summary>The DockiUp server or node agent itself runs in this project: never adopted automatically.</summary>
+        public bool IsDockiUp { get; set; }
     }
 }

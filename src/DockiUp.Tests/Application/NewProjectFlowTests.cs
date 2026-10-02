@@ -319,3 +319,80 @@ public class ComposeProjectArgsTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { }
     }
 }
+
+public class AutoAdoptCommandTests
+{
+    private readonly DockiUp.Infrastructure.DockiUpDbContext _db = TestDb.Create();
+    private readonly Mock<IDockerService> _local = new();
+    private readonly Mock<IDockerService> _node = new();
+    private readonly Mock<IDockerServiceResolver> _resolver = new();
+    private readonly Mock<INodeDirectory> _nodes = new();
+    private readonly Guid _nodeId = Guid.NewGuid();
+
+    public AutoAdoptCommandTests()
+    {
+        _resolver.Setup(r => r.Resolve(null)).Returns(_local.Object);
+        _resolver.Setup(r => r.Resolve(_nodeId)).Returns(_node.Object);
+        _nodes.Setup(n => n.GetOnlineNodeIds()).Returns([_nodeId]);
+        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([]);
+    }
+
+    private static ProjectDto P(string name, bool reachable = true, bool self = false, string? files = "/stacks/x/compose.yaml") => new()
+    {
+        ProjectName = name, DockerProjectName = name, ProjectDescription = "", ManagedByDockiUp = false, Containers = [],
+        ComposeWorkingDir = files is null ? null : "/stacks/" + name, ComposeConfigFiles = files,
+        ComposeFilesReachable = reachable, IsDockiUp = self,
+    };
+
+    private Task<int> Run() => new AutoAdoptCommandHandler(_resolver.Object, _nodes.Object, _db, new Mock<IActivityLogger>().Object)
+        .Handle(new AutoAdoptCommand(), default).AsTask();
+
+    [Fact]
+    public async Task AdoptsReachableComposeProjects_InPlace_OnTheirHost()
+    {
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog")]);
+        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("shop")]);
+
+        Assert.Equal(2, await Run());
+
+        var blog = await _db.ProjectInfo.SingleAsync(p => p.DockerProjectName == "blog");
+        Assert.Null(blog.NodeId);
+        Assert.Equal(ProjectOriginType.Adopted, blog.ProjectOrigin); // removing it later leaves the files alone
+        Assert.Equal("/stacks/blog", blog.ProjectPath);
+        Assert.Equal(_nodeId, (await _db.ProjectInfo.SingleAsync(p => p.DockerProjectName == "shop")).NodeId);
+        _local.Verify(d => d.ComposeUpAsync(It.IsAny<ComposeTarget>(), It.IsAny<Func<string, Task>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SkipsDockiUpItself_UnreachableFiles_AndNonComposeProjects()
+    {
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("dockiup", self: true), P("far", reachable: false), P("legacy", files: null)]);
+
+        Assert.Equal(0, await Run());
+        Assert.Empty(_db.ProjectInfo);
+    }
+
+    [Fact]
+    public async Task KnownNames_AreNotAdoptedAgain_OnAnyHost()
+    {
+        _db.ProjectInfo.Add(new ProjectInfo { ProjectName = "blog", DockerProjectName = "blog", ProjectPath = "/p", ComposePath = "compose.yaml", NodeId = _nodeId, ProjectOrigin = ProjectOriginType.Adopted, ProjectUpdateMethod = ProjectUpdateMethod.Manual });
+        await _db.SaveChangesAsync();
+        // A node sharing the local daemon lists the same projects as the local host.
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog"), P("api")]);
+        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog"), P("api")]);
+
+        Assert.Equal(1, await Run());
+        Assert.Null((await _db.ProjectInfo.SingleAsync(p => p.DockerProjectName == "api")).NodeId);
+        Assert.Equal(2, await _db.ProjectInfo.CountAsync());
+        Assert.Equal(0, await Run()); // idempotent
+    }
+
+    [Fact]
+    public async Task AnUnreachableNode_DoesNotStopTheScan()
+    {
+        _node.Setup(d => d.GetRawProjectsAsync()).ThrowsAsync(new InvalidOperationException("offline"));
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog")]);
+
+        Assert.Equal(1, await Run());
+    }
+}

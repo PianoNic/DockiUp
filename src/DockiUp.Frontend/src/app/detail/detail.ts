@@ -134,8 +134,13 @@ export class Detail implements OnInit {
     if (ok) await this.projectStore.removeContainer(container, this.nodeId);
   }
 
-  /** 0 Containers, 1 Deployments, 2 Images, 3 Files, 4 Settings. */
+  /** 0 Containers, 1 Deployments, 2 Images, 3 Files, 4 Settings; `?tab=images` opens one directly. */
   readonly tab = signal(0);
+  private static readonly TABS = ['containers', 'deployments', 'images', 'files', 'settings'];
+  private readonly tabFromQuery = this.route.queryParamMap.subscribe((q) => {
+    const index = Detail.TABS.indexOf(q.get('tab') ?? '');
+    if (index >= 0) this.tab.set(index);
+  });
 
   async deployNow() {
     const id = this.project()?.id;

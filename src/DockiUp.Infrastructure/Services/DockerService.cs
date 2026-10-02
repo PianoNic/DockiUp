@@ -31,6 +31,11 @@ namespace DockiUp.Infrastructure.Services
             var containers = await _dockiUpDockerClient.DockerClient.Containers
                 .ListContainersAsync(new ContainersListParameters { All = true });
             var composeFiles = ComposeFileLabels(containers);
+            // Inside a container the hostname is the short container id: that's how DockiUp finds its own project.
+            var self = Environment.MachineName.ToLowerInvariant();
+            string? selfProject = null;
+            containers.FirstOrDefault(c => self.Length >= 12 && c.ID.StartsWith(self, StringComparison.Ordinal))?
+                .Labels.TryGetValue("com.docker.compose.project", out selfProject);
 
             return containers
                 .Select(container =>
@@ -55,20 +60,31 @@ namespace DockiUp.Infrastructure.Services
                 .Where(dto => dto != null)
                 .Cast<ContainerDto>()
                 .GroupBy(containerDto => containerDto.ProjectName)
-                .Select(group => new ProjectDto
+                .Select(group =>
+                {
+                    var (workingDir, configFiles) = composeFiles.GetValueOrDefault(group.Key);
+                    var reachable = configFiles is { } files
+                        && files.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).All(File.Exists);
+                    var isDockiUp = group.Key == selfProject;
+                    return new ProjectDto
                 {
                     Id = null,
                     ProjectName = group.Key,
-                    ProjectDescription = "Not Managed By DockiUp",
+                    // Every other compose project is adopted automatically (AutoAdoptCommand); these are the ones it can't.
+                    ProjectDescription = isDockiUp ? "DockiUp itself"
+                        : configFiles is null ? "Not started with docker compose v2"
+                        : reachable ? "Being added to DockiUp…"
+                        : $"Compose files not reachable: mount {workingDir} into DockiUp at the same path to manage it",
                     ManagedByDockiUp = false,
+                    IsDockiUp = isDockiUp,
                     DockerProjectName = group.Key,
                     Containers = group.ToArray(),
                     ProjectPath = null,
                     UpdateMethod = null,
-                    ComposeWorkingDir = composeFiles.GetValueOrDefault(group.Key).WorkingDir,
-                    ComposeConfigFiles = composeFiles.GetValueOrDefault(group.Key).ConfigFiles,
-                    ComposeFilesReachable = composeFiles.GetValueOrDefault(group.Key).ConfigFiles is { } files
-                        && files.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).All(File.Exists),
+                    ComposeWorkingDir = workingDir,
+                    ComposeConfigFiles = configFiles,
+                    ComposeFilesReachable = reachable,
+                };
                 }).ToArray();
         }
 
@@ -266,12 +282,11 @@ namespace DockiUp.Infrastructure.Services
         #region Vault secrets -> env file (#76)
         public async Task WriteEnvFileAsync(string projectPath, string composePath, IReadOnlyDictionary<string, string> secrets, CancellationToken cancellationToken = default)
         {
-            // Paths come from the control plane; still only ever write inside the projects root.
-            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            // Paths come from the control plane; only ever write in a folder of ours (see IsOwnFolderAsync).
             var project = Path.GetFullPath(projectPath);
             // Adopted projects list several compose files, comma-separated; .env sits next to the first.
             var compose = Path.GetFullPath(composePath.Split(',')[0].Trim());
-            var insideRoot = project.StartsWith(root, StringComparison.Ordinal)
+            var insideRoot = await IsOwnFolderAsync(project)
                 && compose.StartsWith(project + Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
             var target = Path.Combine(project, Application.Deployments.EnvFile.GeneratedFileName);
@@ -315,36 +330,56 @@ namespace DockiUp.Infrastructure.Services
 
         #region Project files (#65/#66/#67)
         // The project folder itself comes from the control plane (or a node's caller); it must be one of ours
-        // before any relative path is resolved inside it.
-        private string ProjectRoot(string projectPath)
+        // before any relative path is resolved inside it: inside the projects folder, or the working directory of a
+        // compose project running on this host (an adopted project, which stays where it is). The host checks the
+        // latter against its own container labels, so a caller can't point it at an arbitrary folder.
+        private async Task<string> ProjectRootAsync(string projectPath)
         {
-            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var full = Path.GetFullPath(projectPath);
-            if (!full.StartsWith(root, StringComparison.Ordinal))
-                throw new ArgumentException($"'{projectPath}' is outside the projects folder.");
+            if (!await IsOwnFolderAsync(full))
+                throw new ArgumentException($"'{projectPath}' is neither in the projects folder nor a compose project on this host.");
             if (!Directory.Exists(full))
                 throw new KeyNotFoundException("The project folder does not exist on its host.");
             return full;
         }
 
-        public Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default)
+        private async Task<bool> IsOwnFolderAsync(string fullPath)
         {
-            var root = ProjectRoot(projectPath);
-            return Task.FromResult(ProjectFileSystem.List(root, path, _projectFiles.GetTrackedFiles(root)));
+            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (fullPath.StartsWith(root, StringComparison.Ordinal))
+                return true;
+            try
+            {
+                return (await GetRawProjectsAsync()).Any(p => p.ComposeWorkingDir is { } dir && SamePath(dir, fullPath));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return false; // can't ask Docker: treat the folder as not ours
+            }
         }
 
-        public Task<ProjectFileContentDto> ReadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        private static bool SamePath(string a, string b)
+            => string.Equals(Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar), b.TrimEnd(Path.DirectorySeparatorChar),
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+        public async Task<ProjectFileEntryDto[]> ListProjectFilesAsync(string projectPath, string? path, CancellationToken cancellationToken = default)
         {
-            var root = ProjectRoot(projectPath);
-            return ProjectFileSystem.ReadTextAsync(root, path, _projectFiles.GetTrackedFiles(root), cancellationToken);
+            var root = await ProjectRootAsync(projectPath);
+            return ProjectFileSystem.List(root, path, _projectFiles.GetTrackedFiles(root));
         }
 
-        public Task<byte[]> DownloadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
-            => ProjectFileSystem.ReadBytesAsync(ProjectRoot(projectPath), path, cancellationToken);
+        public async Task<ProjectFileContentDto> ReadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        {
+            var root = await ProjectRootAsync(projectPath);
+            return await ProjectFileSystem.ReadTextAsync(root, path, _projectFiles.GetTrackedFiles(root), cancellationToken);
+        }
+
+        public async Task<byte[]> DownloadProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => await ProjectFileSystem.ReadBytesAsync(await ProjectRootAsync(projectPath), path, cancellationToken);
 
         public async Task<ProjectFileWriteResult> WriteProjectFileAsync(string projectPath, string path, byte[] content, ProjectFileCommit? commit, CancellationToken cancellationToken = default)
         {
-            var root = ProjectRoot(projectPath);
+            var root = await ProjectRootAsync(projectPath);
             var (full, previous) = await ProjectFileSystem.WriteAsync(root, path, content, cancellationToken);
             var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
             if (!_projectFiles.GetTrackedFiles(root).Contains(relative))
@@ -363,22 +398,18 @@ namespace DockiUp.Infrastructure.Services
             }
         }
 
-        public Task DeleteProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+        public async Task DeleteProjectFileAsync(string projectPath, string path, CancellationToken cancellationToken = default)
         {
-            var root = ProjectRoot(projectPath);
+            var root = await ProjectRootAsync(projectPath);
             var relative = Path.GetRelativePath(root, ProjectFileSystem.Resolve(root, path)).Replace('\\', '/');
             // The next sync's hard reset would bring a tracked file back; deleting it belongs in the repository.
             if (_projectFiles.GetTrackedFiles(root).Any(t => t == relative || t.StartsWith(relative + "/", StringComparison.Ordinal)))
                 throw new ArgumentException($"'{path}' is tracked in git; delete it in the repository instead.");
             ProjectFileSystem.Delete(root, path);
-            return Task.CompletedTask;
         }
 
-        public Task CreateProjectFolderAsync(string projectPath, string path, CancellationToken cancellationToken = default)
-        {
-            ProjectFileSystem.CreateFolder(ProjectRoot(projectPath), path);
-            return Task.CompletedTask;
-        }
+        public async Task CreateProjectFolderAsync(string projectPath, string path, CancellationToken cancellationToken = default)
+            => ProjectFileSystem.CreateFolder(await ProjectRootAsync(projectPath), path);
 
         [ExcludeFromCodeCoverage] // spawns the `docker` CLI process; covered by integration/E2E
         public async Task<ComposeValidationResult> ValidateProjectComposeAsync(ComposeTarget target, string? composeOverrideContent, CancellationToken cancellationToken = default)
@@ -602,24 +633,23 @@ namespace DockiUp.Infrastructure.Services
 
         public async Task<Dictionary<string, string>> GetImageOverridesAsync(string projectPath)
         {
-            var file = OverridePath(projectPath);
+            var file = await OverridePathAsync(projectPath);
             return ComposeOverrideFile.ReadImages(File.Exists(file) ? await File.ReadAllTextAsync(file) : null);
         }
 
         public async Task SetImageOverrideAsync(string projectPath, string service, string? image)
         {
-            var file = OverridePath(projectPath);
+            var file = await OverridePathAsync(projectPath);
             var content = ComposeOverrideFile.SetImage(File.Exists(file) ? await File.ReadAllTextAsync(file) : null, service, image);
             if (content is null) File.Delete(file);
             else await File.WriteAllTextAsync(file, content, Encoding.UTF8);
         }
 
-        // The override lives in the project's own folder, which must be inside the projects root.
-        private string OverridePath(string projectPath)
+        // The override lives in the project's own folder, which must be one of ours (see IsOwnFolderAsync).
+        private async Task<string> OverridePathAsync(string projectPath)
         {
-            var root = Path.GetFullPath(_systemPaths.ProjectsPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var full = Path.GetFullPath(projectPath);
-            if (!full.StartsWith(root, StringComparison.Ordinal) || !Directory.Exists(full))
+            if (!Directory.Exists(full) || !await IsOwnFolderAsync(full))
                 throw new ArgumentException($"'{projectPath}' is not a project folder.");
             return Path.Combine(full, ComposeOverrideFile.FileName);
         }

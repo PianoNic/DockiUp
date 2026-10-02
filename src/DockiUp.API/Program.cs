@@ -112,6 +112,7 @@ builder.Services.AddHostedService<DockiUp.API.HostedServices.ImageUpdateHostedSe
 builder.Services.AddSingleton<DockiUp.Application.Monitoring.ContainerStatsStore>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStatsHostedService>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.CleanupScheduleHostedService>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.AutoAdoptHostedService>();
 #endregion
 #endregion
 

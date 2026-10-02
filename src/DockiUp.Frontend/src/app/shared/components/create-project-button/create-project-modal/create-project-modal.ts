@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,7 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import { ComposeValidationDto, GitCredentialDto, GitCredentialsService, NodeDto, NodesService, ProjectDto, ProjectService, RepositoryInspectionDto, SetupProjectDto } from '../../../../api';
+import { ComposeValidationDto, GitCredentialDto, GitCredentialsService, NodeDto, NodesService, ProjectService, RepositoryInspectionDto, SetupProjectDto } from '../../../../api';
 import { ProjectOriginType, ProjectUpdateMethod } from '../../../models/api-enums';
 import { errorMessage } from '../../../services/notification.service';
 import { ProjectStore } from '../../../stores/project.store';
@@ -20,7 +19,7 @@ import { ProjectStore } from '../../../stores/project.store';
 /** What the dialog closes with: the compose project name to open (its first deployment streams there). */
 export interface CreateProjectResult { dockerProjectName: string; }
 
-type Source = 'git' | 'compose' | 'image' | 'existing';
+type Source = 'git' | 'compose' | 'image';
 type ComposeMode = 'editor' | 'run';
 
 // Mirrors the server limits (DeployProjectCommandValidator).
@@ -34,7 +33,7 @@ const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _-]*$/;
 @Component({
   selector: 'app-create-project-modal',
   imports: [
-    MatButtonModule, MatButtonToggleModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule,
+    MatButtonModule, MatDialogModule, MatFormFieldModule, MatIconModule, MatInputModule,
     MatProgressBarModule, MatProgressSpinnerModule, MatRadioModule, MatSelectModule, MatStepperModule, MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -88,13 +87,6 @@ export class CreateProjectModal implements OnInit {
   readonly restart = signal('unless-stopped');
   readonly generatedCompose = signal('');
 
-  readonly existingName = signal('');
-  // Running compose projects DockiUp doesn't manage yet, from the shared project list.
-  readonly adoptable = computed(() => this.projectStore.projectDtos()
-    .filter(p => !p.managedByDockiUp)
-    .sort((a, b) => this.hostName(a.nodeId).localeCompare(this.hostName(b.nodeId)) || a.dockerProjectName.localeCompare(b.dockerProjectName)));
-  readonly existing = computed(() => this.adoptable().find(p => this.adoptKey(p) === this.existingName()) ?? null);
-
   // ---- Step 2: where & environment ----
   readonly projectName = signal('');
   readonly description = signal('');
@@ -114,12 +106,10 @@ export class CreateProjectModal implements OnInit {
       case 'git': return !!this.repo() && this.inspectedUrl() === this.gitUrl().trim() && !!this.selectedComposeFile();
       case 'compose': return this.composeMode() === 'editor' && !!this.compose().trim() && this.compose().length <= MAX_COMPOSE_CHARS;
       case 'image': return !!this.image().trim();
-      case 'existing': return !!this.existing()?.composeWorkingDir;
     }
   });
   readonly nameError = computed(() => {
     const name = this.projectName().trim();
-    if (this.source() === 'existing') return null;
     if (!name) return 'Project name is required';
     if (name.length > 100) return 'Project name must be 100 characters or less';
     if (!PROJECT_NAME.test(name)) return 'Letters, digits, spaces, - and _ only; start with a letter or digit';
@@ -129,7 +119,7 @@ export class CreateProjectModal implements OnInit {
   readonly updatesValid = computed(() =>
     this.updateMethod() !== ProjectUpdateMethod.Periodically || Number(this.interval()) >= 1);
   readonly canCreate = computed(() => this.sourceValid() && this.whereValid() && this.updatesValid() && !this.busy() && !this.validating()
-    && (this.source() === 'existing' || !!this.validation()?.valid));
+    && !!this.validation()?.valid);
 
   /** The compose content that will be stored (compose and image sources). */
   private readonly composeContent = computed(() => this.source() === 'image' ? this.generatedCompose() : this.compose());
@@ -143,17 +133,11 @@ export class CreateProjectModal implements OnInit {
       next: nodes => this.allNodes.set(nodes),
       error: () => this.allNodes.set([]),
     });
-    // Fresh list of running projects for the "existing" source.
-    this.projectStore.loadContainers();
   }
 
   hostName(nodeId?: string | null): string {
     if (!nodeId) return 'Local (this host)';
     return this.allNodes().find(n => n.id === nodeId)?.name ?? 'Node';
-  }
-
-  adoptKey(p: ProjectDto): string {
-    return `${p.nodeId ?? ''}/${p.dockerProjectName}`;
   }
 
   setSource(source: Source) {
@@ -299,7 +283,6 @@ export class CreateProjectModal implements OnInit {
   }
 
   async validate() {
-    if (this.source() === 'existing') return;
     const run = ++this.validationRun; // only the latest run may report
     this.validating.set(true);
     this.validation.set(null);
@@ -333,20 +316,6 @@ export class CreateProjectModal implements OnInit {
     this.error.set(null);
     try {
       const periodic = this.updateMethod() === ProjectUpdateMethod.Periodically ? Number(this.interval()) : null;
-      if (this.source() === 'existing') {
-        const project = this.existing()!;
-        const adopted = await firstValueFrom(this.projectService.adoptProject({
-          dockerProjectName: project.dockerProjectName,
-          nodeId: project.nodeId ?? null,
-          description: this.description().trim() || null,
-          projectUpdateMethod: this.updateMethod(),
-          periodicIntervalInMinutes: periodic,
-        }));
-        await this.projectStore.loadContainers();
-        this.dialogRef.close({ dockerProjectName: adopted.dockerProjectName });
-        return;
-      }
-
       const git = this.source() === 'git';
       const dto: SetupProjectDto = {
         projectName: this.projectName().trim(),

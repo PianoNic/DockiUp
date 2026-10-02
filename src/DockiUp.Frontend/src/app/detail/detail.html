@@ -3,7 +3,7 @@
     <span class="x-eyebrow">Project · {{ hostName() }}</span>
     <h1 class="x-title">
       {{ project()?.projectName ?? 'Project' }}
-      <app-image-update-badge [projectId]="managedId()" />
+      <app-image-update-badge [projectId]="managedId()" [dockerProjectName]="project()?.dockerProjectName" />
     </h1>
     @if (project()?.projectDescription; as description) {
       <p class="x-sub">{{ description }}</p>
@@ -74,7 +74,7 @@
               @for (container of p.containers; track container.id) {
                 <div class="container-card x-card" [class.selected]="selectedContainerId() === container.id" role="button" tabindex="0"
             (click)="toggleContainerLogs(container)" (keydown.enter)="toggleContainerLogs(container)"
-            [attr.aria-pressed]="selectedContainerId() === container.id" [matTooltip]="selectedContainerId() === container.id ? 'Show all logs' : 'Show only this container\'s logs'" matTooltipShowDelay="600">
+            [attr.aria-pressed]="selectedContainerId() === container.id">
                   <div class="container-title">
                     <span class="x-shape round sm state-shape" [attr.data-state]="stateLabel(container.state)"><mat-icon>{{ getStatusIcon(container.state) }}</mat-icon></span>
                     <span class="name" [title]="container.name">{{ container.name }}</span>

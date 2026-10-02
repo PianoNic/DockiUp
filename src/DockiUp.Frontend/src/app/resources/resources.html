@@ -201,11 +201,14 @@
             Each run is logged in Activity with the space it freed.
           </p>
           <div class="schedule-row">
-            <mat-button-toggle-group [value]="frequency()" (change)="frequency.set($event.value)" aria-label="Frequency">
-              <mat-button-toggle value="Off">Off</mat-button-toggle>
-              <mat-button-toggle value="Daily">Daily</mat-button-toggle>
-              <mat-button-toggle value="Weekly">Weekly</mat-button-toggle>
-            </mat-button-toggle-group>
+            <div class="x-group" role="radiogroup" aria-label="Frequency">
+          <button type="button" role="radio" [matButton]="frequency() === 'Off' ? 'filled' : 'tonal'" [class.x-on]="frequency() === 'Off'"
+            [attr.aria-checked]="frequency() === 'Off'" (click)="frequency.set('Off')">Off</button>
+          <button type="button" role="radio" [matButton]="frequency() === 'Daily' ? 'filled' : 'tonal'" [class.x-on]="frequency() === 'Daily'"
+            [attr.aria-checked]="frequency() === 'Daily'" (click)="frequency.set('Daily')">Daily</button>
+          <button type="button" role="radio" [matButton]="frequency() === 'Weekly' ? 'filled' : 'tonal'" [class.x-on]="frequency() === 'Weekly'"
+            [attr.aria-checked]="frequency() === 'Weekly'" (click)="frequency.set('Weekly')">Weekly</button>
+        </div>
             @if (frequency() === 'Weekly') {
               <mat-form-field appearance="fill" subscriptSizing="dynamic">
                 <mat-label>Day</mat-label>

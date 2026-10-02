@@ -113,7 +113,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 13px var(--x-mono);
+  font-size: 18px;
+
+  .dir { color: var(--mat-sys-on-surface-variant); font-weight: 500; }
+  .file-name { font-weight: 700; }
 }
 
 .dirty { margin-left: 6px; color: #fb8c00; }

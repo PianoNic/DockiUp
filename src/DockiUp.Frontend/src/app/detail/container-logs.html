@@ -55,6 +55,6 @@
   } @else if (message()) {
     <pre>{{ message() }}</pre>
   } @else {
-    <pre>{{ visible().join('\n') }}</pre>
+    <pre [innerHTML]="html()"></pre>
   }
 </div>

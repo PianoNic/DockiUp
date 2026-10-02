@@ -28,6 +28,17 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "@sagold/json-pointer",
+              "best-effort-json-parser",
+              "deepmerge",
+              "ebnf",
+              "fast-deep-equal",
+              "json5",
+              "loglevel",
+              "smtp-address-parser",
+              "valid-url"
             ]
           },
           "configurations": {

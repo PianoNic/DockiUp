@@ -1,5 +1,8 @@
 :host {
-  display: block;
+  // Never taller than the window: header, progress and actions stay put, only the step content scrolls.
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
 }
 
 .progress-bar {
@@ -11,8 +14,16 @@
 
 mat-dialog-content {
   position: relative;
-  // The dialog scrolls inside; the page behind never does.
-  max-height: min(75vh, 760px);
+  // Takes whatever height is left and scrolls; the page behind never does.
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+}
+
+.np-header,
+.np-progress,
+mat-dialog-actions {
+  flex-shrink: 0;
 }
 
 mat-dialog-actions .cancel {
@@ -91,7 +102,7 @@ pre.code {
 // Source picker: four selectable cards.
 .source-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin: 8px 0 20px;
 }
@@ -211,42 +222,6 @@ pre.code {
 
   &.ok mat-icon {
     color: #43a047;
-  }
-}
-
-.empty {
-  margin: 16px 0;
-}
-
-.adopt-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 340px;
-  overflow: auto;
-}
-
-.adopt-option {
-  padding: 6px 10px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 10px;
-
-  .adopt-name {
-    font-weight: 500;
-  }
-
-  .adopt-path {
-    display: block;
-    font-size: 12px;
-    color: var(--mat-sys-on-surface-variant);
-  }
-
-  .warn-icon {
-    vertical-align: middle;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: #fb8c00;
   }
 }
 
@@ -415,31 +390,14 @@ pre.code {
   }
 }
 
+// Default-size buttons, like everywhere else in the app (the global press squash still applies).
 mat-dialog-actions {
-  padding: 8px 24px 24px;
+  padding: 24px 24px 24px; // clear space between the step content and the actions
   gap: 8px;
-
-  button {
-    height: 48px;
-    border-radius: 24px;
-    padding: 0 20px;
-    transition: border-radius 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-    &:active {
-      border-radius: 12px;
-    }
-  }
 
   .back:not([disabled]) {
     background: var(--mat-sys-secondary-container);
     color: var(--mat-sys-on-secondary-container);
-  }
-
-  .primary-action {
-    height: 56px;
-    border-radius: 28px;
-    padding: 0 28px;
-    font-size: 16px;
   }
 }
 

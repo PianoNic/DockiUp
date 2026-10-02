@@ -80,7 +80,7 @@ interface ServiceRow {
                     <div class="image-cell">
                       <span class="mono">{{ r.pinned ?? r.check?.image ?? '—' }}</span>
                       @if (r.pinned) {
-                        <span class="x-chip" matTooltip="Chosen here (dockiup.override.yml); reset to use the compose file's image again">
+                        <span class="x-chip" matTooltip="Chosen here (dockiup.override.yml); reset to use the compose file's image again" matTooltipShowDelay="800">
                           <mat-icon>push_pin</mat-icon>pinned
                         </span>
                       }
@@ -90,11 +90,11 @@ interface ServiceRow {
                     @if (r.excluded) {
                       <span class="state-badge" data-state="stopped">Excluded</span>
                     } @else if (r.check?.updateAvailable) {
-                      <span class="state-badge" data-state="update" [matTooltip]="'Registry: ' + r.check?.latestDigest">Update available</span>
+                      <span class="state-badge" data-state="update" [matTooltip]="'Registry: ' + r.check?.latestDigest" matTooltipShowDelay="800">Update available</span>
                     } @else if (r.check?.note) {
                       <span class="note">{{ r.check?.note }}</span>
                     } @else if (r.check) {
-                      <span class="state-badge" data-state="running" [matTooltip]="r.check.currentDigest ?? ''">Up to date</span>
+                      <span class="state-badge" data-state="running" [matTooltip]="r.check.currentDigest ?? ''" matTooltipShowDelay="800">Up to date</span>
                     } @else {
                       <span class="note">Not checked yet</span>
                     }
