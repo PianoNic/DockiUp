@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>026ba930-fe80-4a6c-baa3-c3a36465c012</UserSecretsId>
     <!-- Stamped into the assembly and surfaced by GetAppInfo (sidenav + footer). Bump per release. -->
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
