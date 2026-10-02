@@ -1,114 +1,151 @@
-<p align="center"> 
-    <img src="assets/DockiUpLogo.png" width="800" alt="DockiUp Logo">
-</p>
 <p align="center">
-    <strong>DockiUpV2</strong> - Git-based Docker container deployment automation
+  <img src="assets/DockiUpLogo.png" width="520" alt="DockiUp Logo">
 </p>
+
 <p align="center">
-    You commit, we pull, build, and deploy.
+  <strong>Self-hosted Docker Compose deployments: you commit, DockiUp pulls, builds and deploys.</strong>
 </p>
+
 <p align="center">
-    <a href="#-technical-details"><img src="https://img.shields.io/badge/Documentation-Docs-006db8.svg" alt="Documentation"/></a>
-    <a href="#run-full-stack-with-docker-db--api"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
-    <a href="#frontend-dockiupfrontend"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
+  <a href="https://github.com/PianoNic/DockiUpp"><img src="https://badgetrack.pianonic.ch/badge?tag=dockiup&label=visits&color=006db8&style=flat" alt="visits"/></a>
+  <a href="https://github.com/PianoNic/DockiUpp/blob/main/LICENSE"><img src="https://img.shields.io/github/license/PianoNic/DockiUpp?color=006db8&label=License" alt="License"/></a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
+  <a href="#development"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
 </p>
 
 ---
 
-## 🚀 What is DockiUp?
+> **Heads up:** DockiUp is in active development and not released yet. Expect breaking changes, and build
+> it from source for now.
 
-DockiUp monitors your Git repositories for changes, then automatically:
-1. Pulls the latest changes from your specified branch
-2. Rebuilds your Docker containers with the updated code
-3. Deploys the new containers with minimal downtime
-
-Perfect for developers who want a simple CI/CD pipeline for their personal projects.
-
-## 🖼️ Screenshots
+## Screenshots
 
 <p align="center">
-    <img src="assets/dashboard-screenshot.png" width="80%" alt="DockiUp Dashboard">
+  <img src="assets/screenshots/dashboard-light.png" width="49%" alt="Dashboard, light mode" />
+  <img src="assets/screenshots/dashboard-dark.png" width="49%" alt="Dashboard, dark mode" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/project-light.png" width="49%" alt="Project with containers and coloured logs, light mode" />
+  <img src="assets/screenshots/project-dark.png" width="49%" alt="Project with containers and coloured logs, dark mode" />
 </p>
 
-## ✨ Features
+<details>
+<summary><strong>More screenshots</strong></summary>
 
-- **Automatic Monitoring**: Checks for Git repository changes at customizable intervals
-- **Manual Trigger**: Force updates on demand via the intuitive web interface
-- **Multi-Repository Support**: Manage multiple projects from a single dashboard
-- **Flexible Configuration**:
-  - Set custom check intervals (from 5 minutes to daily)
-  - Specify which Git branch to monitor
-  - Configure rebuild parameters
-- **Authentication Support**: Works with both public and private Git repositories
+<p align="center">
+  <img src="assets/screenshots/containers.png" width="49%" alt="All containers, grouped by project and host" />
+  <img src="assets/screenshots/deployments.png" width="49%" alt="Deployment history with commits and logs" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/editor.png" width="49%" alt="Editing a compose file with schema completion" />
+  <img src="assets/screenshots/new-project.png" width="49%" alt="New project dialog" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/nodes.png" width="49%" alt="Remote nodes" />
+</p>
 
-## 🔧 How It Works
+</details>
 
-DockiUp runs as a service that:
-1. Monitors your specified Git repositories for new commits
-2. When changes are detected, pulls the latest code
-3. Rebuilds Docker containers based on the updated code
-4. Restarts the containers with your specified configuration
+## Features
 
-## 📋 Getting Started
+- **Deploy from anywhere**: a Git repository (public or private), a compose file you write or upload, a
+  single image, or a pasted `docker run` command.
+- **Updates on your terms**: push webhooks from GitHub, Gitea/Forgejo and GitLab, a schedule, or a button.
+  Every deployment is queued and kept with its commit and full log.
+- **Existing stacks, no migration**: compose projects already running on a host are picked up
+  automatically, in place. Nothing is moved, copied or restarted.
+- **Several hosts**: add a node with one compose file. It dials back to DockiUp, so the node needs no
+  open ports.
+- **Image updates**: newer images for the tags you run are detected; get notified or deploy them
+  automatically, and pin a service to another tag.
+- **Files in the browser**: edit compose and config files with completion, hover help and checks from the
+  official compose schema. In Git projects, saving commits and pushes.
+- **Logs and terminal**: coloured logs with search and local timestamps, a shell into any container, and
+  live CPU and memory.
+- **Secrets**: an encrypted vault whose values reach compose through an env file and never appear in
+  logs.
+- **Notifications**: Discord, Slack, Telegram, ntfy or any webhook, for deployments, nodes, image updates
+  and cleanups.
+- **Housekeeping**: images, volumes and networks per host, pruning, and scheduled cleanup.
+- **Optional sign-in**: any OpenID Connect provider, or none.
 
-1. **Installation**: See [Run full stack with Docker](#run-full-stack-with-docker-db--api) for setup instructions
-2. **Configuration**: Add your Git repositories and Docker settings
-3. **Scripts**: Use the `scripts/` folder for DB and migration helpers (`Db-Script.ps1`, `Db-Script-GUI.ps1`).
-4. **Monitor**: Watch your containers stay up-to-date automatically
+## Quick start
 
-## 💻 Technical Details
+DockiUp needs Docker with Compose v2 on the host.
 
-- DockiUp requires access to the Docker socket to manage containers
-- Runs as a Docker container
-- Supports webhook integration for instant updates
+**1. Get the code and create `.env`:**
 
-### Frontend (DockiUp.Frontend)
+```bash
+git clone https://github.com/PianoNic/DockiUpp.git
+cd DockiUpp
+cp .env.example .env
+```
 
-The web UI lives **inside this repo** at `src/DockiUp.Frontend` (Angular 21, Material 3, PianUI layout with theme toggle). For local development, run the API and the frontend separately; the API allows CORS from `http://localhost:4200`.
+In `.env`, set at least `POSTGRES_PASSWORD` and a vault key:
 
-**Run frontend:** From `src/DockiUp.Frontend`: `npm install` then `npm start`. Generate the API client with `npm run apigen` (uses running API at `http://localhost:5098/openapi/v1.json`) or `npm run apigen:live` (same; requires the API running).
+```env
+POSTGRES_PASSWORD=change-me
+# 32 random bytes, base64: openssl rand -base64 32
+VAULT_MASTER_KEY=
+```
 
-**Docker (full image with frontend):** The Dockerfile builds the frontend from `src/DockiUp.Frontend` in this repo. Build with `docker build -f src/DockiUp.API/Dockerfile .`
+**2. Start it:**
 
-**API-only Docker:** Use `Dockerfile.backend` when the frontend is served separately: `docker build -f src/DockiUp.API/Dockerfile.backend -t dockiup:api .`
+```bash
+docker compose up -d
+```
 
-### Run full stack with Docker (DB + API)
+Open <http://localhost:8080>.
 
-To run the database and API in Docker for full-stack testing:
+### Manage stacks that already run on the host
 
-1. **Create `.env`** from the example (required for `docker compose`):
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` and set at least `POSTGRES_PASSWORD`; set `POSTGRES_USER` and `POSTGRES_DB` if you prefer (defaults: `postgres`, `dockiupdb`). `PROJECTS_PATH` defaults to `/app/projects`.
+DockiUp adopts every compose project it can read. Mount the folder your stacks live in at the **same
+path** inside the DockiUp container, for example in `compose.yml`:
 
-2. **Start DB + API (full image with frontend):**
-   ```bash
-   docker compose up -d
-   ```
-   - API (and built-in frontend): **http://localhost:8080**
-   - PostgreSQL: `localhost:5432` (from `.env`: `POSTGRES_USER`, `POSTGRES_DB`)
+```yaml
+services:
+  dockiup:
+    volumes:
+      - /opt/stacks:/opt/stacks
+```
 
-3. **Or start DB + API only** (faster build; run frontend locally):
-   ```bash
-   docker compose -f compose.backend.yml up -d
-   ```
-   Then run the frontend from `src/DockiUp.Frontend` with `npm start` and point it to `http://localhost:8080`.
+Projects whose folder isn't mounted still show up, and say which folder to mount.
 
-4. **Development: DB only** (run API and frontend on the host):
-   ```bash
-   docker compose -f compose.dev.yml up -d
-   ```
-   PostgreSQL is on `localhost:5433` (database `dockiupdb-dev`). Point your local API connection string to that port.
+### Add another host
 
-Migrations run automatically on API startup. The API container mounts the Docker socket so it can manage compose projects on the host.
+Set `PUBLIC_URL` in `.env` to the address other hosts reach DockiUp at, then press **Add node** on the
+Nodes page. It hands you a ready-to-run compose file with a fresh token for the new host.
 
-## 📜 License
+## Configuration
 
-This project is licensed under the GPL-3.0 License.  
-See the [LICENSE](LICENSE) file for details.
+Everything is set in `.env`. See [`.env.example`](.env.example) for the full list.
 
-This project is based on [PianUI](https://github.com/PianoNic/PianUI) by [PianoNic](https://github.com/PianoNic).
+| Variable | Required | Description |
+|---|---|---|
+| `POSTGRES_PASSWORD` | yes | Password of the bundled PostgreSQL database |
+| `VAULT_MASTER_KEY` | for secrets and Git credentials | Base64-encoded 32-byte key that encrypts the vault |
+| `PUBLIC_URL` | for nodes | URL other hosts reach DockiUp at; must not be `localhost` |
+| `CORS_ALLOWED_ORIGINS` | in development | Origins allowed to call the API when the frontend runs separately |
+| `Oidc__Authority`, `Oidc__ClientId` | no | Enable sign-in with an OpenID Connect provider; leave empty to run without login |
 
----
-<p align="center">Made with ❤️ by <a href="https://github.com/Pianonic">PianoNic</a></p>
+## Development
+
+The backend is .NET 10 (`src/DockiUp.API`), the frontend Angular 21 with Material 3 (`src/DockiUp.Frontend`).
+
+```bash
+# Database only, on localhost:5433
+docker compose -f compose.dev.yml up -d
+
+# API on http://localhost:5098
+dotnet run --project src/DockiUp.API
+
+# Frontend on http://localhost:4200
+cd src/DockiUp.Frontend && npm install && npm start
+```
+
+Tests: `dotnet test src/DockiUp.Tests`. After changing an endpoint or DTO, regenerate the frontend client
+with `npm run apigen` while the API runs. More in the [development guide](docs/dev_setup.md).
+
+## License
+
+This project is licensed under the GPL-3.0 License. See [LICENSE](LICENSE) for details.
