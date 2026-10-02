@@ -85,8 +85,21 @@ export class ContainerLogs {
 
   // The project list is re-sent on every state change; only a different set of containers should refetch.
   private readonly containerKey = computed(() => this.containers().map((c) => c.id).join(','));
+  /** Name of the selected container, so the selection follows it when a deploy recreates it under a new id. */
+  private selectedName = '';
 
   constructor() {
+    effect(() => {
+      const id = this.selected();
+      if (!id) return;
+      const list = this.containers();
+      const hit = list.find((c) => c.id === id);
+      if (hit) this.selectedName = hit.name;
+      else {
+        const replacement = list.find((c) => c.name === this.selectedName);
+        if (replacement) this.selected.set(replacement.id);
+      }
+    });
     effect(() => {
       this.containerKey();
       this.selected();
@@ -126,6 +139,8 @@ export class ContainerLogs {
             );
             return { name: c.name, lines: (text ?? '').split(/\r?\n/).filter((l) => l.length > 0) };
           } catch (err) {
+            // A deploy that recreates the container removes the id we asked for; the new list follows shortly.
+            if (/no such container/i.test(errorMessage(err))) return { name: c.name, lines: ['(container was replaced, reloading…)'] };
             this.notifications.showError(`Failed to load logs for ${c.name}`, err);
             return { name: c.name, lines: [`(failed: ${errorMessage(err)})`] };
           }
