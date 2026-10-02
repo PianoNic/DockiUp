@@ -136,9 +136,14 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 {
     var exception = context.Exception
         ?? context.HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
-    if (exception is KeyNotFoundException or ArgumentException)
-        context.ProblemDetails.Detail = exception.Message;
+    if (exception is KeyNotFoundException or ArgumentException || IsDockerNotFound(exception))
+        context.ProblemDetails.Detail = exception!.Message;
 });
+
+// Docker's 404s (a container or image that's gone, e.g. recreated by a deploy): Docker.DotNet locally, and the
+// same error relayed as a HubException text from a node.
+static bool IsDockerNotFound(Exception? e) => e is Docker.DotNet.DockerApiException { StatusCode: System.Net.HttpStatusCode.NotFound }
+    || e is Microsoft.AspNetCore.SignalR.HubException && e.Message.Contains("status code=NotFound", StringComparison.Ordinal);
 #endregion
 
 #region CORS Configuration
@@ -243,6 +248,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     StatusCodeSelector = exception => exception switch
     {
         KeyNotFoundException => StatusCodes.Status404NotFound,
+        _ when IsDockerNotFound(exception) => StatusCodes.Status404NotFound,
         ArgumentException => StatusCodes.Status400BadRequest,
         _ => StatusCodes.Status500InternalServerError,
     },
