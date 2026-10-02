@@ -17,7 +17,6 @@ export default defineConfig({
   ],
   sitemap: { hostname: 'https://docs.dockiup.pianonic.ch' },
   themeConfig: {
-    logo: '/favicon.svg',
     nav: [
       { text: 'Getting started', link: '/getting-started' },
       {

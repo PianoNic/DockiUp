@@ -6,7 +6,7 @@ hero:
   text: You commit, DockiUp deploys.
   tagline: Self-hosted Docker Compose deployments with a web UI, for one host or many.
   image:
-    src: /logo.png
+    src: /favicon.svg
     alt: DockiUp
   actions:
     - theme: brand
