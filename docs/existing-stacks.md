@@ -9,7 +9,7 @@ services:
   dockiup:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - projects:/app/projects
+      - /data/dockiup:/data/dockiup
       - /opt/stacks:/opt/stacks # your folder, same path on both sides
 ```
 
