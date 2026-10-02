@@ -53,16 +53,17 @@ html {
 }
 .mat-mdc-tab-group .mat-mdc-tab,
 .mat-mdc-tab-nav-bar .mat-mdc-tab-link {
-  height: 44px !important;
+  height: 40px !important; // same height as every other button
   min-width: 0 !important;
   padding: 0 20px !important;
-  border-radius: 22px;
+  border-radius: 20px;
   flex-grow: 0 !important;
   transition: background-color 0.2s;
 
   .mdc-tab-indicator { display: none; }
-  .mdc-tab__ripple::before, .mat-ripple { border-radius: 22px; }
-  .mdc-tab__text-label { font-weight: 600; font-size: 15px; gap: 8px; }
+  .mdc-tab__ripple::before, .mat-ripple { border-radius: 20px; }
+  // Same label as Material buttons (14px, medium), so tabs and buttons read as one family.
+  .mdc-tab__text-label { font-weight: 500; font-size: 14px; letter-spacing: 0.006em; gap: 8px; }
 
   &.mdc-tab--active {
     background: var(--mat-sys-primary);
@@ -490,4 +491,15 @@ a.state-badge.badge-link {
   transition: filter 0.15s, box-shadow 0.15s;
   &:hover { filter: brightness(0.95); box-shadow: inset 0 0 0 1px var(--state); }
   &:focus-visible { outline: 2px solid var(--mat-sys-primary); outline-offset: 2px; }
+}
+
+// Tonal buttons: the primary container's ink instead of the greyish secondary one. Same weight and contrast
+// class, but a saturated colour, so tonal buttons hold up next to the error-tinted ones instead of looking thin.
+html {
+  --mat-button-tonal-label-text-color: var(--mat-sys-on-primary-container);
+  --mat-button-tonal-icon-color: var(--mat-sys-on-primary-container);
+}
+.tonal-icon:not([disabled]),
+mat-dialog-actions .back:not([disabled]) {
+  color: var(--mat-sys-on-primary-container) !important;
 }
