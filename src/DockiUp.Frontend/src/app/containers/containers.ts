@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -52,7 +52,8 @@ export class Containers {
 
   // Client-side filters over what is loaded: state, host, then the text filter.
   protected readonly stateFilter = signal<'all' | 'running' | 'stopped'>('all');
-  protected readonly hostFilter = signal<string | null>(null);
+  // Preset by ?host=<name> (the dashboard's Hosts card links here).
+  protected readonly hostFilter = signal<string | null>(inject(ActivatedRoute).snapshot.queryParamMap.get('host'));
 
   protected readonly hosts = computed(() => [...new Set(this.rows().map((r) => this.nodeName(r)))].sort());
 
