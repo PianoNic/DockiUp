@@ -26,5 +26,6 @@ export interface ProjectDto {
     composeWorkingDir?: string | null;
     composeConfigFiles?: string | null;
     composeFilesReachable?: boolean;
+    isDockiUp?: boolean;
 }
 

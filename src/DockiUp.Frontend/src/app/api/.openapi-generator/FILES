@@ -12,6 +12,7 @@ api/imageUpdates.service.ts
 api/nodes.service.ts
 api/notifications.service.ts
 api/project.service.ts
+api/projectEnvironment.service.ts
 api/projectFiles.service.ts
 api/projectSettings.service.ts
 api/resources.service.ts
@@ -53,6 +54,9 @@ model/dockerNetworkDto.ts
 model/dockerResourcesDto.ts
 model/dockerVolumeDto.ts
 model/entityTagHeaderValue.ts
+model/environmentEntryDto.ts
+model/environmentEntryInput.ts
+model/environmentKind.ts
 model/fileResult.ts
 model/generatedComposeDto.ts
 model/generatedSecretDto.ts
@@ -77,8 +81,6 @@ model/projectDto.ts
 model/projectFileContentDto.ts
 model/projectFileEntryDto.ts
 model/projectFilesDto.ts
-model/projectSecretDto.ts
-model/projectSecretMapping.ts
 model/projectSettingsDto.ts
 model/pruneRequest.ts
 model/pruneResultDto.ts

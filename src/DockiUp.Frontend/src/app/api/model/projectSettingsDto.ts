@@ -7,12 +7,10 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ProjectSecretDto } from './projectSecretDto';
 
 
 export interface ProjectSettingsDto { 
     isGit: boolean;
     gitCredentialId: string | null;
-    secrets: Array<ProjectSecretDto>;
 }
 
