@@ -34,11 +34,17 @@ services:
 
 ## Private images
 
-DockiUp uses the host's `docker login`, both to pull and to check for updates. Log in as root on the host,
-then let DockiUp read the login by adding this to the `volumes` of the `dockiup` service:
+DockiUp uses the host's `docker login`, both to pull and to check for updates. `compose.yml` and the compose
+file from **Add node** mount root's login, so log in as root on each host:
+
+```bash
+sudo docker login ghcr.io
+```
+
+Logged in as another user? Mount that user's folder instead, on DockiUp or the node:
 
 ```yaml
-      - /root/.docker:/root/.docker:ro
+      - /home/me/.docker:/root/.docker
 ```
 
 ## Sign-in
