@@ -12,7 +12,7 @@ export default defineConfig({
   // relative path against.
   head: [
     ['link', { rel: 'icon', href: '/favicon.svg' }],
-    ['meta', { property: 'og:image', content: 'https://docs.dockiup.pianonic.ch/logo.png' }],
+    ['meta', { property: 'og:image', content: 'https://docs.dockiup.pianonic.ch/og-image.png' }],
     ['meta', { property: 'og:url', content: 'https://docs.dockiup.pianonic.ch/' }],
   ],
   sitemap: { hostname: 'https://docs.dockiup.pianonic.ch' },

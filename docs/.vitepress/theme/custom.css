@@ -1,21 +1,32 @@
-/* DockiUp brand color: #006DB8 (the logo's blue). Light mode uses it directly; dark mode lightens the
-   link/text shade for contrast while keeping the brand blue on buttons. */
+/* DockiUp brand colours, all taken from the logo: #005cbb (the "D"), #1f74d6, #3d8deb, #5e9bea, #9cc6ff.
+   Light mode uses the deep blue; dark mode the light ones for contrast, keeping the brand blue on buttons. */
 :root {
-  --vp-c-brand-1: #006db8;
-  --vp-c-brand-2: #0a82d6;
-  --vp-c-brand-3: #006db8;
-  --vp-c-brand-soft: rgba(0, 109, 184, 0.14);
+  --vp-c-brand-1: #005cbb;
+  --vp-c-brand-2: #1f74d6;
+  --vp-c-brand-3: #005cbb;
+  --vp-c-brand-soft: rgba(0, 92, 187, 0.14);
 }
 
 .dark {
-  --vp-c-brand-1: #8ab4f8;
-  --vp-c-brand-2: #5d9cec;
-  --vp-c-brand-3: #0a6fc0;
-  --vp-c-brand-soft: rgba(0, 109, 184, 0.24);
+  --vp-c-brand-1: #9cc6ff;
+  --vp-c-brand-2: #5e9bea;
+  --vp-c-brand-3: #1f74d6;
+  --vp-c-brand-soft: rgba(0, 92, 187, 0.24);
 }
 
 /* Hero title in the brand blue. */
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #006db8, #5d9cec);
+  --vp-home-hero-name-background: linear-gradient(120deg, #005cbb, #3d8deb);
+}
+
+/* The whale floats gently on the home page (not for people who prefer less motion). */
+@media (prefers-reduced-motion: no-preference) {
+  .VPHero .image-src {
+    animation: whale-bob 3.2s ease-in-out infinite;
+  }
+}
+@keyframes whale-bob {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-2deg); }
+  50% { transform: translate(-50%, calc(-50% - 10px)) rotate(2deg); }
 }
