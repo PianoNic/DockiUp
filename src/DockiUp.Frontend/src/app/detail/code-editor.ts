@@ -20,6 +20,14 @@ export function languageFor(path: string): EditorLanguage {
 }
 
 /**
+ * CRLF when every line break in the file is CRLF, so it's saved back that way. Otherwise null: CodeMirror's default
+ * then splits on any line break (a file mixing CRLF and LF gets proper lines, and is saved as LF).
+ */
+export function lineSeparatorFor(text: string): '\r\n' | null {
+  return text.includes('\r\n') && !/(^|[^\r])\n/.test(text) ? '\r\n' : null;
+}
+
+/**
  * CodeMirror 6, loaded on first use (its own chunk, so it only costs something once the Files tab opens).
  * Compose files are checked against the official compose-spec schema (public/compose-spec.json, self-hosted):
  * completion of keys, hover descriptions and red underlines for mistakes.
@@ -81,7 +89,10 @@ export class CodeEditor {
     const languageSlot = new Compartment();
     // Keep each file's own line endings: CodeMirror would otherwise write a CRLF file back as LF on the first edit.
     const separatorSlot = new Compartment();
-    const separatorFor = (text: string) => EditorState.lineSeparator.of(text.includes('\r\n') ? '\r\n' : '\n');
+    const separatorFor = (text: string) => {
+      const separator = lineSeparatorFor(text);
+      return separator ? EditorState.lineSeparator.of(separator) : [];
+    };
     const highlight = HighlightStyle.define([
       { tag: [tags.keyword, tags.propertyName, tags.definition(tags.propertyName)], color: '#8ab4f8' },
       { tag: [tags.string, tags.special(tags.string)], color: '#c3e88d' },
