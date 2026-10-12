@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectStore } from '../shared/stores/project.store';
+import { projectSlug } from '../shared/project-url';
 import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -84,9 +85,11 @@ export class Detail implements OnInit {
     await this.projectStore.loadContainers();
   }
 
-  project = computed(() =>
-    this.projectStore.projectDtos().find((a) => a.dockerProjectName === this.dockerId)
-  );
+  // By slug (name + host); a bare name still opens, from links made before slugs.
+  project = computed(() => {
+    const all = this.projectStore.projectDtos();
+    return all.find((a) => projectSlug(a.dockerProjectName, a.nodeId) === this.dockerId) ?? all.find((a) => a.dockerProjectName === this.dockerId);
+  });
 
   async lifecycle(action: 'start' | 'stop' | 'restart') {
     const p = this.project();

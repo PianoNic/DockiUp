@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { ContainerDto, ContainerService, ContainerStatsDto, NodeDto, NodesService } from '../api';
 import { ContainerStatsStore, formatBytes, num } from '../shared/stores/container-stats.store';
 import { ProjectStore } from '../shared/stores/project.store';
+import { projectLink } from '../shared/project-url';
 import { NotificationService } from '../shared/services/notification.service';
 import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '../shared/models/api-enums';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -92,6 +93,7 @@ export class Containers {
       key,
       name: rows[0].dockerProjectName,
       projectId: rows[0].projectId,
+      link: projectLink(rows[0].dockerProjectName, rows[0].nodeId),
       node: this.nodeName(rows[0]),
       running: rows.filter((r) => r.stateValue === UpdateMethodType.Running).length,
       rows,
@@ -138,7 +140,7 @@ export class Containers {
 
   /** Opens the container's project with this container's logs selected. */
   protected open(r: Row): void {
-    void this.router.navigate(['/project', r.dockerProjectName], { queryParams: { container: r.id } });
+    void this.router.navigate(projectLink(r.dockerProjectName, r.nodeId), { queryParams: { container: r.id } });
   }
 
   protected async remove(r: Row): Promise<void> {

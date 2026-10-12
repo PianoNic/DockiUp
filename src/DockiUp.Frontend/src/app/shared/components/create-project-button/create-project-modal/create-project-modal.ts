@@ -17,7 +17,7 @@ import { errorMessage } from '../../../services/notification.service';
 import { ProjectStore } from '../../../stores/project.store';
 
 /** What the dialog closes with: the compose project name to open (its first deployment streams there). */
-export interface CreateProjectResult { dockerProjectName: string; }
+export interface CreateProjectResult { dockerProjectName: string; nodeId: string | null; }
 
 type Source = 'git' | 'compose' | 'image';
 type ComposeMode = 'editor' | 'run';
@@ -332,7 +332,7 @@ export class CreateProjectModal implements OnInit {
         periodicIntervalInMinutes: periodic,
       };
       if (await this.projectStore.deployProject(dto))
-        this.dialogRef.close({ dockerProjectName: dto.projectName.toLowerCase().replace(/\s+/g, '') });
+        this.dialogRef.close({ dockerProjectName: dto.projectName.toLowerCase().replace(/\s+/g, ''), nodeId: this.nodeId() || null });
     } catch (err) {
       this.error.set(errorMessage(err));
     } finally {
