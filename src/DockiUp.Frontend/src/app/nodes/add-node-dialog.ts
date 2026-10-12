@@ -88,6 +88,8 @@ export class AddNodeDialog {
       '      # The node drives this host\'s Docker daemon and keeps its projects in /data/dockiup (same path inside and out).',
       '      - /var/run/docker.sock:/var/run/docker.sock',
       '      - /data/dockiup:/data/dockiup',
+      '      # root\'s `docker login` on this host, so private images pull.',
+      '      - /root/.docker:/root/.docker',
       '',
     ].join('\n'),
   );
