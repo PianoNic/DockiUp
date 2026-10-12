@@ -7,5 +7,7 @@ namespace DockiUp.Domain
         public required Guid ProjectId { get; set; }
         public required string EnvName { get; set; }
         public required Guid SecretId { get; set; }
+        /// <summary>Free-form label the UI groups by; null: ungrouped.</summary>
+        public string? Group { get; set; }
     }
 }

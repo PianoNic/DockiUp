@@ -16,6 +16,7 @@ import { UpdateMethodType, containerStateLabel, normalizeContainerState } from '
 import { NotificationService } from '../shared/services/notification.service';
 import { ProjectDeployments } from './project-deployments';
 import { ProjectSettings } from './project-settings';
+import { ProjectEnvironment } from './project-environment';
 import { ProjectFiles } from './project-files';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -41,6 +42,7 @@ import { ContainerStatsHistory } from '../shared/components/container-stats/cont
     RouterLink,
     ProjectDeployments,
     ProjectSettings,
+    ProjectEnvironment,
     ProjectFiles,
     MatTabsModule,
     LocalDatePipe,
@@ -134,9 +136,9 @@ export class Detail implements OnInit {
     if (ok) await this.projectStore.removeContainer(container, this.nodeId);
   }
 
-  /** 0 Containers, 1 Deployments, 2 Images, 3 Files, 4 Settings; `?tab=images` opens one directly. */
+  /** 0 Containers, 1 Deployments, 2 Images, 3 Files, 4 Environment, 5 Settings; `?tab=images` opens one directly. */
   readonly tab = signal(0);
-  private static readonly TABS = ['containers', 'deployments', 'images', 'files', 'settings'];
+  private static readonly TABS = ['containers', 'deployments', 'images', 'files', 'environment', 'settings'];
   private readonly tabFromQuery = this.route.queryParamMap.subscribe((q) => {
     const index = Detail.TABS.indexOf(q.get('tab') ?? '');
     if (index >= 0) this.tab.set(index);

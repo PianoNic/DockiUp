@@ -297,7 +297,7 @@ namespace DockiUp.Infrastructure.Services
                 return;
             }
             if (!insideRoot)
-                throw new ArgumentException($"Vault secrets can only be used by projects inside DockiUp's projects folder; '{projectPath}' is outside it (an adopted project).");
+                throw new ArgumentException($"The Environment tab can only be used by projects in a folder DockiUp manages; '{projectPath}' is outside it. Mount it into DockiUp at the same path.");
 
             // compose reads .env from the compose file's folder by default.
             var dotEnv = Path.Combine(Path.GetDirectoryName(compose)!, ".env");

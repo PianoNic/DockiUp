@@ -239,6 +239,34 @@ public class DeploymentSecretsAndCredentialsTests
     }
 
     [Fact]
+    public async Task Variables_AndProjectSecrets_ReachTheEnvFile_OnlySecretsRedacted()
+    {
+        var (p, d) = await SeedAsync();
+        _db.ProjectVariables.AddRange(
+            new ProjectVariable { ProjectId = p.Id, Name = "PORT", Value = "8080" },
+            new ProjectVariable { ProjectId = p.Id, Name = "API_KEY", IsSecret = true, Value = ((ISecretsVaultService)_vault).Encrypt("sk-secret-key") });
+        await _db.SaveChangesAsync();
+        IReadOnlyDictionary<string, string>? written = null;
+        _docker.Setup(x => x.WriteEnvFileAsync("/p/app", "/p/app/docker-compose.yml", It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .Callback((string _, string _, IReadOnlyDictionary<string, string> s, CancellationToken _) => written = s)
+            .Returns(Task.CompletedTask);
+        _docker.Setup(x => x.ComposeUpAsync(It.IsAny<ComposeTarget>(), It.IsAny<Func<string, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (ComposeTarget _, Func<string, Task> log, CancellationToken _) =>
+            {
+                await log("port 8080 key sk-secret-key");
+                return new ComposeUpResult(true);
+            });
+
+        await Runner().RunAsync(new DeploymentRequest(p.Id, DeploymentTrigger.Manual, d.Id), CancellationToken.None);
+
+        Assert.Equal("8080", written!["PORT"]);
+        Assert.Equal("sk-secret-key", written["API_KEY"]);
+        var log = (await _db.Deployments.SingleAsync()).Log;
+        Assert.Contains("port 8080", log);
+        Assert.DoesNotContain("sk-secret-key", log);
+    }
+
+    [Fact]
     public async Task FailureMessages_AreRedactedToo()
     {
         var (p, d) = await SeedAsync();
@@ -415,43 +443,67 @@ public class ProjectSettingsAndCredentialControllersTests
         return (await _db.Secrets.SingleAsync(s => s.Name == name)).Id;
     }
 
+    private ProjectEnvironmentController Environment() => new(_db, _vault, new Mock<IActivityLogger>().Object);
+    private static ProjectEnvironmentController.EnvironmentEntryInput Var(string name, string value, string? group = null)
+        => new(name, group, ProjectEnvironmentController.EnvironmentKind.Variable, value, null, null);
+    private static ProjectEnvironmentController.EnvironmentEntryInput Secret(string name, string? value, string? keepFrom = null)
+        => new(name, null, ProjectEnvironmentController.EnvironmentKind.Secret, value, keepFrom, null);
+    private static ProjectEnvironmentController.EnvironmentEntryInput FromVault(string name, Guid id)
+        => new(name, null, ProjectEnvironmentController.EnvironmentKind.Vault, null, null, id);
+
     [Fact]
-    public async Task SetProjectSecrets_ReplacesMappings_AndNeverReturnsValues()
+    public async Task Environment_StoresAllKinds_SecretsEncrypted_AndNeverReturned()
     {
-        var a = await SecretAsync("a");
-        var b = await SecretAsync("b");
-        await Settings().SetProjectSecrets(_project.Id, [new("OLD", a)], default);
+        var shared = await SecretAsync("shared");
+        var dto = Value(await Environment().SetProjectEnvironment(_project.Id,
+            [Var(" PORT ", "8080", " web "), Secret("API_KEY", "sk-very-secret"), FromVault("DB_PASSWORD", shared)], default));
 
-        var dto = Value(await Settings().SetProjectSecrets(_project.Id, [new(" DB_PASSWORD ", a), new("API_KEY", b)], default));
-
-        Assert.Equal(["API_KEY", "DB_PASSWORD"], dto.Secrets.Select(s => s.EnvName));
-        Assert.Equal("b", dto.Secrets[0].SecretName);
-        Assert.Equal(2, await _db.ProjectSecrets.CountAsync());
-        Assert.DoesNotContain("value-", System.Text.Json.JsonSerializer.Serialize(dto));
-        Assert.True(Value(await Settings().GetProjectSettings(_project.Id, default)).IsGit);
+        Assert.Equal(["API_KEY", "DB_PASSWORD", "PORT"], dto.Select(e => e.Name));
+        Assert.Equal(("8080", "web"), (dto[2].Value, dto[2].Group));
+        Assert.Null(dto[0].Value);
+        Assert.Equal("shared", dto[1].VaultSecretName);
+        Assert.DoesNotContain("sk-very-secret", System.Text.Json.JsonSerializer.Serialize(dto));
+        Assert.DoesNotContain("value-shared", System.Text.Json.JsonSerializer.Serialize(dto));
+        var stored = await _db.ProjectVariables.SingleAsync(v => v.Name == "API_KEY");
+        Assert.True(stored.IsSecret);
+        Assert.NotEqual("sk-very-secret", stored.Value);
+        Assert.Equal("sk-very-secret", ((ISecretsVaultService)_vault).Decrypt(stored.Value));
     }
 
     [Fact]
-    public async Task SetProjectSecrets_Validates()
+    public async Task Environment_SecretWithoutValue_KeepsTheStoredOne_EvenWhenRenamed()
     {
-        var a = await SecretAsync("a");
-        await Assert.ThrowsAsync<ArgumentException>(() => Settings().SetProjectSecrets(_project.Id, [new("1BAD", a)], default));
-        await Assert.ThrowsAsync<ArgumentException>(() => Settings().SetProjectSecrets(_project.Id, [new("A", a), new("A", a)], default));
-        await Assert.ThrowsAsync<ArgumentException>(() => Settings().SetProjectSecrets(_project.Id, [new("A", Guid.NewGuid())], default));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => Settings().SetProjectSecrets(Guid.NewGuid(), [], default));
+        await Environment().SetProjectEnvironment(_project.Id, [Secret("TOKEN", "t0k3n-value")], default);
+
+        await Environment().SetProjectEnvironment(_project.Id, [Secret("API_TOKEN", null, keepFrom: "TOKEN")], default);
+
+        var stored = await _db.ProjectVariables.SingleAsync();
+        Assert.Equal("API_TOKEN", stored.Name);
+        Assert.Equal("t0k3n-value", ((ISecretsVaultService)_vault).Decrypt(stored.Value));
+        await Assert.ThrowsAsync<ArgumentException>(() => Environment().SetProjectEnvironment(_project.Id, [Secret("NEW", null)], default));
+    }
+
+    [Fact]
+    public async Task Environment_Validates()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => Environment().SetProjectEnvironment(_project.Id, [Var("1BAD", "x")], default));
+        await Assert.ThrowsAsync<ArgumentException>(() => Environment().SetProjectEnvironment(_project.Id, [Var("A", "1"), Secret("A", "2")], default));
+        await Assert.ThrowsAsync<ArgumentException>(() => Environment().SetProjectEnvironment(_project.Id, [FromVault("A", Guid.NewGuid())], default));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => Environment().SetProjectEnvironment(Guid.NewGuid(), [], default));
+        Assert.True(Value(await Settings().GetProjectSettings(_project.Id, default)).IsGit);
     }
 
     [Fact]
     public async Task VaultSecret_InUse_CannotBeDeleted()
     {
         var a = await SecretAsync("a");
-        await Settings().SetProjectSecrets(_project.Id, [new("A", a)], default);
+        await Environment().SetProjectEnvironment(_project.Id, [FromVault("A", a)], default);
         var controller = new SecretsController(_vault, new Mock<ISecretGeneratorService>().Object, _db);
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => controller.Delete("a", default));
         Assert.Contains("App", ex.Message);
 
-        await Settings().SetProjectSecrets(_project.Id, [], default);
+        await Environment().SetProjectEnvironment(_project.Id, [], default);
         Assert.IsType<NoContentResult>(await controller.Delete("a", default));
     }
 

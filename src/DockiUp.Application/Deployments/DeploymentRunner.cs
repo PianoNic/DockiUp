@@ -87,10 +87,10 @@ namespace DockiUp.Application.Deployments
                     }
                 }
 
-                var secrets = await LoadSecretsAsync(project.Id, cancellationToken);
-                redact.AddRange(secrets.Values.Where(v => v.Length >= 4));
-                await docker.WriteEnvFileAsync(project.ProjectPath, project.ComposePath, secrets, cancellationToken);
-                if (secrets.Count > 0) await Log($"Env file written with vault secrets: {string.Join(", ", secrets.Keys.Order(StringComparer.Ordinal))}");
+                var (environment, secretValues) = await LoadEnvironmentAsync(project.Id, cancellationToken);
+                redact.AddRange(secretValues.Where(v => v.Length >= 4));
+                await docker.WriteEnvFileAsync(project.ProjectPath, project.ComposePath, environment, cancellationToken);
+                if (environment.Count > 0) await Log($"Env file written with: {string.Join(", ", environment.Keys.Order(StringComparer.Ordinal))}");
 
                 var up = await docker.ComposeUpAsync(
                     new ComposeTarget(project.ProjectPath, project.ComposePath, project.DockerProjectName, services), Log, cancellationToken);
@@ -116,19 +116,30 @@ namespace DockiUp.Application.Deployments
             }
         }
 
-        // Mapped env name -> decrypted vault value. Names only ever go to the log, never values.
-        private async Task<Dictionary<string, string>> LoadSecretsAsync(Guid projectId, CancellationToken cancellationToken)
+        // The project's environment, name -> value (variables, decrypted secrets, shared vault secrets), plus the
+        // secret values for redaction. Names only ever go to the log, never values.
+        private async Task<(Dictionary<string, string> Values, List<string> Secrets)> LoadEnvironmentAsync(Guid projectId, CancellationToken cancellationToken)
         {
+            var variables = await db.ProjectVariables.Where(v => v.ProjectId == projectId).ToListAsync(cancellationToken);
             var mappings = await db.ProjectSecrets.Where(m => m.ProjectId == projectId)
                 .Join(db.Secrets, m => m.SecretId, s => s.Id, (m, s) => new { m.EnvName, s.Name })
                 .ToListAsync(cancellationToken);
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (mappings.Count == 0) return values;
-            if (vault is null) throw new InvalidOperationException("The secrets vault is not available.");
+            var secrets = new List<string>();
+            if ((mappings.Count > 0 || variables.Any(v => v.IsSecret)) && vault is null)
+                throw new InvalidOperationException("The secrets vault is not available.");
+            foreach (var v in variables)
+            {
+                values[v.Name] = v.IsSecret ? vault!.Decrypt(v.Value) : v.Value;
+                if (v.IsSecret) secrets.Add(values[v.Name]);
+            }
             foreach (var m in mappings)
-                values[m.EnvName] = await vault.RetrieveAsync(m.Name, cancellationToken)
+            {
+                values[m.EnvName] = await vault!.RetrieveAsync(m.Name, cancellationToken)
                     ?? throw new InvalidOperationException($"Vault secret '{m.Name}' (for {m.EnvName}) no longer exists.");
-            return values;
+                secrets.Add(values[m.EnvName]);
+            }
+            return (values, secrets);
         }
 
         // The commit the project runs now (last successful deployment), for deployments that don't sync git.

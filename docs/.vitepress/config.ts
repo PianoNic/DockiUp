@@ -24,6 +24,7 @@ export default defineConfig({
         items: [
           { text: 'Existing stacks', link: '/existing-stacks' },
           { text: 'More hosts', link: '/nodes' },
+          { text: 'Variables and secrets', link: '/environment' },
           { text: 'Sign-in', link: '/sign-in' },
           { text: 'Settings', link: '/settings' },
         ],
@@ -43,6 +44,7 @@ export default defineConfig({
         items: [
           { text: 'Existing stacks', link: '/existing-stacks' },
           { text: 'More hosts', link: '/nodes' },
+          { text: 'Variables and secrets', link: '/environment' },
           { text: 'Sign-in', link: '/sign-in' },
         ],
       },

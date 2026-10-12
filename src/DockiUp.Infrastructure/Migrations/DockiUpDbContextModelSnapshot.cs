@@ -457,6 +457,9 @@ namespace DockiUp.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Group")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
@@ -474,6 +477,43 @@ namespace DockiUp.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ProjectSecrets");
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.ProjectVariable", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Group")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsSecret")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ProjectVariables");
                 });
 
             modelBuilder.Entity("DockiUp.Domain.Secret", b =>
@@ -520,6 +560,15 @@ namespace DockiUp.Infrastructure.Migrations
                     b.HasOne("DockiUp.Domain.Secret", null)
                         .WithMany()
                         .HasForeignKey("SecretId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.ProjectVariable", b =>
+                {
+                    b.HasOne("DockiUp.Domain.ProjectInfo", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

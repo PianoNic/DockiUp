@@ -15,6 +15,7 @@ namespace DockiUp.Infrastructure
         public DbSet<NotificationChannel> NotificationChannels { get; set; }
         public DbSet<GitCredential> GitCredentials { get; set; }
         public DbSet<ProjectSecret> ProjectSecrets { get; set; }
+        public DbSet<ProjectVariable> ProjectVariables { get; set; }
 
         public DbSet<ImageUpdateStatus> ImageUpdates { get; set; }
 
@@ -58,6 +59,12 @@ namespace DockiUp.Infrastructure
             // Notifications, project secrets and git credentials (#75-#77).
             modelBuilder.Entity<NotificationChannel>(e => e.Property(c => c.Type).HasConversion<string>());
             modelBuilder.Entity<GitCredential>(e => e.HasIndex(c => c.Name).IsUnique());
+            modelBuilder.Entity<ProjectVariable>(e =>
+            {
+                e.HasIndex(v => new { v.ProjectId, v.Name }).IsUnique();
+                e.HasOne<ProjectInfo>().WithMany().HasForeignKey(v => v.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            });
+
             modelBuilder.Entity<ProjectSecret>(e =>
             {
                 e.HasIndex(s => new { s.ProjectId, s.EnvName }).IsUnique();
