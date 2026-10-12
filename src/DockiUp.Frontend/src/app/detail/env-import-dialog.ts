@@ -47,7 +47,7 @@ export interface EnvImportResult {
         <mat-checkbox [checked]="allIncluded()" [indeterminate]="!allIncluded() && someIncluded()" (change)="setAll($event.checked)" aria-label="Import all" />
         <span class="head">Name</span><span class="head">Value</span><span class="head">Type</span><span class="head">Group</span>
         @for (row of rows(); track row.name) {
-          <mat-checkbox [(ngModel)]="row.include" (ngModelChange)="touch()" [attr.aria-label]="'Import ' + row.name" />
+          <mat-checkbox [(ngModel)]="row.include" (ngModelChange)="touch()" [aria-label]="'Import ' + row.name" />
           <span class="name" [title]="row.name">{{ row.name }}@if (data.existing.includes(row.name)) {<span class="replaces">replaces</span>}</span>
           <span class="value">{{ row.secret ? '••••••••' : row.value || '(empty)' }}</span>
           <span class="x-group" role="group" [attr.aria-label]="row.name + ' type'">
