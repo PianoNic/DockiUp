@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import { EnvironmentEntryDto, EnvironmentEntryInput, EnvironmentKind, ProjectEnvironmentService, ProjectFilesService } from '../api';
+import { EnvironmentEntryDto, EnvironmentEntryInput, EnvironmentKind, ProjectEnvironmentService, ProjectFilesService, SecretDto, SecretsService } from '../api';
 import { NotificationService, errorMessage } from '../shared/services/notification.service';
 import { EnvImportData, EnvImportDialog, EnvImportResult } from './env-import-dialog';
 import { parseEnv, removeFromEnv } from './env-parse';
@@ -26,7 +28,7 @@ const NO_GROUP = 'No group';
 /** The project's Environment tab: variables and secrets, grouped, plus importing an existing .env. */
 @Component({
   selector: 'app-project-environment',
-  imports: [FormsModule, MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [FormsModule, MatAutocompleteModule, MatButtonModule, MatIconModule, MatSelectModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
@@ -44,7 +46,7 @@ const NO_GROUP = 'No group';
     .name { width: 240px; font-family: var(--x-mono); font-size: 13px; }
     .value { flex: 1; font-family: var(--x-mono); font-size: 13px; }
     .group { width: 150px; }
-    .vault { flex: 1; min-width: 0; }
+    .vault { flex: 1; min-width: 0; display: flex; align-items: center; }
     .empty { margin: 24px 4px; color: var(--mat-sys-on-surface-variant); }
     @media (max-width: 900px) { .x-row { flex-wrap: wrap; } .name, .group { width: auto; flex: 1; } .value, .vault { flex-basis: 100%; } }
   `,
@@ -58,10 +60,14 @@ const NO_GROUP = 'No group';
       <span class="grow"></span>
       <button matButton="tonal" (click)="add(Variable)"><mat-icon>add</mat-icon> Variable</button>
       <button matButton="tonal" (click)="add(Secret)"><mat-icon>enhanced_encryption</mat-icon> Secret</button>
+      <button matButton="tonal" (click)="add(Vault)" [disabled]="!vault().length" matTooltip="Use a secret shared through the vault (Settings → Vault)"><mat-icon>lock</mat-icon> From vault</button>
       <button mat-flat-button (click)="save()" [disabled]="!dirty() || busy()"><mat-icon>save</mat-icon> {{ busy() ? 'Saving…' : 'Save' }}</button>
     </div>
 
-    <datalist id="env-groups">@for (g of groupNames(); track g) { <option [value]="g"></option> }</datalist>
+    <!-- The app's own dropdown sheet for group suggestions, not the browser's datalist. -->
+    <mat-autocomplete #groupSuggestions="matAutocomplete" (optionSelected)="pickGroup($event.option.value)">
+      @for (g of groupNames(); track g) { <mat-option [value]="g">{{ g }}</mat-option> }
+    </mat-autocomplete>
 
     <div class="groups">
       @for (g of grouped(); track g.name) {
@@ -72,7 +78,9 @@ const NO_GROUP = 'No group';
               <div class="x-row">
                 <input class="field name" [(ngModel)]="row.name" (ngModelChange)="dirty.set(true)" placeholder="NAME" spellcheck="false" aria-label="Name" />
                 @if (row.kind === Vault) {
-                  <span class="vault x-chip" matTooltip="Filled from this shared vault secret (Settings → Vault)"><mat-icon>lock</mat-icon>{{ row.vaultSecretName }}</span>
+                  <mat-select class="field vault" [(ngModel)]="row.vaultSecretId" (ngModelChange)="dirty.set(true)" placeholder="Pick a vault secret" aria-label="Vault secret">
+                    @for (s of vault(); track s.id) { <mat-option [value]="s.id">{{ s.name }}</mat-option> }
+                  </mat-select>
                 } @else {
                   <span class="x-group" role="group" aria-label="Type">
                     <button [matButton]="row.kind === Variable ? 'filled' : 'tonal'" [class.x-on]="row.kind === Variable" (click)="setKind(row, Variable)">Variable</button>
@@ -81,7 +89,8 @@ const NO_GROUP = 'No group';
                   <input class="field value" [type]="row.kind === Secret ? 'password' : 'text'" [(ngModel)]="row.value" (ngModelChange)="dirty.set(true)"
                     [placeholder]="row.kind === Secret && row.keepFrom ? 'Stored · type to replace' : 'Value'" spellcheck="false" autocomplete="off" aria-label="Value" />
                 }
-                <input class="field group" list="env-groups" [ngModel]="row.group" (change)="setGroup(row, $any($event.target).value)" placeholder="Group" aria-label="Group" />
+                <input class="field group" [matAutocomplete]="groupSuggestions" [ngModel]="row.group" (focus)="groupRow = row"
+                  (change)="setGroup(row, $any($event.target).value)" placeholder="Group" aria-label="Group" />
                 <button mat-icon-button (click)="remove(row)" matTooltip="Remove" aria-label="Remove"><mat-icon>delete</mat-icon></button>
               </div>
             }
@@ -98,6 +107,7 @@ export class ProjectEnvironment {
 
   private readonly api = inject(ProjectEnvironmentService);
   private readonly files = inject(ProjectFilesService);
+  private readonly secrets = inject(SecretsService);
   private readonly dialog = inject(MatDialog);
   private readonly toast = inject(NotificationService);
 
@@ -107,6 +117,8 @@ export class ProjectEnvironment {
   protected readonly example = '${NAME}';
 
   protected readonly rows = signal<Row[]>([]);
+  /** Shared vault secrets a From vault entry can use. */
+  protected readonly vault = signal<SecretDto[]>([]);
   protected readonly dirty = signal(false);
   protected readonly busy = signal(false);
 
@@ -131,6 +143,7 @@ export class ProjectEnvironment {
         .then((entries) => this.apply(entries))
         .catch((err) => this.toast.showError('Failed to load the environment', err));
     });
+    firstValueFrom(this.secrets.apiSecretsGet()).then((v) => this.vault.set(v)).catch(() => this.vault.set([]));
   }
 
   private apply(entries: EnvironmentEntryDto[]): void {
@@ -161,6 +174,13 @@ export class ProjectEnvironment {
     this.dirty.set(true);
   }
 
+  /** The row whose group field has focus, for a suggestion picked from the dropdown. */
+  protected groupRow: Row | null = null;
+
+  protected pickGroup(group: string): void {
+    if (this.groupRow) this.setGroup(this.groupRow, group);
+  }
+
   // On change (not on each key): the row moves to its new group section.
   protected setGroup(row: Row, group: string): void {
     row.group = group;
@@ -181,6 +201,10 @@ export class ProjectEnvironment {
     const rows = this.rows();
     if (rows.some((r) => !r.name.trim())) {
       this.toast.error('Every variable needs a name');
+      return false;
+    }
+    if (rows.some((r) => r.kind === EnvironmentKind.Vault && !r.vaultSecretId)) {
+      this.toast.error('Pick a vault secret for every From vault entry');
       return false;
     }
     this.busy.set(true);
