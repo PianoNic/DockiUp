@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/DockiUpLogo.png" width="520" alt="DockiUp Logo">
+  <img src="assets/brand/dockiup-logo.png" width="520" alt="DockiUp Logo">
 </p>
 
 <p align="center">
@@ -7,11 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PianoNic/DockiUp"><img src="https://badgetrack.pianonic.ch/badge?tag=dockiup&label=visits&color=006db8&style=flat" alt="visits"/></a>
-  <a href="https://github.com/PianoNic/DockiUp/releases"><img src="https://img.shields.io/github/v/release/PianoNic/DockiUp?include_prereleases&color=006db8&label=Latest%20Release" alt="Latest release"/></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-006db8.svg" alt="PolyForm Noncommercial"/></a>
-  <a href="https://docs.dockiup.pianonic.ch/getting-started"><img src="https://img.shields.io/badge/Selfhost-Instructions-006db8.svg" alt="Self-hosting"/></a>
-  <a href="https://docs.dockiup.pianonic.ch/development"><img src="https://img.shields.io/badge/Development-Setup-006db8.svg" alt="Development"/></a>
+  <a href="https://github.com/PianoNic/DockiUp"><img src="https://badgetrack.pianonic.ch/badge?tag=dockiup&label=visits&color=005cbb&style=flat" alt="visits"/></a>
+  <a href="https://github.com/PianoNic/DockiUp/releases"><img src="https://img.shields.io/github/v/release/PianoNic/DockiUp?include_prereleases&color=005cbb&label=Latest%20Release" alt="Latest release"/></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-005cbb.svg" alt="PolyForm Noncommercial"/></a>
+  <a href="https://docs.dockiup.pianonic.ch/getting-started"><img src="https://img.shields.io/badge/Selfhost-Instructions-005cbb.svg" alt="Self-hosting"/></a>
+  <a href="https://docs.dockiup.pianonic.ch/development"><img src="https://img.shields.io/badge/Development-Setup-005cbb.svg" alt="Development"/></a>
 </p>
 
 ---

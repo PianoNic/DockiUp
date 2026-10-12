@@ -4,7 +4,7 @@
   "description": "Git-based Docker deployment automation",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#0069B4",
+  "theme_color": "#005CBB",
   "background_color": "#FFFFFF",
   "icons": [
     { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
