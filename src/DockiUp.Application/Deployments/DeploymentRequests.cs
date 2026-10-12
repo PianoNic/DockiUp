@@ -12,19 +12,36 @@ namespace DockiUp.Application.Deployments
     public sealed class QueueDeploymentCommandHandler(IDockiUpDbContext db, IDeploymentQueue queue, IDeploymentEvents events)
         : IRequestHandler<QueueDeploymentCommand, DeploymentDto>
     {
+        // One request at a time, so a double-click can't slip two rows past the "already waiting" check.
+        // ponytail: process-wide lock; per-project if queueing ever becomes busy.
+        private static readonly SemaphoreSlim Gate = new(1, 1);
+
         public async ValueTask<DeploymentDto> Handle(QueueDeploymentCommand request, CancellationToken cancellationToken)
         {
             if (!await db.ProjectInfo.AnyAsync(p => p.Id == request.ProjectId, cancellationToken))
                 throw new KeyNotFoundException($"Project with id {request.ProjectId} not found.");
 
-            var deployment = new Deployment { ProjectId = request.ProjectId, Trigger = request.Trigger, ActorName = request.ActorName, TargetCommit = request.TargetCommit };
-            db.Deployments.Add(deployment);
-            await db.SaveChangesAsync(cancellationToken);
+            await Gate.WaitAsync(cancellationToken);
+            try
+            {
+                // A deployment of the same commit already waiting does everything this one would: reuse it.
+                // (One that is running doesn't count; a new request may carry changes it started without.)
+                var waiting = await db.Deployments
+                    .Where(d => d.ProjectId == request.ProjectId && d.Status == DeploymentStatus.Queued && d.TargetCommit == request.TargetCommit)
+                    .OrderBy(d => d.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (waiting is not null) return DeploymentDto.From(waiting);
 
-            var dto = DeploymentDto.From(deployment);
-            await events.ChangedAsync(dto);
-            queue.TryEnqueue(new DeploymentRequest(request.ProjectId, request.Trigger, deployment.Id, request.ActorName, request.TargetCommit));
-            return dto;
+                var deployment = new Deployment { ProjectId = request.ProjectId, Trigger = request.Trigger, ActorName = request.ActorName, TargetCommit = request.TargetCommit };
+                db.Deployments.Add(deployment);
+                await db.SaveChangesAsync(cancellationToken);
+
+                var dto = DeploymentDto.From(deployment);
+                await events.ChangedAsync(dto);
+                queue.TryEnqueue(new DeploymentRequest(request.ProjectId, request.Trigger, deployment.Id, request.ActorName, request.TargetCommit));
+                return dto;
+            }
+            finally { Gate.Release(); }
         }
     }
 
