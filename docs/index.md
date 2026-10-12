@@ -17,22 +17,16 @@ hero:
       link: https://github.com/PianoNic/DockiUp
 
 features:
-  - icon: 🐳
-    title: Deploys from anywhere
+  - title: Deploys from anywhere
     details: A Git repository, a compose file you write or upload, a single image, or a pasted docker run command.
-  - icon: 🚀
-    title: Updates on your terms
+  - title: Updates on your terms
     details: Push webhooks from GitHub, Gitea/Forgejo and GitLab, a schedule, or a button. Every deployment keeps its commit and log.
-  - icon: 🫧
-    title: No moving house
+  - title: No moving house
     details: Compose projects already running on a host are picked up automatically, right where they are.
-  - icon: 🏝️
-    title: Many hosts, one home
+  - title: Many hosts, one home
     details: Add a node with one compose file. It swims over to DockiUp by itself, so the node needs no open ports.
-  - icon: ✨
-    title: Fresh images
+  - title: Fresh images
     details: Newer images for the tags you run are spotted for you. Get a heads-up, or let DockiUp deploy them.
-  - icon: 🔐
-    title: Files, logs and secrets
+  - title: Files, logs and secrets
     details: Edit compose files with completion, read coloured logs, open a shell, and keep secrets encrypted in the vault.
 ---
