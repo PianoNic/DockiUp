@@ -270,6 +270,35 @@ public class QueueDeploymentCommandTests
     }
 
     [Fact]
+    public async Task AlreadyWaiting_ReusesThatDeployment_ButNotARunningOne_OrAnotherCommit()
+    {
+        var db = TestDb.Create();
+        var project = new ProjectInfo
+        {
+            ProjectName = "App", DockerProjectName = "app", ProjectOrigin = ProjectOriginType.Compose,
+            ProjectPath = "/p", ComposePath = "/p/c.yml", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        };
+        db.ProjectInfo.Add(project);
+        db.SaveChanges();
+        var queue = new Mock<IDeploymentQueue>();
+        var handler = new QueueDeploymentCommandHandler(db, queue.Object, new Mock<IDeploymentEvents>().Object);
+        Task<DeploymentDto> Deploy(string? commit = null) => handler.Handle(new QueueDeploymentCommand(project.Id, DeploymentTrigger.Manual, TargetCommit: commit), CancellationToken.None).AsTask();
+
+        var first = await Deploy();
+        var clicks = await Task.WhenAll(Deploy(), Deploy(), Deploy());
+        Assert.All(clicks, c => Assert.Equal(first.Id, c.Id));
+        Assert.Equal(1, await db.Deployments.CountAsync());
+
+        Assert.NotEqual(first.Id, (await Deploy("abc1234")).Id); // redeploying a specific version is a different request
+
+        (await db.Deployments.SingleAsync(d => d.Id == first.Id)).Status = DeploymentStatus.Running;
+        await db.SaveChangesAsync();
+        Assert.NotEqual(first.Id, (await Deploy()).Id); // running: the next one waits behind it
+        Assert.Equal(3, await db.Deployments.CountAsync());
+        queue.Verify(q => q.TryEnqueue(It.IsAny<DeploymentRequest>()), Times.Exactly(3));
+    }
+
+    [Fact]
     public async Task UnknownProject_Throws_AndQueuesNothing()
     {
         var queue = new Mock<IDeploymentQueue>();
