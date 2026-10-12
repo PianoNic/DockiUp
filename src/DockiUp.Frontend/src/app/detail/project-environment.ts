@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
@@ -28,7 +28,7 @@ const NO_GROUP = 'No group';
 /** The project's Environment tab: variables and secrets, grouped, plus importing an existing .env. */
 @Component({
   selector: 'app-project-environment',
-  imports: [FormsModule, MatAutocompleteModule, MatButtonModule, MatIconModule, MatSelectModule, MatTooltipModule],
+  imports: [FormsModule, MatButtonModule, MatIconModule, MatMenuModule, MatSelectModule, MatTooltipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
@@ -45,10 +45,16 @@ const NO_GROUP = 'No group';
     .field:focus { outline: 2px solid var(--mat-sys-primary); outline-offset: 1px; }
     .name { width: 240px; font-family: var(--x-mono); font-size: 13px; }
     .value { flex: 1; font-family: var(--x-mono); font-size: 13px; }
-    .group { width: 150px; }
+    .kind { flex-shrink: 0; color: var(--mat-sys-on-surface-variant); }
+    .kind.secret { color: var(--mat-sys-primary); }
+    .group-slot { flex-shrink: 0; width: 150px; display: flex; }
+    .group-chip { border: 0; cursor: pointer; font-family: inherit; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .group-chip:hover { background: var(--mat-sys-surface-container-high); }
+    .new-group { padding: 6px 12px 8px; }
+    .new-group .field { width: 100%; }
     .vault { flex: 1; min-width: 0; display: flex; align-items: center; }
     .empty { margin: 24px 4px; color: var(--mat-sys-on-surface-variant); }
-    @media (max-width: 900px) { .x-row { flex-wrap: wrap; } .name, .group { width: auto; flex: 1; } .value, .vault { flex-basis: 100%; } }
+    @media (max-width: 900px) { .x-row { flex-wrap: wrap; } .name { width: auto; flex: 1; } .value, .vault { flex-basis: 100%; } }
   `,
   template: `
     <p class="hint">
@@ -64,10 +70,17 @@ const NO_GROUP = 'No group';
       <button mat-flat-button (click)="save()" [disabled]="!dirty() || busy()"><mat-icon>save</mat-icon> {{ busy() ? 'Saving…' : 'Save' }}</button>
     </div>
 
-    <!-- The app's own dropdown sheet for group suggestions, not the browser's datalist. -->
-    <mat-autocomplete #groupSuggestions="matAutocomplete" (optionSelected)="pickGroup($event.option.value)">
-      @for (g of groupNames(); track g) { <mat-option [value]="g">{{ g }}</mat-option> }
-    </mat-autocomplete>
+    <!-- One menu for every row's group: existing groups, a new one, or none. -->
+    <mat-menu #groupMenu="matMenu">
+      @for (g of groupNames(); track g) {
+        @if (g !== menuRow?.group) { <button mat-menu-item (click)="setGroup(g)"><mat-icon>label</mat-icon>{{ g }}</button> }
+      }
+      <div class="new-group" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+        <input #newGroup class="field" placeholder="New group…" aria-label="New group"
+          (keydown.enter)="setGroup(newGroup.value); newGroup.value = ''; menuTrigger?.closeMenu()" />
+      </div>
+      @if (menuRow?.group) { <button mat-menu-item (click)="setGroup('')"><mat-icon>label_off</mat-icon>Remove from group</button> }
+    </mat-menu>
 
     <div class="groups">
       @for (g of grouped(); track g.name) {
@@ -76,21 +89,25 @@ const NO_GROUP = 'No group';
           <div class="x-list">
             @for (row of g.rows; track row) {
               <div class="x-row">
+                <mat-icon class="kind" [class.secret]="row.kind !== Variable" [matTooltip]="kindLabel(row)" [attr.aria-label]="kindLabel(row)">{{ kindIcon(row) }}</mat-icon>
                 <input class="field name" [(ngModel)]="row.name" (ngModelChange)="dirty.set(true)" placeholder="NAME" spellcheck="false" aria-label="Name" />
                 @if (row.kind === Vault) {
                   <mat-select class="field vault" [(ngModel)]="row.vaultSecretId" (ngModelChange)="dirty.set(true)" placeholder="Pick a vault secret" aria-label="Vault secret">
                     @for (s of vault(); track s.id) { <mat-option [value]="s.id">{{ s.name }}</mat-option> }
                   </mat-select>
                 } @else {
-                  <span class="x-group" role="group" aria-label="Type">
-                    <button [matButton]="row.kind === Variable ? 'filled' : 'tonal'" [class.x-on]="row.kind === Variable" (click)="setKind(row, Variable)">Variable</button>
-                    <button [matButton]="row.kind === Secret ? 'filled' : 'tonal'" [class.x-on]="row.kind === Secret" (click)="setKind(row, Secret)">Secret</button>
-                  </span>
                   <input class="field value" [type]="row.kind === Secret ? 'password' : 'text'" [(ngModel)]="row.value" (ngModelChange)="dirty.set(true)"
                     [placeholder]="row.kind === Secret && row.keepFrom ? 'Stored · type to replace' : 'Value'" spellcheck="false" autocomplete="off" aria-label="Value" />
                 }
-                <input class="field group" [matAutocomplete]="groupSuggestions" [ngModel]="row.group" (focus)="groupRow = row"
-                  (change)="setGroup(row, $any($event.target).value)" placeholder="Group" aria-label="Group" />
+                <span class="group-slot">
+                @if (row.group) {
+                  <button class="x-chip group-chip" [matMenuTriggerFor]="groupMenu" #t="matMenuTrigger" (click)="openGroupMenu(row, t)"
+                    [attr.aria-label]="'Group ' + row.group + ', change'"><mat-icon>label</mat-icon>{{ row.group }}</button>
+                } @else {
+                  <button mat-icon-button [matMenuTriggerFor]="groupMenu" #t="matMenuTrigger" (click)="openGroupMenu(row, t)"
+                    matTooltip="Add to a group" aria-label="Add to a group"><mat-icon>new_label</mat-icon></button>
+                }
+                </span>
                 <button mat-icon-button (click)="remove(row)" matTooltip="Remove" aria-label="Remove"><mat-icon>delete</mat-icon></button>
               </div>
             }
@@ -164,26 +181,27 @@ export class ProjectEnvironment {
     this.dirty.set(true);
   }
 
-  protected setKind(row: Row, kind: EnvironmentKind): void {
-    if (row.kind === kind) return;
-    // A stored secret can't be revealed, so turning it into a variable starts from an empty value.
-    if (row.kind === EnvironmentKind.Secret && row.keepFrom) row.value = '';
-    row.kind = kind;
-    row.keepFrom = null;
-    this.rows.update((r) => [...r]);
-    this.dirty.set(true);
+  protected kindIcon(row: Row): string {
+    return row.kind === EnvironmentKind.Secret ? 'lock' : row.kind === EnvironmentKind.Vault ? 'key' : 'text_fields';
   }
 
-  /** The row whose group field has focus, for a suggestion picked from the dropdown. */
-  protected groupRow: Row | null = null;
-
-  protected pickGroup(group: string): void {
-    if (this.groupRow) this.setGroup(this.groupRow, group);
+  protected kindLabel(row: Row): string {
+    return row.kind === EnvironmentKind.Secret ? 'Secret' : row.kind === EnvironmentKind.Vault ? 'From the vault' : 'Variable';
   }
 
-  // On change (not on each key): the row moves to its new group section.
-  protected setGroup(row: Row, group: string): void {
-    row.group = group;
+  /** The row the group menu was opened for, and its trigger (to close it after typing a new group). */
+  protected menuRow: Row | null = null;
+  protected menuTrigger: MatMenuTrigger | null = null;
+
+  protected openGroupMenu(row: Row, trigger: MatMenuTrigger): void {
+    this.menuRow = row;
+    this.menuTrigger = trigger;
+  }
+
+  // The row then moves to its group's section.
+  protected setGroup(group: string): void {
+    if (!this.menuRow) return;
+    this.menuRow.group = group.trim();
     this.rows.update((r) => [...r]);
     this.dirty.set(true);
   }
