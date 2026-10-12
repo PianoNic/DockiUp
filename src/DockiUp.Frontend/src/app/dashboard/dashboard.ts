@@ -1,34 +1,32 @@
 import { Component, OnInit, inject, computed, signal, effect, untracked } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import { ActivityEntryDto, DashboardService, NodeDto, NodesService, ProjectDto } from '../api';
+import { DashboardService, NodeDto, NodesService, ProjectDto } from '../api';
 import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
 import { ProjectStore } from '../shared/stores/project.store';
-import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
-import { ImageUpdateBadge } from '../shared/components/image-update-badge/image-update-badge';
-import { ImageUpdateStore } from '../shared/stores/image-update.store';
+import { ImageUpdateStore, updatesTooltip } from '../shared/stores/image-update.store';
 
+type Filter = 'all' | 'attention' | 'updates';
+
+interface HostGroup {
+  /** Containers' host filter value: "Local host" or the node's name. */
+  name: string;
+  online: boolean;
+  dockerVersion: string | null;
+  total: number;
+  projects: ProjectDto[];
+}
+
+/** Overview: container totals, then every project as a small card, grouped by host, problems first. */
 @Component({
   selector: 'app-dashboard',
-  imports: [
-    CommonModule,
-    MatIconModule,
-    RouterLink,
-    LocalDatePipe,
-    MatButtonModule,
-    MatTooltipModule,
-    CreateProjectButton,
-    MatProgressBar,
-    MatProgressSpinnerModule,
-    ImageUpdateBadge,
-  ],
+  imports: [MatIconModule, RouterLink, MatButtonModule, MatTooltipModule, CreateProjectButton, MatProgressBar, MatProgressSpinnerModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -39,14 +37,16 @@ export class Dashboard implements OnInit {
   private nodesService = inject(NodesService);
 
   projects = this.projectStore.projectDtos;
-  readonly recentActivity = signal<ActivityEntryDto[]>([]);
   readonly nodes = signal<NodeDto[]>([]);
   readonly localDockerVersion = signal<string | null>(null);
 
+  protected readonly search = signal('');
+  protected readonly filter = signal<Filter>('all');
+  /** Host groups folded away by the user (by name). */
+  protected readonly collapsed = signal<ReadonlySet<string>>(new Set());
+
   constructor() {
-    // The project list live-updates over SignalR (DockiUpHubService -> store). Whenever it changes,
-    // refresh the overview panels (nodes + recent activity) so the whole dashboard stays current
-    // without a manual refresh button.
+    // The project list live-updates over SignalR; refresh the host info (online, Docker version) with it.
     effect(() => {
       this.projects();
       untracked(() => this.loadOverview());
@@ -54,6 +54,7 @@ export class Dashboard implements OnInit {
   }
 
   async ngOnInit() {
+    void this.imageUpdates.ensureLoaded();
     await this.projectStore.loadContainers();
   }
 
@@ -63,114 +64,91 @@ export class Dashboard implements OnInit {
         firstValueFrom(this.dashboardService.apiDashboardStatsGet()),
         firstValueFrom(this.nodesService.apiNodesGet()),
       ]);
-      this.recentActivity.set(stats?.recentActivity ?? []);
       this.localDockerVersion.set(stats?.localDockerVersion ?? null);
       this.nodes.set(nodes ?? []);
     } catch {
-      // Overview is best-effort; the project list is the primary content.
+      // Host details are best-effort; the project list is the primary content.
     }
   }
 
-  // ---- KPI figures ----
-  readonly allContainers = computed(() => this.projects().flatMap(p => p.containers || []));
-
+  // ---- totals ----
   readonly containerStats = computed(() => {
-    const c = this.allContainers();
-    const by = (s: UpdateMethodType) => c.filter(x => normalizeContainerState(x.state) === s).length;
-    return {
-      total: c.length,
-      running: by(UpdateMethodType.Running),
-      stopped: by(UpdateMethodType.Stopped),
-      updating: by(UpdateMethodType.Updating),
-      crashed: by(UpdateMethodType.Crashed),
-    };
+    const c = this.projects().flatMap((p) => p.containers || []);
+    const by = (s: UpdateMethodType) => c.filter((x) => normalizeContainerState(x.state) === s).length;
+    return { total: c.length, running: by(UpdateMethodType.Running), stopped: by(UpdateMethodType.Stopped), crashed: by(UpdateMethodType.Crashed) };
   });
 
-  /** Percentage widths for the health bar segments. */
-  readonly health = computed(() => {
-    const s = this.containerStats();
-    const total = s.total || 1;
-    return {
-      running: (s.running / total) * 100,
-      stopped: (s.stopped / total) * 100,
-      crashed: (s.crashed / total) * 100,
-      updating: (s.updating / total) * 100,
-    };
+  readonly attentionCount = computed(() => this.projects().filter((p) => this.needsAttention(p)).length);
+  readonly updateCount = computed(() => this.projects().filter((p) => this.hasUpdate(p)).length);
+
+  // ---- grouping ----
+  readonly groups = computed<HostGroup[]>(() => {
+    const q = this.search().trim().toLowerCase();
+    const filter = this.filter();
+    const shown = (p: ProjectDto) =>
+      (!q || [p.projectName, p.dockerProjectName, p.projectDescription].some((v) => v?.toLowerCase().includes(q)))
+      && (filter === 'all' || (filter === 'attention' ? this.needsAttention(p) : this.hasUpdate(p)));
+    // Problems first, then updates, then by name.
+    const rank = (p: ProjectDto) => (this.needsAttention(p) ? 0 : this.hasUpdate(p) ? 1 : 2);
+    const sort = (list: ProjectDto[]) =>
+      list.filter(shown).sort((a, b) => rank(a) - rank(b) || a.projectName.localeCompare(b.projectName));
+
+    const all = this.projects();
+    const local = all.filter((p) => !this.nodeId(p));
+    const groups: HostGroup[] = [
+      { name: 'Local host', online: true, dockerVersion: this.localDockerVersion(), total: local.length, projects: sort(local) },
+      ...this.nodes().map((n) => {
+        const mine = all.filter((p) => this.nodeId(p) === n.id);
+        return { name: n.name, online: n.online, dockerVersion: n.dockerVersion ?? null, total: mine.length, projects: sort(mine) };
+      }),
+    ];
+    // Hosts without projects only matter on the Nodes page; a filter hides the groups it empties.
+    return groups.filter((g) => g.projects.length > 0);
   });
 
-  readonly onlineNodeCount = computed(() => this.nodes().filter(n => n.online).length);
-
-  projectCountForNode(nodeId: string): number {
-    return this.projects().filter(p => (p as ProjectDto & { nodeId?: string }).nodeId === nodeId).length;
+  protected toggle(host: string): void {
+    this.collapsed.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(host)) next.add(host);
+      return next;
+    });
   }
 
-  readonly localProjectCount = computed(() =>
-    this.projects().filter(p => !(p as ProjectDto & { nodeId?: string }).nodeId).length);
-
-  protected readonly segmentKinds = ['running', 'updating', 'stopped', 'crashed'] as const;
-
   // ---- project helpers ----
+  private nodeId(project: ProjectDto): string | null {
+    return (project as ProjectDto & { nodeId?: string | null }).nodeId ?? null;
+  }
+
   getRunningCount(project: ProjectDto): number {
-    return (project.containers || []).filter(c => normalizeContainerState(c.state) === UpdateMethodType.Running).length;
+    return (project.containers || []).filter((c) => normalizeContainerState(c.state) === UpdateMethodType.Running).length;
   }
 
   getTotalCount(project: ProjectDto): number {
     return (project.containers || []).length;
   }
 
-  getProjectStatusIcon(project: ProjectDto): string {
-    const states = (project?.containers ?? []).map(c => normalizeContainerState(c.state));
-    if (states.length === 0) return 'help';
-    if (states.some(s => s === UpdateMethodType.Crashed)) return 'error';
-    if (states.some(s => s === UpdateMethodType.Updating)) return 'loop';
-    if (states.every(s => s === UpdateMethodType.Stopped)) return 'stop';
-    if (states.some(s => s === UpdateMethodType.Running)) return 'check_circle';
-    if (states.some(s => s === UpdateMethodType.Created)) return 'pending';
-    return 'help';
+  /** Something isn't running that should, or crashed. */
+  needsAttention(project: ProjectDto): boolean {
+    return this.getStatus(project) === 'crashed' || this.getRunningCount(project) < this.getTotalCount(project);
   }
 
-  /** CSS status class for a project (drives the accent colour). */
-  getProjectStatusClass(project: ProjectDto): string {
-    const states = (project?.containers ?? []).map(c => normalizeContainerState(c.state));
+  hasUpdate(project: ProjectDto): boolean {
+    return this.imageUpdates.updatesFor(project.id).length > 0;
+  }
+
+  updateTooltip(project: ProjectDto): string {
+    return updatesTooltip(this.imageUpdates.updatesFor(project.id));
+  }
+
+  /** Drives the status dot's colour. */
+  getStatus(project: ProjectDto): string {
+    const states = (project?.containers ?? []).map((c) => normalizeContainerState(c.state));
     if (states.length === 0) return 'unknown';
-    if (states.some(s => s === UpdateMethodType.Crashed)) return 'crashed';
-    if (states.some(s => s === UpdateMethodType.Updating)) return 'updating';
-    if (states.every(s => s === UpdateMethodType.Stopped)) return 'stopped';
-    if (states.some(s => s === UpdateMethodType.Running)) return 'running';
-    return 'unknown';
-  }
-
-  projectNodeName(project: ProjectDto): string | null {
-    const nodeId = (project as ProjectDto & { nodeId?: string }).nodeId;
-    if (!nodeId) return null;
-    return this.nodes().find(n => n.id === nodeId)?.name ?? 'node';
-  }
-
-  // ---- activity helpers ----
-  activityIcon(action: string): string {
-    if (action.startsWith('deploy')) return 'rocket_launch';
-    if (action.startsWith('node.create')) return 'dns';
-    if (action.startsWith('node.delete')) return 'delete';
-    if (action.includes('stop')) return 'stop';
-    if (action.includes('restart')) return 'refresh';
-    if (action.includes('update')) return 'system_update';
-    return 'bolt';
-  }
-
-  activityLabel(a: ActivityEntryDto): string {
-    return `${a.action.replace(/[._]/g, ' ')} ${a.target}`.trim();
-  }
-
-  relativeTime(iso: string): string {
-    const then = new Date(iso).getTime();
-    if (Number.isNaN(then)) return '';
-    const s = Math.max(0, Math.floor((Date.now() - then) / 1000));
-    if (s < 60) return `${s}s ago`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
+    if (states.some((s) => s === UpdateMethodType.Crashed)) return 'crashed';
+    if (states.some((s) => s === UpdateMethodType.Updating)) return 'updating';
+    if (states.every((s) => s === UpdateMethodType.Stopped)) return 'stopped';
+    if (states.some((s) => s !== UpdateMethodType.Running)) return 'partial';
+    return 'running';
   }
 
   // ---- project actions ----
