@@ -9,7 +9,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, firstValueFrom } from 'rxjs';
 import { DeploymentTaskDto, ProjectService } from '../../api';
 import { projectLink } from '../../shared/project-url';
-import { ProjectStore } from '../../shared/stores/project.store';
 import { DockiUpHubService } from '../../shared/services/dockiup-hub.service';
 import { NgClass } from '@angular/common';
 
@@ -88,7 +87,6 @@ export class TaskCenter {
   readonly extended = input(true);
 
   private readonly api = inject(ProjectService);
-  private readonly projects = inject(ProjectStore);
 
   protected readonly tasks = signal<DeploymentTaskDto[]>([]);
   protected readonly activeCount = computed(
@@ -111,10 +109,8 @@ export class TaskCenter {
     }
   }
 
-  /** The task only names the project; its host comes from the loaded project list. */
   protected link(t: DeploymentTaskDto): string[] {
-    const p = this.projects.projectDtos().find((p) => p.id === t.deployment.projectId);
-    return p ? projectLink(p.dockerProjectName, p.nodeId) : ['/project', t.dockerProjectName]; // not loaded yet: the bare name still opens
+    return projectLink(t.dockerProjectName, t.nodeId);
   }
 
   protected statusIcon(t: DeploymentTaskDto): string {

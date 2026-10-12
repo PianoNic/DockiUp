@@ -14,5 +14,6 @@ export interface DeploymentTaskDto {
     deployment: DeploymentDto;
     projectName: string;
     dockerProjectName: string;
+    nodeId: string | null;
 }
 

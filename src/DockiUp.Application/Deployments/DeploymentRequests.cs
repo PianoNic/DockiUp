@@ -73,7 +73,7 @@ namespace DockiUp.Application.Deployments
     }
 
     /// <summary>A deployment with the project it belongs to, for app-wide views (the header task list).</summary>
-    public record DeploymentTaskDto(DeploymentDto Deployment, string ProjectName, string DockerProjectName);
+    public record DeploymentTaskDto(DeploymentDto Deployment, string ProjectName, string DockerProjectName, Guid? NodeId);
 
     /// <summary>Everything queued or running, plus the most recent finished ones - newest first.</summary>
     public sealed record ListDeploymentTasksQuery(int RecentLimit = 8) : IRequest<DeploymentTaskDto[]>;
@@ -99,11 +99,11 @@ namespace DockiUp.Application.Deployments
 
             var rows = deployments
                 .Where(d => projects.ContainsKey(d.ProjectId))
-                .Select(d => new { d, projects[d.ProjectId].ProjectName, projects[d.ProjectId].DockerProjectName });
+                .Select(d => new { d, projects[d.ProjectId].ProjectName, projects[d.ProjectId].DockerProjectName, projects[d.ProjectId].NodeId });
 
             return rows
                 .OrderByDescending(r => r.d.CreatedAt)
-                .Select(r => new DeploymentTaskDto(DeploymentDto.From(r.d), r.ProjectName, r.DockerProjectName))
+                .Select(r => new DeploymentTaskDto(DeploymentDto.From(r.d), r.ProjectName, r.DockerProjectName, r.NodeId))
                 .ToArray();
         }
     }
