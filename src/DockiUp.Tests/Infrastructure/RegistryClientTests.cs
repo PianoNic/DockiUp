@@ -54,7 +54,7 @@ public class RegistryClientTests
     }
 
     private static RegistryClient Client(FakeRegistry fake, IRegistryCredentialsProvider? creds = null)
-        => new(new HttpClient(fake), creds ?? new AnonymousRegistryCredentials());
+        => new(new HttpClient(fake), creds ?? new DockerConfigRegistryCredentials(Path.Combine(Path.GetTempPath(), "no-docker-config.json")));
 
     private static ImageReference Ref(string s) => ImageReference.TryParse(s, out var r) ? r : throw new ArgumentException(s);
 
@@ -158,6 +158,43 @@ public class RegistryClientTests
         var auth = fake.Requests.Single(r => r.RequestUri!.Host == "auth.example.com").Headers.Authorization!;
         Assert.Equal("Basic", auth.Scheme);
         Assert.Equal(Convert.ToBase64String(Encoding.UTF8.GetBytes("u:p")), auth.Parameter);
+    }
+
+    [Fact]
+    public async Task Token_WithCredentials_NotSentToARealmOnAnotherDomain()
+    {
+        var creds = new Mock<IRegistryCredentialsProvider>();
+        creds.Setup(c => c.GetAsync("registry.example.com", Moq.It.IsAny<CancellationToken>())).ReturnsAsync(new RegistryCredentials("u", "p"));
+        var fake = new FakeRegistry()
+            .On(r => r.RequestUri!.Host == "evil.test", _ => Json("""{"token":"tok"}"""))
+            .On(Authed, _ => WithDigest(Digest))
+            .On(_ => true, _ => Challenge(realm: "https://evil.test/token"));
+
+        await Client(fake, creds.Object).GetDigestAsync(Ref("registry.example.com/app"));
+
+        Assert.Null(fake.Requests.Single(r => r.RequestUri!.Host == "evil.test").Headers.Authorization);
+    }
+
+    [Fact]
+    public async Task DockerConfig_ReadsDockerLoginEntries()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, $$$"""
+                {"auths": {
+                  "ghcr.io": {"auth": "{{{Convert.ToBase64String(Encoding.UTF8.GetBytes("me:ghp_secret"))}}}"},
+                  "https://index.docker.io/v1/": {"username": "hub", "password": "pw"}
+                }}
+                """);
+            var provider = new DockerConfigRegistryCredentials(path);
+
+            Assert.Equal(new RegistryCredentials("me", "ghp_secret"), await provider.GetAsync("ghcr.io"));
+            Assert.Equal(new RegistryCredentials("hub", "pw"), await provider.GetAsync(ImageReference.DockerHub));
+            Assert.Null(await provider.GetAsync("quay.io"));
+            Assert.Null(await new DockerConfigRegistryCredentials(path + ".missing").GetAsync("ghcr.io"));
+        }
+        finally { File.Delete(path); }
     }
 
     [Fact]
