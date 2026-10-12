@@ -3,7 +3,7 @@
     <span class="x-eyebrow">Project · {{ hostName() }}</span>
     <h1 class="x-title">
       {{ project()?.projectName ?? 'Project' }}
-      <app-image-update-badge [projectId]="managedId()" [dockerProjectName]="project()?.dockerProjectName" />
+      <app-image-update-badge [projectId]="managedId()" [dockerProjectName]="project()?.dockerProjectName" [nodeId]="project()?.nodeId" />
     </h1>
     @if (project()?.projectDescription; as description) {
       <p class="x-sub">{{ description }}</p>

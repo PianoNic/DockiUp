@@ -10,6 +10,7 @@ import { DashboardService, NodeDto, NodesService, ProjectDto } from '../api';
 import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
 import { ProjectStore } from '../shared/stores/project.store';
+import { projectLink } from '../shared/project-url';
 import { ImageUpdateStore, updatesTooltip } from '../shared/stores/image-update.store';
 
 type Filter = 'all' | 'attention' | 'updates';
@@ -31,6 +32,7 @@ interface HostGroup {
   styleUrl: './dashboard.scss',
 })
 export class Dashboard implements OnInit {
+  protected readonly link = (p: ProjectDto) => projectLink(p.dockerProjectName, p.nodeId);
   projectStore = inject(ProjectStore);
   protected readonly imageUpdates = inject(ImageUpdateStore);
   private dashboardService = inject(DashboardService);

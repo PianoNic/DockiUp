@@ -68,12 +68,12 @@
               <td>
                 <div class="group-head">
                   <mat-icon class="chevron">{{ collapsed().has(g.key) ? 'chevron_right' : 'expand_more' }}</mat-icon>
-                  <a class="table-link" [routerLink]="['/project', g.name]" (click)="$event.stopPropagation()">{{ g.name }}</a>
+                  <a class="table-link" [routerLink]="g.link" (click)="$event.stopPropagation()">{{ g.name }}</a>
                 </div>
               </td>
-              <td><a class="state-badge badge-link" [attr.data-state]="g.running ? 'running' : 'stopped'" [routerLink]="['/project', g.name]" (click)="$event.stopPropagation()">{{ g.running }}/{{ g.rows.length }} running</a></td>
+              <td><a class="state-badge badge-link" [attr.data-state]="g.running ? 'running' : 'stopped'" [routerLink]="g.link" (click)="$event.stopPropagation()">{{ g.running }}/{{ g.rows.length }} running</a></td>
               <td colspan="4">
-                <app-image-update-badge [projectId]="g.projectId" [dockerProjectName]="g.name" />
+                <app-image-update-badge [projectId]="g.projectId" [dockerProjectName]="g.name" [nodeId]="g.rows[0].nodeId" />
               </td>
               <!-- Host on the far right, above the row actions. -->
               <td class="group-host">
@@ -95,7 +95,7 @@
                 <td class="when">–</td>
               }
               <td class="details">
-                <span class="service-cell">{{ r.serviceName }} <app-image-update-badge [projectId]="r.projectId" [service]="r.serviceName" [dockerProjectName]="r.dockerProjectName" compact /></span>
+                <span class="service-cell">{{ r.serviceName }} <app-image-update-badge [projectId]="r.projectId" [service]="r.serviceName" [dockerProjectName]="r.dockerProjectName" [nodeId]="r.nodeId" compact /></span>
               </td>
               <td class="when status">{{ r.status }}</td>
               <td>

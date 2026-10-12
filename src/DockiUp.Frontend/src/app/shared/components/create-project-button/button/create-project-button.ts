@@ -11,6 +11,7 @@ import { ProjectService } from '../../../../api';
 import { firstValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ProjectStore } from '../../../stores/project.store';
+import { projectLink } from '../../../project-url';
 @Component({
   selector: 'app-create-project-button',
   imports: [
@@ -42,7 +43,7 @@ export class CreateProjectButton {
 
     // The dialog creates (or adopts) the project itself; open it right away: its first deployment streams there.
     dialogRef.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (result: CreateProjectResult | undefined) => {
-      if (result) await this.router.navigate(['/project', result.dockerProjectName]);
+      if (result) await this.router.navigate(projectLink(result.dockerProjectName, result.nodeId));
     });
   }
 }

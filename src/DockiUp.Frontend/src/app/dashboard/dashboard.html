@@ -86,13 +86,13 @@
           @if (!collapsed().has(g.name)) {
             <div class="project-grid">
               @for (project of g.projects; track project.dockerProjectName) {
-                <div class="x-card x-clickable project-card" [routerLink]="['/project', project.dockerProjectName]"
+                <div class="x-card x-clickable project-card" [routerLink]="link(project)"
                   tabindex="0" role="link" [attr.aria-label]="'Open ' + project.projectName">
                   <div class="card-top">
                     <span class="status-dot" [attr.data-status]="getStatus(project)"></span>
                     <span class="project-name" [title]="project.projectName">{{ project.projectName }}</span>
                     @if (hasUpdate(project)) {
-                      <a class="state-badge badge-link" data-state="update" [routerLink]="['/project', project.dockerProjectName]" [queryParams]="{ tab: 'images' }"
+                      <a class="state-badge badge-link" data-state="update" [routerLink]="link(project)" [queryParams]="{ tab: 'images' }"
                         (click)="$event.stopPropagation()" [matTooltip]="updateTooltip(project)" matTooltipShowDelay="800">Update</a>
                     }
                   </div>

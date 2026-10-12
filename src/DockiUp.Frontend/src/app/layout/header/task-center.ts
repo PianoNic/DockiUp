@@ -8,6 +8,8 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, firstValueFrom } from 'rxjs';
 import { DeploymentTaskDto, ProjectService } from '../../api';
+import { projectLink } from '../../shared/project-url';
+import { ProjectStore } from '../../shared/stores/project.store';
 import { DockiUpHubService } from '../../shared/services/dockiup-hub.service';
 import { NgClass } from '@angular/common';
 
@@ -59,7 +61,7 @@ const DAY = new Intl.DateTimeFormat(undefined, { dateStyle: 'short' });
       </div>
       <div class="rows">
         @for (t of tasks(); track t.deployment.id) {
-          <a mat-menu-item class="x-deploy-row" [routerLink]="['/project', t.dockerProjectName]">
+          <a mat-menu-item class="x-deploy-row" [routerLink]="link(t)">
             <span class="x-shape sm" [class.round]="t.deployment.status !== 'Queued'" [ngClass]="shapeClass(t)">
               <mat-icon [class.spin]="t.deployment.status === 'Running'">{{ statusIcon(t) }}</mat-icon>
             </span>
@@ -86,6 +88,7 @@ export class TaskCenter {
   readonly extended = input(true);
 
   private readonly api = inject(ProjectService);
+  private readonly projects = inject(ProjectStore);
 
   protected readonly tasks = signal<DeploymentTaskDto[]>([]);
   protected readonly activeCount = computed(
@@ -106,6 +109,12 @@ export class TaskCenter {
     } catch {
       // The bell is secondary; a failed refresh keeps the last list rather than toasting on every event.
     }
+  }
+
+  /** The task only names the project; its host comes from the loaded project list. */
+  protected link(t: DeploymentTaskDto): string[] {
+    const p = this.projects.projectDtos().find((p) => p.id === t.deployment.projectId);
+    return p ? projectLink(p.dockerProjectName, p.nodeId) : ['/project', t.dockerProjectName]; // not loaded yet: the bare name still opens
   }
 
   protected statusIcon(t: DeploymentTaskDto): string {
