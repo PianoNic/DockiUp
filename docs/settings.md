@@ -32,6 +32,15 @@ services:
 | `CORS_ALLOWED_ORIGINS` | none | Only needed when the web UI is served from another address than the API. A warning about it in the log is harmless otherwise |
 | `DockiUp__PublicUrl` | none | Same as `PUBLIC_URL`; whichever you prefer |
 
+## Private images
+
+DockiUp uses the host's `docker login`, both to pull and to check for updates. Log in as root on the host,
+then let DockiUp read the login by adding this to the `volumes` of the `dockiup` service:
+
+```yaml
+      - /root/.docker:/root/.docker:ro
+```
+
 ## Sign-in
 
 All optional; see [Sign-in](/sign-in) for the setup.

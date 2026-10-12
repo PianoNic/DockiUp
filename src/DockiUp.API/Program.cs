@@ -99,10 +99,10 @@ builder.Services.AddScoped<DockiUp.Application.Git.IGitCredentialsProvider, Dock
 #endregion
 
 #region Image updates (#68/#69/#70)
-// Registry client for digest checks and tag lists; anonymous unless another credentials provider is registered.
+// Registry client for digest checks and tag lists; logs in with what `docker login` stored on this host.
 builder.Services.AddHttpClient<IRegistryClient, RegistryClient>(http => http.Timeout = TimeSpan.FromSeconds(20));
 Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
-    .TryAddSingleton<IRegistryCredentialsProvider, AnonymousRegistryCredentials>(builder.Services);
+    .TryAddSingleton<IRegistryCredentialsProvider, DockerConfigRegistryCredentials>(builder.Services);
 builder.Services.AddSingleton<DockiUp.Application.ImageUpdates.IImageUpdateEvents, DockiUp.API.HostedServices.ImageUpdateEvents>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.ImageUpdateHostedService>();
 #endregion

@@ -112,7 +112,7 @@ namespace DockiUp.Infrastructure.Services
             if (response.IsSuccessStatusCode) return;
             var reason = response.StatusCode switch
             {
-                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "access denied (private image? registry credentials are not supported yet)",
+                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => $"access denied (private image? run docker login {image.Registry} on the DockiUp host)",
                 HttpStatusCode.TooManyRequests => "rate limited by the registry, try again later",
                 _ => $"registry answered {(int)response.StatusCode} {response.ReasonPhrase}",
             };
@@ -131,7 +131,7 @@ namespace DockiUp.Infrastructure.Services
                 session.Authorization = await AuthorizeAsync(session.Image, response.Headers.WwwAuthenticate, cancellationToken);
                 response.Dispose();
                 if (session.Authorization is null)
-                    throw new HttpRequestException($"{session.Image.Name}: access denied (private image? registry credentials are not supported yet)", null, HttpStatusCode.Unauthorized);
+                    throw new HttpRequestException($"{session.Image.Name}: access denied (private image? run docker login {session.Image.Registry} on the DockiUp host)", null, HttpStatusCode.Unauthorized);
             }
             var request = build();
             request.Headers.Authorization = session.Authorization;
@@ -160,9 +160,10 @@ namespace DockiUp.Infrastructure.Services
                 var tokenUrl = realm + (realm.Contains('?') ? "&" : "?") + string.Join('&', query);
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, tokenUrl);
-                // ponytail: credentials go to whatever realm the registry names; restrict to the registry's own
-                // domain once real credentials are plugged in.
-                if (basic is not null) request.Headers.Authorization = basic;
+                // The realm is registry-controlled: credentials only go over https to the registry's own domain
+                // (ghcr.io -> ghcr.io, docker.io -> auth.docker.io); anywhere else asks anonymously.
+                if (basic is not null && realmUri.Scheme == "https" && SameDomain(realmUri.Host, image.ApiHost))
+                    request.Headers.Authorization = basic;
                 using var response = await http.SendAsync(request, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     throw new HttpRequestException($"{image.Name}: the registry refused a pull token ({(int)response.StatusCode})", null, response.StatusCode);
@@ -174,6 +175,10 @@ namespace DockiUp.Infrastructure.Services
             }
             return null;
         }
+
+        // ponytail: compares the last two labels, so a.co.uk-style registry just doesn't get credentials sent.
+        private static string LastTwoLabels(string host) => string.Join('.', host.Split('.').TakeLast(2));
+        private static bool SameDomain(string a, string b) => string.Equals(LastTwoLabels(a), LastTwoLabels(b), StringComparison.OrdinalIgnoreCase);
 
         /// <summary>`realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:x:pull"`.</summary>
         private static Dictionary<string, string> ParseChallenge(string? parameter)
@@ -215,10 +220,45 @@ namespace DockiUp.Infrastructure.Services
         }
     }
 
-    /// <summary>Default: no stored registry credentials, every request is anonymous (public images).</summary>
-    public sealed class AnonymousRegistryCredentials : IRegistryCredentialsProvider
+    /// <summary>The logins `docker login` stores in Docker's config.json ($DOCKER_CONFIG/config.json, else
+    /// ~/.docker/config.json), read on every lookup so a new login counts without a restart. No login for the
+    /// registry, or no file, means anonymous.</summary>
+    // ponytail: only plain "auths" entries; credential helpers (credsStore/credHelpers) aren't run.
+    public sealed class DockerConfigRegistryCredentials(string? configPath = null) : IRegistryCredentialsProvider
     {
-        public Task<RegistryCredentials?> GetAsync(string registry, CancellationToken cancellationToken = default)
-            => Task.FromResult<RegistryCredentials?>(null);
+        public async Task<RegistryCredentials?> GetAsync(string registry, CancellationToken cancellationToken = default)
+        {
+            var path = configPath ?? Path.Combine(Environment.GetEnvironmentVariable("DOCKER_CONFIG")
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".docker"), "config.json");
+            if (!File.Exists(path)) return null;
+            try
+            {
+                using var json = JsonDocument.Parse(await File.ReadAllTextAsync(path, cancellationToken));
+                if (!json.RootElement.TryGetProperty("auths", out var auths) || auths.ValueKind != JsonValueKind.Object) return null;
+                foreach (var entry in auths.EnumerateObject())
+                {
+                    if (RegistryOf(entry.Name) != registry || entry.Value.ValueKind != JsonValueKind.Object) continue;
+                    if (entry.Value.TryGetProperty("auth", out var auth) && auth.GetString() is { Length: > 0 } encoded)
+                    {
+                        var pair = Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+                        var colon = pair.IndexOf(':');
+                        if (colon > 0) return new RegistryCredentials(pair[..colon], pair[(colon + 1)..]);
+                    }
+                    if (entry.Value.TryGetProperty("username", out var user) && entry.Value.TryGetProperty("password", out var pass)
+                        && user.GetString() is { Length: > 0 } u && pass.GetString() is { } p)
+                        return new RegistryCredentials(u, p);
+                }
+            }
+            catch (Exception ex) when (ex is JsonException or FormatException or IOException) { }
+            return null;
+        }
+
+        // Keys are hosts ("ghcr.io") or URLs ("https://index.docker.io/v1/" for Docker Hub).
+        private static string RegistryOf(string key)
+        {
+            var host = key.Contains("://", StringComparison.Ordinal) && Uri.TryCreate(key, UriKind.Absolute, out var uri)
+                ? uri.Authority : key.Split('/')[0];
+            return host is "index.docker.io" or "registry-1.docker.io" ? ImageReference.DockerHub : host;
+        }
     }
 }
