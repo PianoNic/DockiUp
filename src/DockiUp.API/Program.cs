@@ -174,12 +174,12 @@ builder.Services.AddCors(options =>
 // Toamaisutaa validates the IdP's access tokens (config section "Oidc") and puts every endpoint behind
 // an authenticated-user fallback policy; [AllowAnonymous] opts out (GetAppInfo, webhook, node hub, SPA shell).
 // Without an authority nothing is registered and the app runs open, as in dev and the test suite.
+var publicUrl = (builder.Configuration["Oidc:PublicUrl"] ?? builder.Configuration["DockiUp:PublicUrl"]
+    ?? Environment.GetEnvironmentVariable("PUBLIC_URL"))?.TrimEnd('/');
 if (authEnabled)
 {
     // The MCP scheme publishes /.well-known/oauth-protected-resource and points 401s at it, which is how an MCP
     // client finds the OIDC provider to sign in with. Tokens are still validated by the bearer scheme.
-    var publicUrl = (builder.Configuration["Oidc:PublicUrl"] ?? builder.Configuration["DockiUp:PublicUrl"]
-        ?? Environment.GetEnvironmentVariable("PUBLIC_URL"))?.TrimEnd('/');
     builder.Services.AddToamaisutaaBearer(builder.Configuration).AddMcp(options =>
     {
         options.ResourceMetadata = new()
@@ -277,7 +277,21 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseCors();
 if (authEnabled)
+{
+    // Behind a reverse proxy requests arrive as http://<container>, but the MCP metadata endpoint only answers on the
+    // public address it is configured with. For that path, take the scheme and host from the public URL.
+    if (Uri.TryCreate(publicUrl, UriKind.Absolute, out var publicUri))
+        app.Use((context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/.well-known/oauth-protected-resource"))
+            {
+                context.Request.Scheme = publicUri.Scheme;
+                context.Request.Host = HostString.FromUriComponent(publicUri);
+            }
+            return next();
+        });
     app.UseAuthentication();
+}
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<DockiUpHub>("/hubs/dockiup");
