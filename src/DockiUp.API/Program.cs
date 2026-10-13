@@ -8,6 +8,7 @@ using DockiUp.Infrastructure;
 using DockiUp.Infrastructure.Clients;
 using DockiUp.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.AspNetCore.Authentication;
 using Npgsql;
@@ -191,6 +192,10 @@ if (authEnabled)
         if (!string.IsNullOrEmpty(publicUrl)) options.ResourceMetadataUri = new Uri($"{publicUrl}/.well-known/oauth-protected-resource");
     });
     builder.Services.PostConfigure<AuthenticationOptions>(o => o.DefaultChallengeScheme = McpAuthenticationDefaults.AuthenticationScheme);
+    // MCP clients ask for a token for the MCP address itself (RFC 8707 resource), so accept it beside the client id.
+    if (!string.IsNullOrEmpty(publicUrl))
+        builder.Services.PostConfigureAll<JwtBearerOptions>(o => o.TokenValidationParameters.ValidAudiences =
+            [.. o.TokenValidationParameters.ValidAudiences ?? [], $"{publicUrl}/mcp"]);
     builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
     builder.Services.AddToamaisutaaCurrentUser(); // who did it, for the activity feed
 }
