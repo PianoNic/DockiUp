@@ -33,5 +33,7 @@ namespace DockiUp.Domain
         public ImageUpdatePolicy ImageUpdatePolicy { get; set; } = ImageUpdatePolicy.Notify;
         /// <summary>Services left out of image update checks (and so never auto-updated).</summary>
         public List<string> ImageUpdateExcludedServices { get; set; } = [];
+        /// <summary>How often this project's images are checked, in seconds; null follows DockiUp's setting.</summary>
+        public int? ImageUpdateIntervalSeconds { get; set; }
     }
 }

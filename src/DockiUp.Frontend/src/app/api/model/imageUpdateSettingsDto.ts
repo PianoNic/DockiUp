@@ -14,6 +14,7 @@ export interface ImageUpdateSettingsDto {
     policy: ImageUpdatePolicy;
     excludedServices: Array<string>;
     pinnedImages: { [key: string]: string; };
+    interval: string | null;
 }
 export namespace ImageUpdateSettingsDto {
 }

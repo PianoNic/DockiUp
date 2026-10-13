@@ -17,6 +17,7 @@ api/projectFiles.service.ts
 api/projectSettings.service.ts
 api/resources.service.ts
 api/secrets.service.ts
+api/settings.service.ts
 api/stats.service.ts
 api/webhook.service.ts
 configuration.ts
@@ -93,9 +94,12 @@ model/saveGitCredentialRequest.ts
 model/saveNotificationChannelRequest.ts
 model/saveProjectFileRequest.ts
 model/saveProjectFileResultDto.ts
+model/saveSettingRequest.ts
 model/secretDto.ts
 model/setImageUpdateSettingsRequest.ts
 model/setProjectGitCredentialRequest.ts
+model/settingDto.ts
+model/settingDtoMin.ts
 model/setupProjectDto.ts
 model/storeSecretRequest.ts
 model/stringSegment.ts

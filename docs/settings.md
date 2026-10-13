@@ -12,6 +12,17 @@ Set these in `.env`, next to `compose.yml`.
 | `VAULT_MASTER_KEY` | yes | Encrypts stored secrets and Git credentials. Create it with `openssl rand -base64 32` and keep it safe: without it they can't be read |
 | `PUBLIC_URL` | for [more hosts](/nodes) | Address DockiUp is reached at, e.g. `https://dockiup.example.com`. Used for node setup and the webhook URLs DockiUp shows you |
 
+## In the UI
+
+**Settings > General** changes these while DockiUp runs:
+
+- Public address (same as `PUBLIC_URL`)
+- How often images are checked for updates (each project can override it in its **Images** tab)
+- How often container stats are read, and how long their history is kept
+
+A setting you also give as an environment variable is locked there and shows which variable sets it.
+Remove the variable to manage it in the UI instead.
+
 ## Advanced
 
 To change one of these, add it to the `environment` of the `dockiup` service in `compose.yml`:
@@ -20,17 +31,19 @@ To change one of these, add it to the `environment` of the `dockiup` service in 
 services:
   dockiup:
     environment:
-      ImageUpdates__IntervalHours: 12
+      ImageUpdates__Interval: 12h
 ```
 
 | Setting | Default | What it does |
 |---|---|---|
-| `ImageUpdates__IntervalHours` | `6` | How often running images are checked for updates. `0` turns the automatic check off; **Check for updates** in the UI still works |
+| `ImageUpdates__Interval` | `6h` | How often running images are checked for updates: `30s`, `5m`, `6h`, `1d`. `0` turns the automatic check off; **Check now** still works. A project can set its own in its **Images** tab |
 | `SystemPaths__ProjectsPath` | `/data/dockiup/projects` (set in `compose.yml`) | Where DockiUp keeps the projects it creates. Mount it at the same path inside and out |
 | `SystemPaths__DockerSocket` | the mounted socket | Another Docker endpoint, e.g. `tcp://docker-proxy:2375` for a socket proxy |
 | `ConnectionStrings__DockiUpDatabase` | built from `POSTGRES_PASSWORD` | Use your own PostgreSQL: `Host=…;Port=5432;Database=dockiup;Username=…;Password=…` |
 | `CORS_ALLOWED_ORIGINS` | none | Only needed when the web UI is served from another address than the API. A warning about it in the log is harmless otherwise |
 | `DockiUp__PublicUrl` | none | Same as `PUBLIC_URL`; whichever you prefer |
+| `Stats__IntervalSeconds` | `15` | How often CPU and memory of every container are read |
+| `Stats__RetentionHours` | `24` | How long the per-minute stats history is kept |
 
 ## Private images
 

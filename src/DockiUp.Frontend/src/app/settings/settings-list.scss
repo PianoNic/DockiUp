@@ -85,3 +85,12 @@
 .danger { color: var(--mat-sys-error); }
 .off { opacity: 0.6; }
 .mono { font-family: var(--x-mono); }
+
+// Nothing to list yet: the message sits in the middle of the free space.
+.x-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
