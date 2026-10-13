@@ -66,6 +66,7 @@
   and cleanups.
 - **Housekeeping**: images, volumes and networks per host, pruning, and scheduled cleanup.
 - **Optional sign-in**: any OpenID Connect provider, or none.
+- **AI assistants**: an MCP server, so Claude Code and others can read logs and deploy, signed in as you.
 
 ## Quick start
 

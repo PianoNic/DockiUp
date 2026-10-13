@@ -1,3 +1,4 @@
+using DockiUp.API.Mcp;
 using DockiUp.API.Nodes;
 using DockiUp.API.SignalR;
 using DockiUp.Application;
@@ -6,7 +7,9 @@ using DockiUp.Application.Models;
 using DockiUp.Infrastructure;
 using DockiUp.Infrastructure.Clients;
 using DockiUp.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.AspNetCore.Authentication;
 using Npgsql;
 using System.Text.Json.Serialization;
 
@@ -63,6 +66,9 @@ builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStateBroad
 // A node's replies (project files, resources, stats) come back as one message, often over the 32 KB
 // default; nodes are token-authenticated, so allow up to the 25 MB file limit (base64) plus envelope.
 // (Configure<HubOptions<NodeHub>> alone does not take effect; AddHubOptions is the supported way.)
+// MCP for AI clients at /mcp. Stateless: every request carries its own token, like the REST API.
+builder.Services.AddMcpServer().WithHttpTransport(o => o.Stateless = true).WithTools<DockiUpTools>();
+
 builder.Services.AddSignalR()
     .AddHubOptions<NodeHub>(o => o.MaximumReceiveMessageSize = 40 * 1024 * 1024);
 builder.Services.AddSingleton<IDockiUpHubBroadcastService, DockiUpHubBroadcastService>();
@@ -170,7 +176,21 @@ builder.Services.AddCors(options =>
 // Without an authority nothing is registered and the app runs open, as in dev and the test suite.
 if (authEnabled)
 {
-    builder.Services.AddToamaisutaaBearer(builder.Configuration);
+    // The MCP scheme publishes /.well-known/oauth-protected-resource and points 401s at it, which is how an MCP
+    // client finds the OIDC provider to sign in with. Tokens are still validated by the bearer scheme.
+    var publicUrl = (builder.Configuration["Oidc:PublicUrl"] ?? builder.Configuration["DockiUp:PublicUrl"]
+        ?? Environment.GetEnvironmentVariable("PUBLIC_URL"))?.TrimEnd('/');
+    builder.Services.AddToamaisutaaBearer(builder.Configuration).AddMcp(options =>
+    {
+        options.ResourceMetadata = new()
+        {
+            Resource = string.IsNullOrEmpty(publicUrl) ? null : $"{publicUrl}/mcp",
+            AuthorizationServers = { builder.Configuration["Oidc:Authority"]! },
+            ScopesSupported = [.. (builder.Configuration["Oidc:Scope"] ?? "openid profile email roles").Split(' ', StringSplitOptions.RemoveEmptyEntries)],
+        };
+        if (!string.IsNullOrEmpty(publicUrl)) options.ResourceMetadataUri = new Uri($"{publicUrl}/.well-known/oauth-protected-resource");
+    });
+    builder.Services.PostConfigure<AuthenticationOptions>(o => o.DefaultChallengeScheme = McpAuthenticationDefaults.AuthenticationScheme);
     builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
     builder.Services.AddToamaisutaaCurrentUser(); // who did it, for the activity feed
 }
@@ -262,6 +282,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<DockiUpHub>("/hubs/dockiup");
 app.MapHub<NodeHub>("/hubs/node");
+app.MapMcp("/mcp"); // behind the same fallback policy as the API
 
 // The SPA shell must load even when unauthenticated so it can run the client-side login redirect.
 app.MapFallbackToFile("index.html").AllowAnonymous();
