@@ -10,7 +10,7 @@ namespace DockiUp.Tests.Application;
 
 public class GetProjectsQueryHandlerTests
 {
-    private static ProjectDto Dto(string dockerName, Guid? nodeId = null, bool managed = false) => new()
+    private static ProjectDto Dto(string dockerName, Guid? nodeId = null, bool managed = false, string? containerId = null) => new()
     {
         Id = null,
         ProjectName = dockerName,
@@ -18,7 +18,7 @@ public class GetProjectsQueryHandlerTests
         ProjectDescription = "Not Managed By DockiUp",
         ManagedByDockiUp = managed,
         NodeId = nodeId,
-        Containers = [],
+        Containers = [new ContainerDto { Id = containerId ?? Guid.NewGuid().ToString(), Name = dockerName, Status = "", State = default, ServiceName = dockerName, ProjectName = dockerName }],
     };
 
     [Fact]
@@ -32,11 +32,11 @@ public class GetProjectsQueryHandlerTests
         db.SaveChanges();
 
         var local = new Mock<IDockerService>();
-        // Local daemon reports both (shared-daemon artifact); the node-owned one must be filtered out here.
-        local.Setup(d => d.GetProjectsAsync()).ReturnsAsync(new[] { Dto("localapp", null, managed: true), Dto("nodeapp", null, managed: true) });
+        // Local daemon reports both (shared-daemon artifact): the same containers, kept once under the node that owns them.
+        local.Setup(d => d.GetProjectsAsync()).ReturnsAsync(new[] { Dto("localapp", null, managed: true), Dto("nodeapp", containerId: "c1") });
 
         var nodeDocker = new Mock<IDockerService>();
-        nodeDocker.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync(new[] { Dto("nodeapp") });
+        nodeDocker.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync(new[] { Dto("nodeapp", containerId: "c1") });
         var resolver = new Mock<IDockerServiceResolver>();
         resolver.Setup(r => r.Resolve(node)).Returns(nodeDocker.Object);
 
@@ -53,6 +53,26 @@ public class GetProjectsQueryHandlerTests
         Assert.Equal(node, nodeApp.NodeId);
         Assert.True(nodeApp.ManagedByDockiUp);
         Assert.Equal("Remote", nodeApp.ProjectName);
+    }
+
+    [Fact]
+    public async Task SameName_OnTwoHosts_IsListedOnBoth()
+    {
+        var db = TestDb.Create();
+        var node = Guid.NewGuid();
+        var local = new Mock<IDockerService>();
+        local.Setup(d => d.GetProjectsAsync()).ReturnsAsync(new[] { Dto("krint") });
+        var nodeDocker = new Mock<IDockerService>();
+        nodeDocker.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync(new[] { Dto("krint") });
+        var resolver = new Mock<IDockerServiceResolver>();
+        resolver.Setup(r => r.Resolve(node)).Returns(nodeDocker.Object);
+        var directory = new Mock<INodeDirectory>();
+        directory.Setup(d => d.GetOnlineNodeIds()).Returns(new[] { node });
+
+        var result = await new GetProjectsQueryHandler(local.Object, resolver.Object, directory.Object, db)
+            .Handle(new GetProjectsQuery(), CancellationToken.None);
+
+        Assert.Equal(new Guid?[] { null, node }, result.Select(p => p.NodeId).ToArray());
     }
 
     [Fact]

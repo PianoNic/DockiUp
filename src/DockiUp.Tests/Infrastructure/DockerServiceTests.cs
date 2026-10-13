@@ -65,21 +65,25 @@ public class DockerServiceTests
     }
 
     [Fact]
-    public async Task GetProjects_ReconcilesWithDb_SetsIdNodeManaged()
+    public async Task GetProjects_ReconcilesWithLocalRecordsOnly()
     {
         var (svc, _, db) = Build(new[] { Container("a", "proj", "web") });
-        var node = Guid.NewGuid();
         db.ProjectInfo.Add(new ProjectInfo
         {
             ProjectName = "Nice Name", DockerProjectName = "proj", ProjectOrigin = ProjectOriginType.Compose,
-            ProjectPath = "/pp", ComposePath = "/pp/c", ProjectUpdateMethod = ProjectUpdateMethod.Manual, NodeId = node,
+            ProjectPath = "/pp", ComposePath = "/pp/c", ProjectUpdateMethod = ProjectUpdateMethod.Manual,
+        });
+        db.ProjectInfo.Add(new ProjectInfo // same name on a node: not this daemon's
+        {
+            ProjectName = "Elsewhere", DockerProjectName = "proj", ProjectOrigin = ProjectOriginType.Compose,
+            ProjectPath = "/np", ComposePath = "/np/c", ProjectUpdateMethod = ProjectUpdateMethod.Manual, NodeId = Guid.NewGuid(),
         });
         db.SaveChanges();
 
         var p = Assert.Single(await svc.GetProjectsAsync());
         Assert.True(p.ManagedByDockiUp);
         Assert.Equal("Nice Name", p.ProjectName);
-        Assert.Equal(node, p.NodeId);
+        Assert.Null(p.NodeId);
         Assert.Equal("/pp", p.ProjectPath);
     }
 
