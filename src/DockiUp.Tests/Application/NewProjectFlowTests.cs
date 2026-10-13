@@ -337,9 +337,10 @@ public class AutoAdoptCommandTests
         _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([]);
     }
 
-    private static ProjectDto P(string name, bool reachable = true, bool self = false, string? files = "/stacks/x/compose.yaml") => new()
+    private static ProjectDto P(string name, bool reachable = true, bool self = false, string? files = "/stacks/x/compose.yaml", string? containerId = null) => new()
     {
-        ProjectName = name, DockerProjectName = name, ProjectDescription = "", ManagedByDockiUp = false, Containers = [],
+        ProjectName = name, DockerProjectName = name, ProjectDescription = "", ManagedByDockiUp = false,
+        Containers = [new ContainerDto { Id = containerId ?? Guid.NewGuid().ToString(), Name = name, Status = "", State = default, ServiceName = name, ProjectName = name }],
         ComposeWorkingDir = files is null ? null : "/stacks/" + name, ComposeConfigFiles = files,
         ComposeFilesReachable = reachable, IsDockiUp = self,
     };
@@ -373,18 +374,26 @@ public class AutoAdoptCommandTests
     }
 
     [Fact]
-    public async Task KnownNames_AreNotAdoptedAgain_OnAnyHost()
+    public async Task SameName_OnAnotherHost_IsItsOwnProject()
     {
-        _db.ProjectInfo.Add(new ProjectInfo { ProjectName = "blog", DockerProjectName = "blog", ProjectPath = "/p", ComposePath = "compose.yaml", NodeId = _nodeId, ProjectOrigin = ProjectOriginType.Adopted, ProjectUpdateMethod = ProjectUpdateMethod.Manual });
+        _db.ProjectInfo.Add(new ProjectInfo { ProjectName = "krint", DockerProjectName = "krint", ProjectPath = "/p", ComposePath = "compose.yaml", ProjectOrigin = ProjectOriginType.Adopted, ProjectUpdateMethod = ProjectUpdateMethod.Manual });
         await _db.SaveChangesAsync();
-        // A node sharing the local daemon lists the same projects as the local host.
-        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog"), P("api")]);
-        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog"), P("api")]);
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("krint")]);
+        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("krint")]);
 
         Assert.Equal(1, await Run());
-        Assert.Null((await _db.ProjectInfo.SingleAsync(p => p.DockerProjectName == "api")).NodeId);
-        Assert.Equal(2, await _db.ProjectInfo.CountAsync());
+        Assert.Equal(_nodeId, (await _db.ProjectInfo.SingleAsync(p => p.NodeId != null)).NodeId);
         Assert.Equal(0, await Run()); // idempotent
+    }
+
+    [Fact]
+    public async Task ANodeSharingTheLocalDaemon_DoesNotAdoptTwice()
+    {
+        _local.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog", containerId: "c1")]);
+        _node.Setup(d => d.GetRawProjectsAsync()).ReturnsAsync([P("blog", containerId: "c1")]);
+
+        Assert.Equal(1, await Run());
+        Assert.Null((await _db.ProjectInfo.SingleAsync()).NodeId);
     }
 
     [Fact]

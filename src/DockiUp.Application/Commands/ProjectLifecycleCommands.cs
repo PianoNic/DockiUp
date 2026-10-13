@@ -44,7 +44,7 @@ namespace DockiUp.Application.Commands
             if (string.IsNullOrWhiteSpace(dockerProjectName))
                 throw new ArgumentException("Provide either ProjectId or DockerProjectName.");
 
-            var managed = await db.ProjectInfo.FirstOrDefaultAsync(p => p.DockerProjectName == dockerProjectName, cancellationToken);
+            var managed = await db.ProjectInfo.FirstOrDefaultAsync(p => p.DockerProjectName == dockerProjectName && p.NodeId == nodeId, cancellationToken);
             return managed is not null
                 ? (managed.DockerProjectName, managed.NodeId, managed.Id)
                 : (dockerProjectName, nodeId, null);

@@ -70,7 +70,7 @@ namespace DockiUp.Application.Commands
 
     /// <summary>Registers every compose project on the local host and the online nodes that DockiUp doesn't know yet,
     /// exactly like a manual adopt (nothing moved, written or restarted). Skipped: DockiUp's own project, projects
-    /// whose compose files DockiUp can't read (deploys would fail), and a name already registered on any host.
+    /// whose compose files DockiUp can't read (deploys would fail), and a name already registered on that host.
     /// Returns how many were adopted.</summary>
     public sealed record AutoAdoptCommand : IRequest<int>;
 
@@ -79,10 +79,11 @@ namespace DockiUp.Application.Commands
     {
         public async ValueTask<int> Handle(AutoAdoptCommand request, CancellationToken cancellationToken)
         {
-            // ponytail: one name per DockiUp — the same stack name on a second host is left for a manual adopt
-            // (this also keeps a node that shares the local daemon from adopting everything twice).
-            var known = (await db.ProjectInfo.Select(p => p.DockerProjectName).ToListAsync(cancellationToken))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // The same name on two hosts is two projects. A node that shares the local daemon lists the same
+            // containers again, so those are skipped by container id.
+            var known = (await db.ProjectInfo.Select(p => new { p.DockerProjectName, p.NodeId }).ToListAsync(cancellationToken))
+                .Select(p => Key(p.DockerProjectName, p.NodeId)).ToHashSet();
+            var seenContainers = new HashSet<string>();
             var adopted = 0;
 
             foreach (var nodeId in new Guid?[] { null }.Concat(nodes.GetOnlineNodeIds().Select(id => (Guid?)id)))
@@ -97,10 +98,12 @@ namespace DockiUp.Application.Commands
                     continue; // a node dropping out mid-scan is picked up on the next one
                 }
 
-                foreach (var p in projects.Where(p => !p.IsDockiUp && p.ComposeFilesReachable
-                    && !string.IsNullOrWhiteSpace(p.ComposeWorkingDir) && !string.IsNullOrWhiteSpace(p.ComposeConfigFiles)))
+                foreach (var p in projects)
                 {
-                    if (!known.Add(p.DockerProjectName)) continue;
+                    var sharedDaemon = p.Containers.Count(c => !seenContainers.Add(c.Id)) > 0; // Count, not Any: record every id
+                    if (sharedDaemon || p.IsDockiUp || !p.ComposeFilesReachable
+                        || string.IsNullOrWhiteSpace(p.ComposeWorkingDir) || string.IsNullOrWhiteSpace(p.ComposeConfigFiles)
+                        || !known.Add(Key(p.DockerProjectName, nodeId))) continue;
                     var project = new ProjectInfo
                     {
                         ProjectName = p.DockerProjectName,
@@ -119,6 +122,8 @@ namespace DockiUp.Application.Commands
             }
             return adopted;
         }
+
+        private static string Key(string name, Guid? nodeId) => $"{name.ToLowerInvariant()}@{nodeId}";
     }
 
     /// <summary>Takes over a compose project that already runs on a host: stores it with the working dir and

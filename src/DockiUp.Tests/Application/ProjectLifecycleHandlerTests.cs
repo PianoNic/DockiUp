@@ -54,15 +54,16 @@ public class ProjectLifecycleHandlerTests
     }
 
     [Fact]
-    public async Task ByName_ManagedProject_UsesItsOwnNode()
+    public async Task ByName_MatchesTheManagedProjectOnThatHostOnly()
     {
         var node = Guid.NewGuid();
-        SeedProject(node, "web");
+        var onNode = SeedProject(node, "web");
+        SeedProject(null, "web"); // same name on the local host
 
-        await Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Restart, null, "web", NodeId: null), CancellationToken.None);
+        await Handler().Handle(new ProjectLifecycleCommand(ProjectAction.Restart, null, "web", NodeId: node), CancellationToken.None);
 
         _resolver.Verify(r => r.Resolve(node), Times.Once);
-        _docker.Verify(d => d.RestartProjectAsync("web"), Times.Once);
+        _activity.Verify(a => a.LogAsync("restart", "web", onNode.Id, null, It.IsAny<CancellationToken>(), null), Times.Once);
     }
 
     [Fact]

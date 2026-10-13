@@ -34,18 +34,8 @@ namespace DockiUp.Application.Queries
 
         public async ValueTask<ProjectDto[]> Handle(GetProjectsQuery request, CancellationToken cancellationToken)
         {
-            // Docker project names the DB assigns to a node — these belong to that node's listing, not
-            // the control-plane host's (and de-duplicates when a node happens to share the local daemon).
-            var nodeOwned = (await _dbContext.ProjectInfo
-                    .Where(p => p.NodeId != null)
-                    .Select(p => p.DockerProjectName)
-                    .ToListAsync(cancellationToken))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            // Local control-plane projects (already reconciled against the DB; NodeId stays null).
-            var result = (await _localDocker.GetProjectsAsync())
-                .Where(p => !nodeOwned.Contains(p.DockerProjectName))
-                .ToList();
+            // Local control-plane projects (already reconciled against the local records; NodeId stays null).
+            var result = (await _localDocker.GetProjectsAsync()).ToList();
 
             // Fan out to each online node and merge its projects, reconciled against our records.
             foreach (var nodeId in _nodeDirectory.GetOnlineNodeIds())
@@ -79,6 +69,15 @@ namespace DockiUp.Application.Queries
                         project.ManagedByDockiUp = true;
                         project.ProjectPath = db.ProjectPath;
                         project.UpdateMethod = db.ProjectUpdateMethod.ToString();
+                    }
+
+                    // A node sharing the local daemon lists the same containers again: one entry, the registered one.
+                    var containerIds = project.Containers.Select(c => c.Id).ToHashSet();
+                    var twin = result.FirstOrDefault(p => p.NodeId is null && p.Containers.Any(c => containerIds.Contains(c.Id)));
+                    if (twin is not null)
+                    {
+                        if (twin.Id is not null || project.Id is null) continue;
+                        result.Remove(twin);
                     }
                     result.Add(project);
                 }

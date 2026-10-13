@@ -91,9 +91,11 @@ namespace DockiUp.Infrastructure.Services
         public async Task<ProjectDto[]> GetProjectsAsync()
         {
             var projects = await GetRawProjectsAsync();
+            // This daemon is the local host, so only local records apply; a node's project can share the name.
             // Tolerate colliding docker names (two projects can normalize to the same one): last wins,
             // rather than throwing and taking down the whole listing.
             var dbProjects = _dbContext.ProjectInfo
+                .Where(p => p.NodeId == null)
                 .AsEnumerable()
                 .GroupBy(a => a.DockerProjectName)
                 .ToDictionary(g => g.Key, g => g.Last());
