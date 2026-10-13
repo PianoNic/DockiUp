@@ -26,6 +26,7 @@ export default defineConfig({
           { text: 'More hosts', link: '/nodes' },
           { text: 'Variables and secrets', link: '/environment' },
           { text: 'Sign-in', link: '/sign-in' },
+          { text: 'AI assistants (MCP)', link: '/mcp' },
           { text: 'Settings', link: '/settings' },
         ],
       },
@@ -46,6 +47,7 @@ export default defineConfig({
           { text: 'More hosts', link: '/nodes' },
           { text: 'Variables and secrets', link: '/environment' },
           { text: 'Sign-in', link: '/sign-in' },
+          { text: 'AI assistants (MCP)', link: '/mcp' },
         ],
       },
       {
