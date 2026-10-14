@@ -57,6 +57,20 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("ActivityEntries");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.CleanupSchedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -404,6 +418,9 @@ namespace DockiUp.Infrastructure.Migrations
                     b.PrimitiveCollection<List<string>>("ImageUpdateExcludedServices")
                         .IsRequired()
                         .HasColumnType("text[]");
+
+                    b.Property<int?>("ImageUpdateIntervalSeconds")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ImageUpdatePolicy")
                         .IsRequired()

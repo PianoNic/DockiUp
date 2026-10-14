@@ -46,13 +46,12 @@ namespace DockiUp.API.Nodes
         {
             // A node dials this URL to reach the control plane, so without it there's no compose worth
             // showing. It must be reachable from the node's host - never localhost.
-            var serverUrl = (configuration["DockiUp:PublicUrl"]
-                ?? Environment.GetEnvironmentVariable("PUBLIC_URL") ?? "").TrimEnd('/');
+            var serverUrl = Settings.AppSettings.PublicUrl(configuration);
             if (string.IsNullOrWhiteSpace(serverUrl))
                 return BadRequest(new ProblemDetails
                 {
                     Title = "Public URL not configured",
-                    Detail = "Set PUBLIC_URL on the control plane to the URL nodes should dial (e.g. https://dockiup.example.com) - it must be reachable from the node's host, not localhost. Then reopen this dialog.",
+                    Detail = "Set the public address in Settings > General (or PUBLIC_URL) to the URL nodes should dial (e.g. https://dockiup.example.com) - it must be reachable from the node's host, not localhost. Then reopen this dialog.",
                     Status = StatusCodes.Status400BadRequest,
                 });
 

@@ -181,11 +181,13 @@ namespace DockiUp.Application.ImageUpdates
             {
                 pinned = []; // node offline: settings still load, pins show again once it is back
             }
-            return new ImageUpdateSettingsDto(project.ImageUpdatePolicy, [.. project.ImageUpdateExcludedServices], pinned);
+            return new ImageUpdateSettingsDto(project.ImageUpdatePolicy, [.. project.ImageUpdateExcludedServices], pinned,
+                project.ImageUpdateIntervalSeconds is { } s ? Durations.Format(TimeSpan.FromSeconds(s)) : null);
         }
     }
 
-    public sealed record SetImageUpdateSettingsCommand(Guid ProjectId, ImageUpdatePolicy Policy, string[] ExcludedServices, string? ActorName = null) : IRequest;
+    /// <param name="Interval">Empty follows DockiUp's setting.</param>
+    public sealed record SetImageUpdateSettingsCommand(Guid ProjectId, ImageUpdatePolicy Policy, string[] ExcludedServices, string? ActorName = null, string? Interval = null) : IRequest;
 
     public sealed class SetImageUpdateSettingsCommandHandler(IDockiUpDbContext db, IActivityLogger activity)
         : IRequestHandler<SetImageUpdateSettingsCommand>
@@ -198,8 +200,11 @@ namespace DockiUp.Application.ImageUpdates
             if (excluded.FirstOrDefault(s => !ImageUpdateProjects.IsServiceName(s)) is { } bad)
                 throw new ArgumentException($"'{bad}' is not a valid service name.");
 
+            var interval = string.IsNullOrWhiteSpace(request.Interval) ? (TimeSpan?)null : Durations.ParseInterval(request.Interval, "The check interval");
+
             project.ImageUpdatePolicy = request.Policy;
             project.ImageUpdateExcludedServices = excluded;
+            project.ImageUpdateIntervalSeconds = interval is { } i ? (int)i.TotalSeconds : null;
             // An excluded service or a switched-off project stops counting right away, not at the next check.
             var stale = await db.ImageUpdates.Where(u => u.ProjectId == project.Id).ToListAsync(cancellationToken);
             if (request.Policy == ImageUpdatePolicy.Off) db.ImageUpdates.RemoveRange(stale);
@@ -213,7 +218,8 @@ namespace DockiUp.Application.ImageUpdates
             await db.SaveChangesAsync(cancellationToken);
 
             await activity.LogAsync("image.policy", project.ProjectName, project.Id,
-                excluded.Count > 0 ? $"{request.Policy} (excluding {string.Join(", ", excluded)})" : request.Policy.ToString(),
+                request.Policy + (interval is { } every ? $" every {Durations.Format(every)}" : "")
+                    + (excluded.Count > 0 ? $" (excluding {string.Join(", ", excluded)})" : ""),
                 cancellationToken, request.ActorName);
             return default;
         }

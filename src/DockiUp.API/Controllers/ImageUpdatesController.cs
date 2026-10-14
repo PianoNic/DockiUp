@@ -32,14 +32,14 @@ namespace DockiUp.API.Controllers
         public async Task<ActionResult<ImageUpdateSettingsDto>> GetImageUpdateSettings(Guid projectId)
             => Ok(await mediator.Send(new GetImageUpdateSettingsQuery(projectId), HttpContext.RequestAborted));
 
-        /// <summary>Sets the policy (Off / Notify / Auto) and the services left out of checks.</summary>
+        /// <summary>Sets the policy (Off / Notify / Auto), the services left out of checks and how often they run.</summary>
         [HttpPut("{projectId:guid}/Settings", Name = "SetImageUpdateSettings")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> SetImageUpdateSettings(Guid projectId, [FromBody] SetImageUpdateSettingsRequest request)
         {
-            await mediator.Send(new SetImageUpdateSettingsCommand(projectId, request.Policy, request.ExcludedServices ?? [], Actor), HttpContext.RequestAborted);
+            await mediator.Send(new SetImageUpdateSettingsCommand(projectId, request.Policy, request.ExcludedServices ?? [], Actor, request.Interval), HttpContext.RequestAborted);
             return NoContent();
         }
 

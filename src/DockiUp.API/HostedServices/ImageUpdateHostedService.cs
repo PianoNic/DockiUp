@@ -1,36 +1,54 @@
 using DockiUp.API.SignalR;
+using DockiUp.Application;
 using DockiUp.Application.ImageUpdates;
+using DockiUp.Application.Interfaces;
+using DockiUp.Domain.Enums;
 using Mediator;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.API.HostedServices
 {
-    /// <summary>Runs the image update check for every project on a timer: `ImageUpdates:IntervalHours`
-    /// (default 6; 0 disables the timer, "Check now" still works). The first run is shortly after startup.</summary>
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage] // timer loop; the check it runs is unit-tested
+    /// <summary>Checks each project's images on its own interval, else DockiUp's (ImageUpdates:Interval, see
+    /// <see cref="ImageUpdateSchedule"/>). Looks every 5 seconds, so a changed interval applies right away. The first
+    /// checks run a minute after startup, once nodes have reconnected.</summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage] // timer loop; the schedule and the check are unit-tested
     public class ImageUpdateHostedService(IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger<ImageUpdateHostedService> logger)
         : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var hours = configuration.GetValue("ImageUpdates:IntervalHours", 6.0);
-            if (hours <= 0) return;
-            var interval = TimeSpan.FromHours(hours);
-
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); // let nodes reconnect first
-            while (!stoppingToken.IsCancellationRequested)
+            var lastRun = new Dictionary<Guid, DateTime>();
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+            using var timer = new PeriodicTimer(Durations.Minimum);
+            do
             {
                 try
                 {
                     using var scope = scopeFactory.CreateScope();
-                    await scope.ServiceProvider.GetRequiredService<IMediator>().Send(new CheckImageUpdatesCommand(), stoppingToken);
+                    var projects = await scope.ServiceProvider.GetRequiredService<IDockiUpDbContext>().ProjectInfo
+                        .Where(p => p.ImageUpdatePolicy != ImageUpdatePolicy.Off)
+                        .Select(p => new { p.Id, p.ImageUpdateIntervalSeconds })
+                        .ToListAsync(stoppingToken);
+                    var global = ImageUpdateSchedule.GlobalInterval(configuration["ImageUpdates:Interval"]);
+                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+                    foreach (var id in ImageUpdateSchedule.Due(projects.Select(p => (p.Id, p.ImageUpdateIntervalSeconds)), global, lastRun, DateTime.UtcNow))
+                    {
+                        lastRun[id] = DateTime.UtcNow;
+                        try { await mediator.Send(new CheckImageUpdatesCommand(id), stoppingToken); }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogError(ex, "Image update check of project {ProjectId} failed", id);
+                        }
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogError(ex, "Image update check failed");
+                    logger.LogError(ex, "Image update schedule failed");
                 }
-                await Task.Delay(interval, stoppingToken);
             }
+            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
     }
 

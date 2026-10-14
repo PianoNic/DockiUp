@@ -1,5 +1,6 @@
 using DockiUp.API.Mcp;
 using DockiUp.API.Nodes;
+using DockiUp.API.Settings;
 using DockiUp.API.SignalR;
 using DockiUp.Application;
 using DockiUp.Application.Interfaces;
@@ -44,6 +45,10 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Node:ServerUrl"]))
 var authEnabled = !string.IsNullOrWhiteSpace(builder.Configuration["Oidc:Authority"]);
 
 #region Configure Services
+// Settings changed in the UI (Settings > General), below the environment variables. Filled once the database is up.
+var databaseSettings = DatabaseSettingsProvider.AddTo(builder.Configuration);
+builder.Services.AddSingleton(databaseSettings);
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -175,14 +180,15 @@ builder.Services.AddCors(options =>
 // Toamaisutaa validates the IdP's access tokens (config section "Oidc") and puts every endpoint behind
 // an authenticated-user fallback policy; [AllowAnonymous] opts out (GetAppInfo, webhook, node hub, SPA shell).
 // Without an authority nothing is registered and the app runs open, as in dev and the test suite.
-var publicUrl = (builder.Configuration["Oidc:PublicUrl"] ?? builder.Configuration["DockiUp:PublicUrl"]
-    ?? Environment.GetEnvironmentVariable("PUBLIC_URL"))?.TrimEnd('/');
+// Read when first needed rather than here, so a public URL saved in the UI counts too.
+string? PublicUrl() => AppSettings.PublicUrl(builder.Configuration);
 if (authEnabled)
 {
     // The MCP scheme publishes /.well-known/oauth-protected-resource and points 401s at it, which is how an MCP
     // client finds the OIDC provider to sign in with. Tokens are still validated by the bearer scheme.
     builder.Services.AddToamaisutaaBearer(builder.Configuration).AddMcp(options =>
     {
+        var publicUrl = PublicUrl();
         options.ResourceMetadata = new()
         {
             Resource = string.IsNullOrEmpty(publicUrl) ? null : $"{publicUrl}/mcp",
@@ -193,9 +199,11 @@ if (authEnabled)
     });
     builder.Services.PostConfigure<AuthenticationOptions>(o => o.DefaultChallengeScheme = McpAuthenticationDefaults.AuthenticationScheme);
     // MCP clients ask for a token for the MCP address itself (RFC 8707 resource), so accept it beside the client id.
-    if (!string.IsNullOrEmpty(publicUrl))
-        builder.Services.PostConfigureAll<JwtBearerOptions>(o => o.TokenValidationParameters.ValidAudiences =
-            [.. o.TokenValidationParameters.ValidAudiences ?? [], $"{publicUrl}/mcp"]);
+    builder.Services.PostConfigureAll<JwtBearerOptions>(o =>
+    {
+        if (PublicUrl() is { } publicUrl)
+            o.TokenValidationParameters.ValidAudiences = [.. o.TokenValidationParameters.ValidAudiences ?? [], $"{publicUrl}/mcp"];
+    });
     builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
     builder.Services.AddToamaisutaaCurrentUser(); // who did it, for the activity feed
 }
@@ -225,6 +233,7 @@ while (!dbConnected && retryCount < maxRetries)
         var dbContext = scope.ServiceProvider.GetRequiredService<DockiUpDbContext>();
         startupLogger.LogInformation("Attempting database connection and migrations (Attempt {Attempt}/{MaxRetries})...", retryCount + 1, maxRetries);
         dbContext.Database.Migrate();
+        databaseSettings.Set(dbContext.AppSettings.AsNoTracking().ToList());
         dbConnected = true;
         startupLogger.LogInformation("Database connection successful and migrations applied.");
     }
@@ -285,16 +294,16 @@ if (authEnabled)
 {
     // Behind a reverse proxy requests arrive as http://<container>, but the MCP metadata endpoint only answers on the
     // public address it is configured with. For that path, take the scheme and host from the public URL.
-    if (Uri.TryCreate(publicUrl, UriKind.Absolute, out var publicUri))
-        app.Use((context, next) =>
+    app.Use((context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/.well-known/oauth-protected-resource")
+            && Uri.TryCreate(PublicUrl(), UriKind.Absolute, out var publicUri))
         {
-            if (context.Request.Path.StartsWithSegments("/.well-known/oauth-protected-resource"))
-            {
-                context.Request.Scheme = publicUri.Scheme;
-                context.Request.Host = HostString.FromUriComponent(publicUri);
-            }
-            return next();
-        });
+            context.Request.Scheme = publicUri.Scheme;
+            context.Request.Host = HostString.FromUriComponent(publicUri);
+        }
+        return next();
+    });
     app.UseAuthentication();
 }
 app.UseAuthorization();

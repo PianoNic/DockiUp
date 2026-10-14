@@ -8,7 +8,8 @@ namespace DockiUp.API.HostedServices;
 
 /// <summary>Samples every running container on the control-plane host and on each online node at a fixed
 /// interval (Stats:IntervalSeconds, default 15), keeps the live values in <see cref="ContainerStatsStore"/>,
-/// persists 1-minute averages (kept Stats:RetentionHours, default 24) and pushes the live values to browsers.</summary>
+/// persists 1-minute averages (kept Stats:RetentionHours, default 24) and pushes the live values to browsers.
+/// Both are read every round, so a change in Settings applies right away.</summary>
 [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage] // timer loop over live daemons; the store/downsampler it drives are unit-tested
 public class ContainerStatsHostedService(
     IServiceScopeFactory scopeFactory,
@@ -22,11 +23,12 @@ public class ContainerStatsHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = TimeSpan.FromSeconds(Math.Max(5, configuration.GetValue("Stats:IntervalSeconds", 15)));
-        var retention = TimeSpan.FromHours(Math.Max(1, configuration.GetValue("Stats:RetentionHours", 24)));
-        using var timer = new PeriodicTimer(interval);
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
         do
         {
+            var interval = TimeSpan.FromSeconds(Math.Max(5, configuration.GetValue("Stats:IntervalSeconds", 15.0)));
+            var retention = TimeSpan.FromHours(Math.Max(1, configuration.GetValue("Stats:RetentionHours", 24.0)));
+            timer.Period = interval;
             try
             {
                 await SampleAsync(retention, interval, stoppingToken);

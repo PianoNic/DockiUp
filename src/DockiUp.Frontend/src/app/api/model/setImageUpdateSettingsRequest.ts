@@ -13,6 +13,7 @@ import { ImageUpdatePolicy } from './imageUpdatePolicy';
 export interface SetImageUpdateSettingsRequest { 
     policy: ImageUpdatePolicy;
     excludedServices: Array<string> | null;
+    interval: string | null;
 }
 export namespace SetImageUpdateSettingsRequest {
 }

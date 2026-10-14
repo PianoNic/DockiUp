@@ -4,11 +4,12 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { NotificationChannels } from './notification-channels';
 import { GitCredentials } from './git-credentials';
 import { VaultSecrets } from './vault-secrets';
+import { GeneralSettings } from './general-settings';
 
-/** App-wide settings: where notifications go, git credentials for private repos, and the secrets vault. */
+/** App-wide settings: DockiUp's own options, where notifications go, git credentials for private repos, and the secrets vault. */
 @Component({
   selector: 'app-settings',
-  imports: [MatIconModule, MatTabsModule, NotificationChannels, GitCredentials, VaultSecrets],
+  imports: [MatIconModule, MatTabsModule, GeneralSettings, NotificationChannels, GitCredentials, VaultSecrets],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './settings.scss',
   template: `
@@ -17,12 +18,16 @@ import { VaultSecrets } from './vault-secrets';
         <div>
           <span class="x-eyebrow">Configuration</span>
           <h1 class="x-title">Settings</h1>
-          <p class="x-sub">Notifications, git credentials and the secrets vault</p>
+          <p class="x-sub">DockiUp itself, notifications, git credentials and the secrets vault</p>
         </div>
       </header>
       <!-- Tabs instead of stacked sections, so the page itself never scrolls. -->
       <mat-tab-group class="settings-tabs" animationDuration="0ms" mat-stretch-tabs="false" preserveContent
         [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)">
+        <mat-tab>
+          <ng-template mat-tab-label><span class="tab-label"><mat-icon>tune</mat-icon>General</span></ng-template>
+          <div class="tab-fill"><app-general-settings /></div>
+        </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label><span class="tab-label"><mat-icon>notifications</mat-icon>Notifications</span></ng-template>
           <div class="tab-fill"><app-notification-channels /></div>

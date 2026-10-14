@@ -19,6 +19,7 @@ namespace DockiUp.Application.Interfaces
 
         public DbSet<ContainerStatSample> ContainerStatSamples { get; set; }
         public DbSet<CleanupSchedule> CleanupSchedules { get; set; }
+        public DbSet<AppSetting> AppSettings { get; set; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

@@ -21,6 +21,7 @@ namespace DockiUp.Infrastructure
 
         public DbSet<ContainerStatSample> ContainerStatSamples { get; set; }
         public DbSet<CleanupSchedule> CleanupSchedules { get; set; }
+        public DbSet<AppSetting> AppSettings { get; set; }
 
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 

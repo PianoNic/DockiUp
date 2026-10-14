@@ -70,6 +70,7 @@ namespace DockiUp.Application.Commands
                 if (project.ProjectOrigin != Domain.Enums.ProjectOriginType.Adopted)
                     await docker.DeleteProjectFilesAsync(project.ProjectPath);
                 db.Deployments.RemoveRange(db.Deployments.Where(d => d.ProjectId == id));
+                db.ImageUpdates.RemoveRange(db.ImageUpdates.Where(u => u.ProjectId == id));
                 db.ProjectInfo.Remove(project);
                 await db.SaveChangesAsync(cancellationToken);
             }

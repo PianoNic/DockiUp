@@ -356,6 +356,61 @@ public class ImageUpdateHandlerTests
     }
 
     [Fact]
+    public async Task Settings_OwnInterval_RoundTrips_AndEmptyFollowsDockiUp()
+    {
+        var p = Seed();
+        var set = new SetImageUpdateSettingsCommandHandler(_db, _activity.Object);
+        var get = new GetImageUpdateSettingsQueryHandler(_db, _resolver.Object);
+        _docker.Setup(d => d.GetImageOverridesAsync(It.IsAny<string>())).ReturnsAsync(new Dictionary<string, string>());
+
+        await set.Handle(new SetImageUpdateSettingsCommand(p.Id, ImageUpdatePolicy.Auto, [], Interval: "300s"), CancellationToken.None);
+        Assert.Equal("5m", (await get.Handle(new GetImageUpdateSettingsQuery(p.Id), CancellationToken.None)).Interval);
+
+        await set.Handle(new SetImageUpdateSettingsCommand(p.Id, ImageUpdatePolicy.Auto, [], Interval: ""), CancellationToken.None);
+        Assert.Null((await get.Handle(new GetImageUpdateSettingsQuery(p.Id), CancellationToken.None)).Interval);
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await set.Handle(new SetImageUpdateSettingsCommand(p.Id, ImageUpdatePolicy.Auto, [], Interval: "1s"), CancellationToken.None));
+    }
+
+    [Fact]
+    public void Schedule_UsesEachProjectsInterval_ElseDockiUps()
+    {
+        var own = Guid.NewGuid(); var follows = Guid.NewGuid(); var off = Guid.NewGuid(); var never = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var last = new Dictionary<Guid, DateTime> { [own] = now.AddMinutes(-6), [follows] = now.AddMinutes(-6), [off] = now.AddDays(-9) };
+
+        var due = ImageUpdateSchedule.Due([(own, 300), (follows, null), (off, 0), (never, null)], TimeSpan.FromHours(6), last, now);
+
+        Assert.Equal([own, never], due); // 5m passed; 6h didn't; 0 is off; never checked is due
+    }
+
+    [Theory]
+    [InlineData("30s", 30)]
+    [InlineData("5m", 300)]
+    [InlineData("6h", 21600)]
+    [InlineData("1d", 86400)]
+    [InlineData("6", 21600)] // a bare number is hours
+    [InlineData("0", 0)]
+    public void Durations_Parse(string text, int seconds)
+        => Assert.Equal(TimeSpan.FromSeconds(seconds), DockiUp.Application.Durations.Parse(text));
+
+    [Theory]
+    [InlineData(90, "90s")]
+    [InlineData(300, "5m")]
+    [InlineData(7200, "2h")]
+    [InlineData(172800, "2d")]
+    public void Durations_Format(int seconds, string text)
+        => Assert.Equal(text, DockiUp.Application.Durations.Format(TimeSpan.FromSeconds(seconds)));
+
+    [Fact]
+    public void Schedule_GlobalInterval_FallsBackOnNonsense()
+    {
+        Assert.Equal(TimeSpan.FromHours(6), ImageUpdateSchedule.GlobalInterval("soon"));
+        Assert.Equal(TimeSpan.FromHours(6), ImageUpdateSchedule.GlobalInterval("1s"));
+        Assert.Equal(TimeSpan.Zero, ImageUpdateSchedule.GlobalInterval("0"));
+    }
+
+    [Fact]
     public async Task Settings_RejectBadServiceNames()
     {
         var p = Seed();

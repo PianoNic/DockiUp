@@ -19,9 +19,11 @@ namespace DockiUp.Application.ImageUpdates
     }
 
     /// <summary>A project's image update settings plus the tags pinned through dockiup.override.yml.</summary>
-    public record ImageUpdateSettingsDto(ImageUpdatePolicy Policy, string[] ExcludedServices, Dictionary<string, string> PinnedImages);
+    /// <param name="Interval">How often this project is checked ("5m"); null follows DockiUp's setting.</param>
+    public record ImageUpdateSettingsDto(ImageUpdatePolicy Policy, string[] ExcludedServices, Dictionary<string, string> PinnedImages, string? Interval);
 
-    public record SetImageUpdateSettingsRequest(ImageUpdatePolicy Policy, string[]? ExcludedServices);
+    /// <param name="Interval">"30s", "5m", "6h", "1d"; empty follows DockiUp's setting.</param>
+    public record SetImageUpdateSettingsRequest(ImageUpdatePolicy Policy, string[]? ExcludedServices, string? Interval);
 
     public record PinServiceImageRequest(string Tag);
 

@@ -3,10 +3,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import { ImageUpdateDto, ImageUpdatePolicy, ImageUpdateSettingsDto, ImageUpdatesService } from '../api';
+import { ImageUpdateDto, ImageUpdatePolicy, ImageUpdateSettingsDto, ImageUpdatesService, SettingsService } from '../api';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { NotificationService } from '../shared/services/notification.service';
@@ -24,7 +25,7 @@ interface ServiceRow {
 /** Image updates for one project: policy (#69), per-service status (#68) and tag pinning (#70). */
 @Component({
   selector: 'app-project-images',
-  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatTooltipModule, LocalDatePipe],
+  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatTooltipModule, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./project-deployments.scss', '../activity/activity.scss'],
   styles: `
@@ -33,6 +34,7 @@ interface ServiceRow {
     .images-head .section-title { margin: 0; }
     .images-head .spacer { flex: 1; }
     .policy { width: 280px; }
+    .interval { width: 200px; }
     .table-scroll { flex: 1; }
     .image-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .note { color: var(--mat-sys-on-surface-variant); font-size: 12.5px; }
@@ -49,6 +51,13 @@ interface ServiceRow {
             <mat-option value="Auto">Update automatically</mat-option>
           </mat-select>
         </mat-form-field>
+        <mat-form-field appearance="fill" subscriptSizing="dynamic" class="interval"
+          matTooltip="30s, 5m, 6h or 1d. Empty follows Settings > General; 0 turns automatic checks off." matTooltipShowDelay="600">
+          <mat-label>Check every</mat-label>
+          <input matInput #every [value]="settings()?.interval ?? ''" [placeholder]="'Default: ' + (defaultInterval() ?? '6h')"
+            [disabled]="!settings() || settings()?.policy === 'Off'"
+            (keydown.enter)="every.blur()" (blur)="setInterval(every.value)" />
+        </mat-form-field>
         <span class="spacer"></span>
         <button matButton="tonal" (click)="store.checkNow(projectId())" [disabled]="store.checking() || settings()?.policy === 'Off'">
           <mat-icon>update</mat-icon>
@@ -56,7 +65,7 @@ interface ServiceRow {
         </button>
       </div>
       <p class="hint">
-        Running images are compared with their registry (same tag) every few hours.
+        Running images are compared with their registry (same tag) every {{ settings()?.interval ?? defaultInterval() ?? '6h' }}.
         @switch (settings()?.policy) {
           @case ('Auto') { Newer images are pulled and only the changed services are recreated, as an "ImageUpdate" deployment. }
           @case ('Off') { Checks are off for this project. }
@@ -138,8 +147,11 @@ export class ProjectImages {
   private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
   private readonly dialog = inject(MatDialog);
+  private readonly appSettings = inject(SettingsService);
 
   protected readonly settings = signal<ImageUpdateSettingsDto | null>(null);
+  /** DockiUp's interval (Settings > General), shown when the project has none of its own. */
+  protected readonly defaultInterval = signal<string | null>(null);
 
   protected readonly rows = computed<ServiceRow[]>(() => {
     const id = this.projectId();
@@ -157,6 +169,10 @@ export class ProjectImages {
   constructor() {
     void this.store.ensureLoaded();
     effect(() => void this.loadSettings(this.projectId()));
+    this.appSettings.listSettings().subscribe({
+      next: (all) => this.defaultInterval.set(all.find((s) => s.key === 'ImageUpdates:Interval')?.value ?? null),
+      error: () => {}, // only the placeholder; the default text stays
+    });
   }
 
   private async loadSettings(id: string): Promise<void> {
@@ -167,14 +183,25 @@ export class ProjectImages {
     }
   }
 
-  private async save(policy: ImageUpdatePolicy, excluded: string[]): Promise<void> {
+  private async save(policy: ImageUpdatePolicy, excluded: string[], interval = this.settings()?.interval ?? null): Promise<boolean> {
     try {
-      await firstValueFrom(this.api.setImageUpdateSettings(this.projectId(), { policy, excludedServices: excluded }));
+      await firstValueFrom(this.api.setImageUpdateSettings(this.projectId(), { policy, excludedServices: excluded, interval }));
       await this.loadSettings(this.projectId());
       await this.store.load();
+      return true;
     } catch (err) {
       this.notifications.showError('Failed to save image settings', err);
+      return false;
     }
+  }
+
+  protected async setInterval(value: string): Promise<void> {
+    const s = this.settings();
+    const interval = value.trim() || null;
+    if (!s || interval === (s.interval ?? null)) return;
+    if (await this.save(s.policy, s.excludedServices, interval))
+      this.notifications.success(interval ? `Checked every ${this.settings()?.interval ?? interval}` : 'Checked as often as DockiUp\'s setting says');
+    else await this.loadSettings(this.projectId()); // puts the field back
   }
 
   protected async setPolicy(policy: ImageUpdatePolicy): Promise<void> {

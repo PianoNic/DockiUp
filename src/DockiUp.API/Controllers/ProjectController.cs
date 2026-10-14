@@ -126,8 +126,7 @@ namespace DockiUp.API.Controllers
             var project = await db.ProjectInfo.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId, HttpContext.RequestAborted);
             if (project is null) return NotFound();
 
-            var baseUrl = (configuration["DockiUp:PublicUrl"] ?? Environment.GetEnvironmentVariable("PUBLIC_URL")
-                ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+            var baseUrl = Settings.AppSettings.PublicUrl(configuration) ?? $"{Request.Scheme}://{Request.Host}";
             return Ok(new WebhookInfoDto($"{baseUrl}/api/Webhook/{project.Id}", project.WebhookSecret, project.Branch));
         }
 
