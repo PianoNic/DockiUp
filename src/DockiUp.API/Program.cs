@@ -123,6 +123,10 @@ builder.Services.AddHostedService<DockiUp.API.HostedServices.ImageUpdateHostedSe
 // Container stats sampler (live values in memory, 1-minute history in the db) and the scheduled cleanup.
 builder.Services.AddSingleton<DockiUp.Application.Monitoring.ContainerStatsStore>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.ContainerStatsHostedService>();
+// The machines themselves: CPU, memory, disks, network and GPUs of every host, and the internet speed test.
+builder.Services.AddSingleton<DockiUp.Application.Monitoring.HostStatsStore>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.HostStatsHostedService>();
+builder.Services.AddHostedService<DockiUp.API.HostedServices.SpeedTestHostedService>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.CleanupScheduleHostedService>();
 builder.Services.AddHostedService<DockiUp.API.HostedServices.AutoAdoptHostedService>();
 #endregion

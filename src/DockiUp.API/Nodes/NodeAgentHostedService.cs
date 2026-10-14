@@ -206,6 +206,11 @@ namespace DockiUp.API.Nodes
             c.On("GetResources", () => WithDocker(d => d.GetResourcesAsync()));
             c.On<ResourceKind, string, bool>("RemoveResource", (kind, id) => WithDocker(async d => { await d.RemoveResourceAsync(kind, id); return true; }));
             c.On<PruneRequest, PruneResultDto>("PruneResources", request => WithDocker(d => d.PruneAsync(request)));
+
+            // The machine itself: stats, GPU processes and the internet speed test all run on this host.
+            c.On("GetHostStats", () => WithDocker(d => d.GetHostStatsAsync()));
+            c.On("GetGpuProcesses", () => WithDocker(d => d.GetGpuProcessesAsync()));
+            c.On("RunSpeedTest", () => WithDocker(d => d.RunSpeedTestAsync()));
         }
 
         // Deploy + git-pull run against the node's own filesystem (no app database here), so the node

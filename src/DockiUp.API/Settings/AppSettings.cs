@@ -47,8 +47,12 @@ namespace DockiUp.API.Settings
                 "How often CPU and memory of every container are read.",
                 SettingType.Number, "15", 5, ["Stats__IntervalSeconds"]),
             new("Stats:RetentionHours", "Monitoring", "Keep history (hours)",
-                "How long the per-minute CPU and memory history is kept.",
+                "How long the per-minute CPU and memory history of containers is kept. Hosts keep a week.",
                 SettingType.Number, "24", 1, ["Stats__RetentionHours"]),
+            // Min is in seconds for durations: a speed test fills the line for about 15 seconds.
+            new("SpeedTest:Interval", "Monitoring", "Internet speed test every",
+                "How often each host measures its internet connection, e.g. 6h or 1d. A test moves up to a few hundred MB. 0 turns it off; Test now still works.",
+                SettingType.Duration, "1d", 3600, ["SpeedTest__Interval"]),
         ];
 
         /// <summary>The address DockiUp is reached at, without a trailing slash; null when none is set.</summary>

@@ -1,65 +1,47 @@
-<div class="activity-wrapper">
-  <header class="activity-header">
+<div class="x-page nodes-page">
+  <header class="x-page-header">
     <div>
-      <span class="x-eyebrow">{{ onlineCount() }} of {{ nodes().length }} {{ nodes().length === 1 ? 'node' : 'nodes' }} online</span>
-      <h1 class="activity-title">Nodes</h1>
-      <p class="activity-subtitle">Remote Docker hosts this DockiUp deploys to</p>
+      <span class="x-eyebrow">Infrastructure</span>
+      <h1 class="x-title">Nodes</h1>
+      <p class="x-sub">This host and every node, with live usage</p>
     </div>
-    <div class="activity-actions">
-      <button mat-icon-button class="tonal-icon" (click)="reload()" [disabled]="loading()" matTooltip="Refresh" aria-label="Refresh">
-        <mat-icon>refresh</mat-icon>
-      </button>
-      <button mat-flat-button (click)="addNode()">
-        <mat-icon>add</mat-icon>
-        Add node
-      </button>
+    <div class="x-actions">
+      <button matButton="filled" (click)="addNode()"><mat-icon>add</mat-icon> Add node</button>
     </div>
   </header>
 
-  @if (loading() && nodes().length === 0) {
-    <mat-progress-bar mode="indeterminate" />
-  }
+  @if (loading() && nodes().length === 0) { <mat-progress-bar mode="indeterminate" /> }
+  @if (error(); as err) { <p class="error">{{ err }}</p> }
 
-  @if (error(); as err) {
-    <p class="activity-empty" style="color: var(--mat-sys-error)">{{ err }}</p>
-  }
-
-  <div class="node-grid">
-    @for (n of nodes(); track n.id) {
-      <div class="x-card node-card">
-        <div class="node-head">
-          <span class="x-shape node-shape" [class.ok]="n.online"><mat-icon>dns</mat-icon></span>
-          <span class="node-name">
-            <span class="name">{{ n.name }}</span>
-            <span class="sub">{{ n.machineName || '—' }}</span>
-          </span>
-          <span class="state-badge" [attr.data-state]="n.online ? 'online' : n.pending ? 'pending' : 'offline'">{{ n.online ? 'online' : n.pending ? 'pending' : 'offline' }}</span>
+  <div class="scroll">
+    <section class="totals" aria-label="Totals">
+      @for (t of totals(); track t.label) {
+        <div class="total">
+          <span class="k">{{ t.label }}</span>
+          <b>{{ t.value }}</b>
+          <span class="k">{{ t.sub }}</span>
         </div>
-        <dl class="node-facts">
-          <dt>OS</dt><dd [title]="n.os">{{ n.os || '—' }}</dd>
-          <dt>Docker</dt><dd class="mono">{{ n.dockerVersion || '—' }}</dd>
-          <dt>Last seen</dt><dd>{{ n.pending ? '—' : (n.lastSeenAt | localDate) }}</dd>
-        </dl>
-        <div class="node-actions">
-          <button matButton="tonal" class="sm" (click)="ping(n.id)" [disabled]="pinging()[n.id] || !n.online">
-            <mat-icon>monitor_heart</mat-icon>
-            {{ pinging()[n.id] ? 'Pinging…' : 'Ping' }}
-          </button>
-          @if (pingResults()[n.id]; as result) {
-            <span class="ping-result">{{ result }}</span>
-          }
-          <span class="spacer"></span>
-          <button mat-icon-button class="danger-icon" (click)="remove(n)" [disabled]="deleting()[n.id]" matTooltip="Remove node" aria-label="Remove node">
-            <mat-icon>delete</mat-icon>
-          </button>
-        </div>
-      </div>
-    }
+      }
+    </section>
 
-    <button type="button" class="x-card add-card" (click)="addNode()">
-      <span class="x-shape primary round add-shape"><mat-icon>add</mat-icon></span>
-      <span class="add-title">{{ nodes().length ? 'Connect another host' : 'Connect your first host' }}</span>
-      <span class="add-sub">Add a node to get a ready-to-deploy compose with a fresh token, then run it on the host; it dials back to this server.</span>
-    </button>
+    <section class="grid" aria-label="Hosts">
+      @for (h of hosts(); track h.nodeId ?? 'local') {
+        <app-host-card
+          [nodeId]="h.nodeId"
+          [name]="h.name"
+          [state]="h.state"
+          [lastSeenAt]="h.lastSeenAt"
+          [stats]="hostStats.stats(h.nodeId)"
+          [lastHour]="hostStats.summary(h.nodeId)?.lastHour ?? []"
+          [containers]="containersOf(h.nodeId)"
+          [removing]="!!h.nodeId && !!deleting()[h.nodeId]"
+          (remove)="h.node && remove(h.node)" />
+      }
+      <button type="button" class="x-card add-card" (click)="addNode()">
+        <span class="x-shape primary round"><mat-icon>add</mat-icon></span>
+        <span class="add-title">Connect another host</span>
+        <span class="k">Add a node to get a ready-to-run compose with a fresh token. Run it on the host; it dials back here.</span>
+      </button>
+    </section>
   </div>
 </div>

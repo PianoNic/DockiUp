@@ -14,6 +14,7 @@ export const routes: Routes = [
       { path: 'containers', loadComponent: () => import('./containers/containers').then((m) => m.Containers) },
       { path: 'activity', loadComponent: () => import('./activity/activity').then((m) => m.Activity) },
       { path: 'nodes', loadComponent: () => import('./nodes/nodes').then((m) => m.Nodes) },
+      { path: 'nodes/:key', loadComponent: () => import('./nodes/node-detail').then((m) => m.NodeDetail) },
       { path: 'resources', loadComponent: () => import('./resources/resources').then((m) => m.Resources) },
       { path: 'project/:id', loadComponent: () => import('./detail/detail').then((m) => m.Detail) },
       { path: 'terminal/:containerId', loadComponent: () => import('./container-terminal/container-terminal').then((m) => m.ContainerTerminal) },

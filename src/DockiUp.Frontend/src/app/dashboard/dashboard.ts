@@ -9,6 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { DashboardService, NodeDto, NodesService, ProjectDto } from '../api';
 import { UpdateMethodType, normalizeContainerState } from '../shared/models/api-enums';
 import { CreateProjectButton } from '../shared/components/create-project-button/button/create-project-button';
+import { HostStrip } from './host-strip';
 import { ProjectStore } from '../shared/stores/project.store';
 import { projectLink } from '../shared/project-url';
 import { ImageUpdateStore, updatesTooltip } from '../shared/stores/image-update.store';
@@ -27,7 +28,7 @@ interface HostGroup {
 /** Overview: container totals, then every project as a small card, grouped by host, problems first. */
 @Component({
   selector: 'app-dashboard',
-  imports: [MatIconModule, RouterLink, MatButtonModule, MatTooltipModule, CreateProjectButton, MatProgressBar, MatProgressSpinnerModule],
+  imports: [MatIconModule, RouterLink, MatButtonModule, MatTooltipModule, CreateProjectButton, MatProgressBar, MatProgressSpinnerModule, HostStrip],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })

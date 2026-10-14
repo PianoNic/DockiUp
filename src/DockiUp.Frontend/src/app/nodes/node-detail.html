@@ -1,0 +1,183 @@
+<div class="x-page node-detail">
+  <header class="x-page-header">
+    <div class="title">
+      <a routerLink="/nodes" class="back">← Nodes</a>
+      <h1 class="x-title">{{ name() }}</h1>
+      <p class="x-sub">{{ subtitle() }}</p>
+    </div>
+    <div class="x-actions">
+      @if (nodeId()) {
+        <span class="mono k">{{ pingResult() }}</span>
+        <button matButton="tonal" (click)="ping()" [disabled]="pinging() || state() !== 'online'">{{ pinging() ? 'Pinging…' : 'Ping' }}</button>
+        <button mat-icon-button class="remove" (click)="remove()" matTooltip="Remove node" [attr.aria-label]="'Remove node ' + name()"><mat-icon>delete</mat-icon></button>
+      }
+    </div>
+  </header>
+
+  <div class="scroll">
+    @if (!stats()) {
+      <p class="empty">{{ state() === 'online' ? 'No stats from this host yet. If this stays, update it to the latest DockiUp.' : 'This host is ' + state() + '; its history is below.' }}</p>
+    }
+
+    @if (kpis().length) {
+      <section class="kpis" aria-label="Now">
+        @for (k of kpis(); track k.label) {
+          <div class="kpi"><span class="k">{{ k.label }}</span><b>{{ k.value }}</b><span class="k">{{ k.sub }}</span></div>
+        }
+      </section>
+    }
+
+    <section class="block" aria-labelledby="history-title">
+      <div class="block-head">
+        <h2 id="history-title">History</h2>
+        <div class="x-group" role="group" aria-label="Time range">
+          @for (r of ranges; track r.hours) {
+            <button [matButton]="hours() === r.hours ? 'filled' : 'tonal'" [class.x-on]="hours() === r.hours" (click)="hours.set(r.hours)">{{ r.label }}</button>
+          }
+        </div>
+      </div>
+      <div class="charts">
+        @for (c of charts(); track c.title) {
+          <figure class="chart" [class.gpu-chart]="c.gpu">
+            <figcaption><b>{{ c.title }}</b><span class="k">{{ c.note }}</span></figcaption>
+            <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" [attr.aria-label]="c.title + ' over the selected time'">
+              <line class="grid" x1="0" y1="40" x2="600" y2="40" /><line class="grid" x1="0" y1="80" x2="600" y2="80" /><line class="grid" x1="0" y1="120" x2="600" y2="120" />
+              <path class="area" [attr.d]="c.area" />
+              <path [class]="c.gpu ? 'gpu' : 'line-a'" [attr.d]="c.a" />
+              <path class="line-b" [attr.d]="c.b" />
+            </svg>
+            @if (c.legend; as l) {
+              <div class="legend"><span><i class="line"></i>{{ l[0] }}</span><span><i class="line tx"></i>{{ l[1] }}</span></div>
+            }
+          </figure>
+        }
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="net-title">
+      <div class="block-head">
+        <span class="x-shape tonal"><mat-icon>public</mat-icon></span>
+        <div class="grow">
+          <h2 id="net-title">Internet connection</h2>
+          <span class="k">
+            @if (lastTest(); as t) { Last tested {{ t.at | localDate }} against {{ t.server }} } @else { Not tested yet }
+            @if (stats()?.networkInterface; as iface) { · port {{ iface }}{{ stats()?.linkSpeedMbps ? ' at ' + linkSpeed() : '' }} }
+          </span>
+        </div>
+        <button matButton="tonal" (click)="runSpeedTest()" [disabled]="testing() || state() !== 'online'">{{ testing() ? 'Testing… (about 15 s)' : 'Test now' }}</button>
+      </div>
+      @if (lastTest(); as t) {
+        <div class="kpis">
+          <div class="kpi"><span class="k">Download</span><b>{{ num(t.downloadMbps).toFixed(0) }} <small>Mbit/s</small></b><span class="k">{{ speedChart().low != null ? '7-day low ' + speedChart().low!.toFixed(0) : '' }}</span></div>
+          <div class="kpi"><span class="k">Upload</span><b>{{ num(t.uploadMbps).toFixed(0) }} <small>Mbit/s</small></b><span class="k">{{ speedChart().count }} {{ speedChart().count === 1 ? 'test' : 'tests' }} in 7 days</span></div>
+          <div class="kpi"><span class="k">Ping</span><b>{{ num(t.pingMs).toFixed(0) }} <small>ms</small></b><span class="k">jitter {{ num(t.jitterMs).toFixed(1) }} ms</span></div>
+          @if (stats()?.linkSpeedMbps) {
+            <div class="kpi"><span class="k">Port speed</span><b>{{ linkSpeed().split(' ')[0] }} <small>{{ linkSpeed().split(' ')[1] }}</small></b><span class="k">{{ stats()?.networkInterface }}</span></div>
+          }
+        </div>
+        @if (inUse(); as u) {
+          <div class="in-use">
+            <div class="row"><span class="label">In use right now</span><span class="mono k">↓ {{ u.down.toFixed(1) }} of {{ num(t.downloadMbps).toFixed(0) }} Mbit/s · ↑ {{ u.up.toFixed(1) }} of {{ num(t.uploadMbps).toFixed(0) }} Mbit/s</span></div>
+            <div class="bar" aria-hidden="true"><span [class]="tone(u.pct)" [style.width.%]="u.pct" [style.min-width.px]="6"></span></div>
+          </div>
+        }
+        @if (speedChart().count > 1) {
+          <figure class="chart flat">
+            <figcaption><b>Speed tests, last 7 days</b><span class="legend"><span><i class="line"></i>Download</span><span><i class="line tx"></i>Upload</span></span></figcaption>
+            <svg viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Download and upload of the speed tests over the last 7 days">
+              <path class="line-a" [attr.d]="speedChart().down" /><path class="line-b" [attr.d]="speedChart().up" />
+            </svg>
+            <div class="axis mono k"><span>7 days ago</span><span>0 to {{ speedChart().max }} Mbit/s</span><span>now</span></div>
+          </figure>
+        }
+      } @else {
+        <p class="k">The connection is measured every day (Settings › General); press Test now for a first result.</p>
+      }
+    </section>
+
+    @if (stats()?.gpus?.length) {
+      <section class="block" aria-labelledby="gpu-title">
+        <div class="block-head">
+          <span class="x-shape gpu-shape"><mat-icon>memory</mat-icon></span>
+          <h2 id="gpu-title" class="grow">GPUs</h2>
+        </div>
+        <div class="gpu-grid">
+          @for (g of stats()!.gpus!; track g.index) {
+            <div class="gpu-card">
+              <div class="row"><b>{{ g.name }}</b><span class="k">{{ g.vendor }}{{ g.driver ? ' · ' + g.driver : '' }}{{ g.busId ? ' · ' + g.busId : '' }}</span></div>
+              @if (g.utilization != null) {
+                <span class="mini"><span class="k">Load</span><span class="bar thin gpu" aria-hidden="true"><span [style.width.%]="num(g.utilization)"></span></span><span class="mono">{{ num(g.utilization) }}%</span></span>
+              }
+              @if (g.memoryTotal != null) {
+                <span class="mini"><span class="k">VRAM</span><span class="bar thin gpu" aria-hidden="true"><span [style.width.%]="pctOf(g.memoryUsed, g.memoryTotal)"></span></span><span class="mono">{{ bytes(g.memoryUsed) }} / {{ bytes(g.memoryTotal) }}</span></span>
+              }
+              @if (g.utilization == null && g.memoryTotal == null && g.vendor === 'NVIDIA') {
+                <span class="hint">Give this host's DockiUp container GPU access (<code>gpus: all</code>) for live numbers.</span>
+              }
+              <div class="facts k">
+                @if (g.temperature != null) { <span>{{ num(g.temperature) }} °C</span> }
+                @if (g.powerDraw != null) { <span>{{ num(g.powerDraw).toFixed(0) }}{{ g.powerLimit != null ? ' / ' + num(g.powerLimit).toFixed(0) : '' }} W</span> }
+                @if (g.fanPercent != null) { <span>Fan {{ num(g.fanPercent) }}%</span> }
+              </div>
+            </div>
+          }
+        </div>
+        <h3>Using the GPUs</h3>
+        @if (gpuProcesses(); as procs) {
+          @if (procs.length) {
+            <div class="table-wrap">
+              <table class="x-table">
+                <thead><tr><th>Container</th><th>Project</th><th>Process</th><th>GPU</th><th class="vram">Memory</th></tr></thead>
+                <tbody>
+                  @for (p of procs; track p.pid + (p.busId ?? '')) {
+                    <tr>
+                      <td><b>{{ p.containerName ?? 'Not in a container' }}</b></td>
+                      <td>{{ p.projectName ?? '—' }}</td>
+                      <td class="mono">{{ p.process }} <span class="k">({{ p.pid }})</span></td>
+                      <td class="mono k">{{ p.busId ?? '—' }}</td>
+                      <td class="mono">{{ bytes(p.memoryUsed) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="k">No process is holding GPU memory right now.</p>
+          }
+        } @else {
+          <p class="k">Can't tell which containers use the GPUs on this host.</p>
+        }
+      </section>
+    }
+
+    @if (stats()) {
+      <section class="two">
+        <div class="block">
+          <h2>Memory</h2>
+          <div class="bar tall" aria-hidden="true">
+            @for (m of memParts(); track m.label) { <span [class]="m.cls" [style.width.%]="m.pct"></span> }
+          </div>
+          <div class="mem-legend">
+            @for (m of memParts(); track m.label) {
+              <span><i [class]="m.cls"></i>{{ m.label }}<b class="mono">{{ bytes(m.bytes) }}</b></span>
+            }
+            @if (num(stats()!.swapTotal) > 0) { <span><i class="free"></i>Swap<b class="mono">{{ bytes(stats()!.swapUsed) }} / {{ bytes(stats()!.swapTotal) }}</b></span> }
+          </div>
+        </div>
+        <div class="block">
+          <h2>Top containers by memory</h2>
+          @for (c of topContainers(); track c.name) {
+            <div class="top">
+              <span class="name">{{ c.name }}</span>
+              <span class="bar thin" aria-hidden="true"><span [style.width.%]="c.pct"></span></span>
+              <span class="mono">{{ c.mem }}</span>
+              <span class="mono k">{{ c.cpu }}</span>
+            </div>
+          } @empty {
+            <p class="k">No running containers.</p>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

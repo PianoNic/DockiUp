@@ -3,11 +3,12 @@ import * as signalR from '@microsoft/signalr';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { Subject, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ContainerStatsDto, DeploymentDto, ProjectDto } from '../../api';
+import { ContainerStatsDto, DeploymentDto, HostStatsDto, ProjectDto } from '../../api';
 import { ProjectStore } from '../stores/project.store';
 import { ImageUpdateStore } from '../stores/image-update.store';
 import { ImageUpdateDto } from '../../api';
 import { ContainerStatsStore } from '../stores/container-stats.store';
+import { HostStatsStore } from '../stores/host-stats.store';
 
 const HUB_METHOD_CONTAINERS_CHANGED = 'ContainersChanged';
 
@@ -19,6 +20,7 @@ export class DockiUpHubService implements OnDestroy {
   private readonly oidc = inject(OidcSecurityService);
   private readonly imageUpdates = inject(ImageUpdateStore);
   private readonly containerStats = inject(ContainerStatsStore);
+  private readonly hostStats = inject(HostStatsStore);
   private hub: signalR.HubConnection | null = null;
 
   /** A deployment was queued, started or finished (any project). */
@@ -64,6 +66,8 @@ export class DockiUpHubService implements OnDestroy {
     this.hub.on('DeploymentLog', (deploymentId: string, line: string) => this.deploymentLog$.next({ deploymentId, line }));
     // Live container stats (every sampling round, all hosts).
     this.hub.on('ContainerStats', (stats: ContainerStatsDto[]) => this.containerStats.set(stats ?? []));
+    // The machines themselves (CPU, memory, disks, network, GPUs), same rounds.
+    this.hub.on('HostStats', (stats: HostStatsDto[]) => this.hostStats.setLive(stats ?? []));
 
     // Image updates (#68): results of every check; a finished deployment may have applied some.
     this.hub.on('ImageUpdatesChanged', (updates: ImageUpdateDto[]) => this.imageUpdates.set(updates ?? []));
