@@ -103,5 +103,16 @@ namespace DockiUp.Application.Interfaces
         Task RemoveResourceAsync(ResourceKind kind, string id, CancellationToken cancellationToken = default);
 
         Task<PruneResultDto> PruneAsync(PruneRequest request, CancellationToken cancellationToken = default);
+
+        // ---- The machine itself (CPU, memory, disks, network, GPUs), not its containers ----
+
+        /// <summary>One reading of this host's resources.</summary>
+        Task<HostStatsDto> GetHostStatsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>Processes using this host's GPUs, with the container each belongs to.</summary>
+        Task<GpuProcessDto[]> GetGpuProcessesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>Measures this host's internet connection (takes about 15 seconds).</summary>
+        Task<SpeedTestDto> RunSpeedTestAsync(CancellationToken cancellationToken = default);
     }
 }

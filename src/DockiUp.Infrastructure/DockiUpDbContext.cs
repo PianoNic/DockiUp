@@ -22,6 +22,8 @@ namespace DockiUp.Infrastructure
         public DbSet<ContainerStatSample> ContainerStatSamples { get; set; }
         public DbSet<CleanupSchedule> CleanupSchedules { get; set; }
         public DbSet<AppSetting> AppSettings { get; set; }
+        public DbSet<HostStatSample> HostStatSamples { get; set; }
+        public DbSet<SpeedTestResult> SpeedTestResults { get; set; }
 
         public DockiUpDbContext(DbContextOptions<DockiUpDbContext> options) : base(options) { }
 
@@ -79,6 +81,10 @@ namespace DockiUp.Infrastructure
                 e.HasIndex(x => new { x.ContainerName, x.Timestamp });
                 e.HasIndex(x => x.Timestamp);
             });
+
+            // Host history and speed tests are read per host over a time range, and pruned by age.
+            modelBuilder.Entity<HostStatSample>(e => e.HasIndex(x => new { x.NodeId, x.Timestamp }));
+            modelBuilder.Entity<SpeedTestResult>(e => e.HasIndex(x => new { x.NodeId, x.At }));
 
             modelBuilder.Entity<CleanupSchedule>(e =>
             {

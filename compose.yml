@@ -17,6 +17,8 @@ services:
       - /data/dockiup:/data/dockiup
       # root's `docker login` on the host, so private images pull and get update checks.
       - /root/.docker:/root/.docker
+      # The host itself, read-only, for its stats: disks, real network traffic and GPU use per container.
+      - /:/host:ro
     depends_on:
       db:
         condition: service_healthy

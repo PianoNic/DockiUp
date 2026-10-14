@@ -7,7 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { SettingDtoMin } from './settingDtoMin';
+import { GpuStatsDtoUtilization } from './gpuStatsDtoUtilization';
 
 
 export interface SettingDto { 
@@ -18,7 +18,7 @@ export interface SettingDto {
     type: string;
     value: string | null;
     'default': string | null;
-    min: SettingDtoMin | null;
+    min: GpuStatsDtoUtilization | null;
     lockedBy: string | null;
 }
 

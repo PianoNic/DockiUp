@@ -21,7 +21,7 @@ import { ContainerStatsDto } from '../model/containerStatsDto';
 // @ts-ignore
 import { ContainerStatsPointDto } from '../model/containerStatsPointDto';
 // @ts-ignore
-import { GetContainerStatsHistoryHoursParameter } from '../model/getContainerStatsHistoryHoursParameter';
+import { GetHostHistoryHoursParameter } from '../model/getHostHistoryHoursParameter';
 // @ts-ignore
 import { ProblemDetails } from '../model/problemDetails';
 
@@ -110,10 +110,10 @@ export class StatsService extends BaseService {
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      */
-    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetContainerStatsHistoryHoursParameter, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<ContainerStatsPointDto>>;
-    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetContainerStatsHistoryHoursParameter, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<ContainerStatsPointDto>>>;
-    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetContainerStatsHistoryHoursParameter, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<ContainerStatsPointDto>>>;
-    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetContainerStatsHistoryHoursParameter, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetHostHistoryHoursParameter, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<ContainerStatsPointDto>>;
+    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetHostHistoryHoursParameter, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<ContainerStatsPointDto>>>;
+    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetHostHistoryHoursParameter, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<ContainerStatsPointDto>>>;
+    public getContainerStatsHistory(containerName?: string, nodeId?: string, hours?: GetHostHistoryHoursParameter, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'text/plain' | 'application/json' | 'text/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
 
         let localVarQueryParameters = new HttpParams({encoder: this.encoder});
         localVarQueryParameters = this.addToHttpParams(localVarQueryParameters,

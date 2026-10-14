@@ -90,6 +90,8 @@ export class AddNodeDialog {
       '      - /data/dockiup:/data/dockiup',
       '      # root\'s `docker login` on this host, so private images pull.',
       '      - /root/.docker:/root/.docker',
+      '      # This host, read-only, for its stats: disks, real network traffic and GPU use per container.',
+      '      - /:/host:ro',
       '',
     ].join('\n'),
   );

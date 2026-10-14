@@ -59,7 +59,10 @@ namespace DockiUp.API.Controllers
                         throw new ArgumentException($"{s.Label} must be a number{(s.Min is { } min ? $" of at least {min.ToString(CultureInfo.InvariantCulture)}" : "")}.");
                     return n.ToString(CultureInfo.InvariantCulture);
                 case SettingType.Duration:
-                    return DockiUp.Application.Durations.Format(DockiUp.Application.Durations.ParseInterval(value, s.Label));
+                    var duration = DockiUp.Application.Durations.ParseInterval(value, s.Label);
+                    if (s.Min is { } seconds && duration > TimeSpan.Zero && duration.TotalSeconds < seconds)
+                        throw new ArgumentException($"{s.Label} must be at least {DockiUp.Application.Durations.Format(TimeSpan.FromSeconds(seconds))}, or 0 to turn it off.");
+                    return DockiUp.Application.Durations.Format(duration);
                 default:
                     if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
                         throw new ArgumentException($"{s.Label} must be an http(s) address, e.g. https://dockiup.example.com.");

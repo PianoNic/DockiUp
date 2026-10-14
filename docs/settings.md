@@ -19,6 +19,7 @@ Set these in `.env`, next to `compose.yml`.
 - Public address (same as `PUBLIC_URL`)
 - How often images are checked for updates (each project can override it in its **Images** tab)
 - How often container stats are read, and how long their history is kept
+- How often each host tests its internet speed
 
 A setting you also give as an environment variable is locked there and shows which variable sets it.
 Remove the variable to manage it in the UI instead.
@@ -43,7 +44,8 @@ services:
 | `CORS_ALLOWED_ORIGINS` | none | Only needed when the web UI is served from another address than the API. A warning about it in the log is harmless otherwise |
 | `DockiUp__PublicUrl` | none | Same as `PUBLIC_URL`; whichever you prefer |
 | `Stats__IntervalSeconds` | `15` | How often CPU and memory of every container are read |
-| `Stats__RetentionHours` | `24` | How long the per-minute stats history is kept |
+| `Stats__RetentionHours` | `24` | How long the per-minute stats history of containers is kept. Hosts keep a week |
+| `SpeedTest__Interval` | `1d` | How often each host tests its internet speed: `6h`, `1d`, at least `1h`. `0` turns it off; **Test now** still works |
 
 ## Private images
 

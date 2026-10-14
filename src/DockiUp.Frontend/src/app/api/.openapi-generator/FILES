@@ -8,6 +8,7 @@ api/app.service.ts
 api/container.service.ts
 api/dashboard.service.ts
 api/gitCredentials.service.ts
+api/hosts.service.ts
 api/imageUpdates.service.ts
 api/nodes.service.ts
 api/notifications.service.ts
@@ -48,6 +49,7 @@ model/deploymentDto.ts
 model/deploymentStatus.ts
 model/deploymentTaskDto.ts
 model/deploymentTrigger.ts
+model/diskStatsDto.ts
 model/diskUsageDto.ts
 model/diskUsageDtoImagesSize.ts
 model/dockerImageDto.ts
@@ -61,8 +63,14 @@ model/environmentKind.ts
 model/fileResult.ts
 model/generatedComposeDto.ts
 model/generatedSecretDto.ts
-model/getContainerStatsHistoryHoursParameter.ts
+model/getHostHistoryHoursParameter.ts
 model/gitCredentialDto.ts
+model/gpuProcessDto.ts
+model/gpuStatsDto.ts
+model/gpuStatsDtoUtilization.ts
+model/hostStatPointDto.ts
+model/hostStatsDto.ts
+model/hostSummaryDto.ts
 model/imageProjectDto.ts
 model/imageUpdateDto.ts
 model/imageUpdatePolicy.ts
@@ -70,6 +78,7 @@ model/imageUpdateSettingsDto.ts
 model/inspectRepositoryRequest.ts
 model/listDeploymentTasksRecentParameter.ts
 model/listDeploymentsLimitParameter.ts
+model/listSpeedTestsDaysParameter.ts
 model/models.ts
 model/nodeDraftDto.ts
 model/nodeDto.ts
@@ -100,8 +109,8 @@ model/secretDto.ts
 model/setImageUpdateSettingsRequest.ts
 model/setProjectGitCredentialRequest.ts
 model/settingDto.ts
-model/settingDtoMin.ts
 model/setupProjectDto.ts
+model/speedTestDto.ts
 model/storeSecretRequest.ts
 model/stringSegment.ts
 model/webhookInfoDto.ts

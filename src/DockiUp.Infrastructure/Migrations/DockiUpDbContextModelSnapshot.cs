@@ -256,6 +256,60 @@ namespace DockiUp.Infrastructure.Migrations
                     b.ToTable("GitCredentials");
                 });
 
+            modelBuilder.Entity("DockiUp.Domain.HostStatSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("CpuPercent")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DiskReadRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("DiskWriteRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<long?>("GpuMemoryTotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("GpuMemoryUsed")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("GpuUtilization")
+                        .HasColumnType("double precision");
+
+                    b.Property<long>("MemoryCache")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MemoryTotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MemoryUsed")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("NetworkRxRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("NetworkTxRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid?>("NodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodeId", "Timestamp");
+
+                    b.ToTable("HostStatSamples");
+                });
+
             modelBuilder.Entity("DockiUp.Domain.ImageUpdateStatus", b =>
                 {
                     b.Property<Guid>("Id")
@@ -577,6 +631,45 @@ namespace DockiUp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Secrets");
+                });
+
+            modelBuilder.Entity("DockiUp.Domain.SpeedTestResult", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DownloadMbps")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("JitterMs")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid?>("NodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("PingMs")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Server")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("UploadMbps")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NodeId", "At");
+
+                    b.ToTable("SpeedTestResults");
                 });
 
             modelBuilder.Entity("DockiUp.Domain.ProjectSecret", b =>

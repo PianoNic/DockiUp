@@ -19,6 +19,15 @@ namespace DockiUp.API.Nodes
 
         // A node has no application database, so it can only ever return raw (unreconciled) projects;
         // the control plane reconciles them against its own records. Both entry points hit the same call.
+        public Task<HostStatsDto> GetHostStatsAsync(CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<HostStatsDto>("GetHostStats", cancellationToken);
+
+        public Task<GpuProcessDto[]> GetGpuProcessesAsync(CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<GpuProcessDto[]>("GetGpuProcesses", cancellationToken);
+
+        public Task<SpeedTestDto> RunSpeedTestAsync(CancellationToken cancellationToken = default)
+            => Node().InvokeAsync<SpeedTestDto>("RunSpeedTest", cancellationToken);
+
         public Task<ProjectDto[]> GetProjectsAsync()
             => Node().InvokeAsync<ProjectDto[]>("GetProjects", CancellationToken.None);
 

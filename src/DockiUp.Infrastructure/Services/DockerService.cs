@@ -708,6 +708,40 @@ namespace DockiUp.Infrastructure.Services
             return samples.OfType<ContainerStatsDto>().ToArray();
         }
 
+        // OS, kernel and name change at most on a reboot; ask the daemon once.
+        private static (string? Name, string? Os, string? Kernel)? _system;
+
+        public async Task<HostStatsDto> GetHostStatsAsync(CancellationToken cancellationToken = default)
+        {
+            if (_system is null)
+            {
+                try
+                {
+                    var info = await _dockiUpDockerClient.DockerClient.System.GetSystemInfoAsync(cancellationToken);
+                    _system = (info.Name, info.OperatingSystem, info.KernelVersion);
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested) { } // the daemon is busy: next time
+            }
+            var stats = await Host.HostStatsReader.Shared.ReadAsync(cancellationToken);
+            return stats with { Hostname = _system?.Name, Os = _system?.Os, Kernel = _system?.Kernel };
+        }
+
+        public async Task<GpuProcessDto[]> GetGpuProcessesAsync(CancellationToken cancellationToken = default)
+        {
+            var processes = await Host.HostStatsReader.Shared.GpuProcessesAsync(cancellationToken);
+            var containers = (await _dockiUpDockerClient.DockerClient.Containers.ListContainersAsync(new ContainersListParameters { All = false }, cancellationToken))
+                .ToDictionary(c => c.ID);
+            return [.. processes.Select(p =>
+            {
+                var c = p.ContainerId is { } id ? containers.GetValueOrDefault(id) : null;
+                string? project = null;
+                c?.Labels?.TryGetValue("com.docker.compose.project", out project);
+                return new GpuProcessDto(p.Pid, p.Process, p.BusId, p.Memory, c?.ID, c?.Names?.FirstOrDefault()?.TrimStart('/'), project);
+            })];
+        }
+
+        public Task<SpeedTestDto> RunSpeedTestAsync(CancellationToken cancellationToken = default) => Host.SpeedTester.RunAsync(cancellationToken);
+
         // Progress<T> would post the report to the thread pool, possibly after the call returned; this keeps it synchronous.
         private sealed class StatsCapture : IProgress<ContainerStatsResponse>
         {

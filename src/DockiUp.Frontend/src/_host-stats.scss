@@ -1,0 +1,85 @@
+// Usage bars, rings and the small charts of host stats (Nodes page, node detail, dashboard). Pulled into those
+// components with `@use 'host-stats'`. Colours step blue → amber (70 %) → red (85 %); GPUs use the tertiary colour.
+
+.bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--mat-sys-surface-container-highest);
+  > span { display: block; height: 100%; background: var(--mat-sys-primary); transition: width 0.4s; }
+  > .cache { background: color-mix(in srgb, var(--mat-sys-primary) 35%, var(--mat-sys-surface)); }
+  > .warm { background: var(--x-warn); }
+  > .hot { background: var(--mat-sys-error); }
+  &.thin { height: 6px; border-radius: 3px; > span { border-radius: 3px; } }
+  &.gpu { background: color-mix(in srgb, var(--mat-sys-tertiary) 18%, var(--mat-sys-surface)); > span { background: var(--mat-sys-tertiary); } }
+}
+
+.ring {
+  --c: var(--mat-sys-primary);
+  &.warm { --c: var(--x-warn); }
+  &.hot { --c: var(--mat-sys-error); }
+  flex-shrink: 0;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(var(--c) calc(var(--p, 0) * 1%), var(--mat-sys-surface-container-highest) 0);
+  > span {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--mat-sys-surface-container);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    b { font-size: 20px; font-weight: 800; }
+    small { font-size: 11px; color: var(--mat-sys-on-surface-variant); }
+  }
+}
+
+.mono { font-family: var(--x-mono); font-size: 13px; }
+.k { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
+.label { font-size: 14px; font-weight: 600; }
+.hint { font-size: 12px; color: var(--mat-sys-on-surface-variant); code { font-family: var(--x-mono); } }
+.hot-text { color: var(--mat-sys-error); }
+
+// A label, a bar that takes the rest of the line, and its value.
+.mini {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  .mono { font-size: 12px; white-space: nowrap; text-align: right; }
+}
+
+svg {
+  .area { fill: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent); }
+  .cpu, .mem, .gpu, .rx, .tx, .line-a, .line-b { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .cpu, .rx, .line-a { stroke: var(--mat-sys-primary); }
+  .mem { stroke: var(--mat-sys-outline); stroke-dasharray: 5 4; }
+  .gpu { stroke: var(--mat-sys-tertiary); }
+  .tx, .line-b { stroke: var(--x-warn); stroke-dasharray: 6 4; }
+  .grid { stroke: var(--mat-sys-outline-variant); stroke-width: 1; vector-effect: non-scaling-stroke; }
+}
+
+// Chart legends: a short line in each series' colour.
+.legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant);
+  i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--mat-sys-primary); }
+  i.cache { background: color-mix(in srgb, var(--mat-sys-primary) 35%, var(--mat-sys-surface)); }
+  i.warm { background: var(--x-warn); }
+  i.hot { background: var(--mat-sys-error); }
+  i.line { height: 0; border-radius: 0; background: none; border-top: 3px solid var(--mat-sys-primary); }
+  i.line.mem { border-top: 3px dashed var(--mat-sys-outline); }
+  i.line.gpu { border-top-color: var(--mat-sys-tertiary); }
+  i.line.tx { border-top: 3px dashed var(--x-warn); }
+}
