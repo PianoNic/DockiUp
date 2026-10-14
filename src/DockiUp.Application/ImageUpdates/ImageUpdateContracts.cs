@@ -12,10 +12,15 @@ namespace DockiUp.Application.ImageUpdates
         string? LatestDigest,
         DateTime CheckedAt,
         bool UpdateAvailable,
-        string? Note)
+        string? Note,
+        string? CurrentVersion,
+        string? LatestVersion)
     {
         public static ImageUpdateDto From(ImageUpdateStatus s)
-            => new(s.ProjectId, s.ServiceName, s.Image, s.CurrentDigest, s.LatestDigest, s.CheckedAt, s.UpdateAvailable, s.Note);
+            => new(s.ProjectId, s.ServiceName, s.Image, s.CurrentDigest, s.LatestDigest, s.CheckedAt, s.UpdateAvailable, s.Note,
+                NullIfEmpty(s.CurrentVersion), s.UpdateAvailable ? NullIfEmpty(s.LatestVersion) : null);
+
+        private static string? NullIfEmpty(string? v) => string.IsNullOrEmpty(v) ? null : v;
     }
 
     /// <summary>A project's image update settings plus the tags pinned through dockiup.override.yml.</summary>

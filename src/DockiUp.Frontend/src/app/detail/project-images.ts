@@ -38,6 +38,7 @@ interface ServiceRow {
     .table-scroll { flex: 1; }
     .image-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .note { color: var(--mat-sys-on-surface-variant); font-size: 12.5px; }
+    .version { font-family: var(--x-mono); }
   `,
   template: `
     <section class="panel images-panel">
@@ -88,6 +89,9 @@ interface ServiceRow {
                   <td>
                     <div class="image-cell">
                       <span class="mono">{{ r.pinned ?? r.check?.image ?? '—' }}</span>
+                      @if (r.check?.currentVersion; as v) {
+                        <span class="x-chip version" [matTooltip]="'The running image is ' + v + ' (same digest as that tag)'" matTooltipShowDelay="600">{{ v }}</span>
+                      }
                       @if (r.pinned) {
                         <span class="x-chip" matTooltip="Chosen here (dockiup.override.yml); reset to use the compose file's image again" matTooltipShowDelay="800">
                           <mat-icon>push_pin</mat-icon>pinned
@@ -99,7 +103,7 @@ interface ServiceRow {
                     @if (r.excluded) {
                       <span class="state-badge" data-state="stopped">Excluded</span>
                     } @else if (r.check?.updateAvailable) {
-                      <span class="state-badge" data-state="update" [matTooltip]="'Registry: ' + r.check?.latestDigest" matTooltipShowDelay="800">Update available</span>
+                      <span class="state-badge" data-state="update" [matTooltip]="'Registry: ' + r.check?.latestDigest" matTooltipShowDelay="800">{{ r.check?.latestVersion ? 'Update to ' + r.check?.latestVersion : 'Update available' }}</span>
                     } @else if (r.check?.note) {
                       <span class="note">{{ r.check?.note }}</span>
                     } @else if (r.check) {
