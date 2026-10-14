@@ -21,6 +21,8 @@ export interface NotificationChannelDto {
     headerName: string | null;
     secretMasked: string | null;
     createdAt: string;
+    allProjects: boolean;
+    projectIds: Array<string>;
 }
 export namespace NotificationChannelDto {
 }

@@ -112,6 +112,23 @@ public class NotificationDispatcherTests
     }
 
     [Fact]
+    public void ProjectEvents_ReachOnlyChannelsCoveringTheProject_OthersReachEveryone()
+    {
+        var mine = Guid.NewGuid();
+        var all = new NotificationChannel { Name = "all", Type = NotificationChannelType.Slack, Events = NotificationEvent.DeploymentFailed | NotificationEvent.NodeOffline };
+        var chosen = new NotificationChannel { Name = "chosen", Type = NotificationChannelType.Slack, Events = all.Events, AllProjects = false, ProjectIds = [mine] };
+        var none = new NotificationChannel { Name = "none", Type = NotificationChannelType.Slack, Events = all.Events, AllProjects = false };
+
+        var forMine = new NotificationMessage(NotificationEvent.DeploymentFailed, "t", "b", ProjectId: mine);
+        var forOther = forMine with { ProjectId = Guid.NewGuid() };
+        var node = new NotificationMessage(NotificationEvent.NodeOffline, "t", "b");
+
+        Assert.Equal(["all", "chosen"], new[] { all, chosen, none }.Where(c => NotificationChannels.Receives(c, forMine)).Select(c => c.Name));
+        Assert.Equal(["all"], new[] { all, chosen, none }.Where(c => NotificationChannels.Receives(c, forOther)).Select(c => c.Name));
+        Assert.Equal(["all", "chosen", "none"], new[] { all, chosen, none }.Where(c => NotificationChannels.Receives(c, node)).Select(c => c.Name));
+    }
+
+    [Fact]
     public async Task AFailingChannel_IsLoggedNotThrown_AndOthersStillGetIt()
     {
         Channel("a", NotificationEvent.NodeOnline);
@@ -210,6 +227,25 @@ public class NotificationsControllerTests
             .ThrowsAsync(new InvalidOperationException("Discord answered 404"));
         var bad = Assert.IsType<BadRequestObjectResult>(await Controller().TestNotificationChannel(created.Id, default));
         Assert.Contains("Discord answered 404", ((ProblemDetails)bad.Value!).Detail);
+    }
+
+    [Fact]
+    public async Task AProject_PicksChannels_ThatArentForEveryProject()
+    {
+        var project = new ProjectInfo { ProjectName = "App", DockerProjectName = "app", ProjectPath = "/p", ComposePath = "c.yml", ProjectOrigin = DockiUp.Domain.Enums.ProjectOriginType.Compose, ProjectUpdateMethod = DockiUp.Domain.Enums.ProjectUpdateMethod.Manual };
+        _db.ProjectInfo.Add(project);
+        await _db.SaveChangesAsync();
+        var everyone = Value(await Controller().CreateNotificationChannel(Discord(), default));
+        var picked = Value(await Controller().CreateNotificationChannel(Discord() with { Name = "Team", AllProjects = false }, default));
+
+        Assert.IsType<NoContentResult>(await Controller().SetProjectNotificationChannel(project.Id, picked.Id, true, default));
+        var list = Value(await Controller().ListProjectNotificationChannels(project.Id, default));
+        Assert.True(list.Single(c => c.Id == picked.Id).Selected);
+        Assert.True(list.Single(c => c.Id == everyone.Id).Selected); // covers every project anyway
+
+        await Assert.ThrowsAsync<ArgumentException>(() => Controller().SetProjectNotificationChannel(project.Id, everyone.Id, false, default));
+        await Controller().SetProjectNotificationChannel(project.Id, picked.Id, false, default);
+        Assert.Empty((await _db.NotificationChannels.SingleAsync(c => c.Id == picked.Id)).ProjectIds);
     }
 
     [Fact]

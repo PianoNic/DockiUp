@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
-import { NotificationChannelDto, NotificationChannelType, NotificationsService, SaveNotificationChannelRequest } from '../api';
+import { NodesService, NotificationChannelDto, NotificationChannelType, NotificationsService, ProjectService, SaveNotificationChannelRequest } from '../api';
 
 /** Mirrors DockiUp.Domain.NotificationEvent (the API sends the names as strings; the generator inlines them). */
 export type NotificationEvent = 'DeploymentSucceeded' | 'DeploymentFailed' | 'NodeOffline' | 'NodeOnline' | 'ImageUpdateAvailable' | 'CleanupReport';
@@ -31,6 +31,9 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
   { value: 'CleanupReport', label: 'Cleanup report' },
 ];
 
+/** An existing channel to edit, a project a new channel is for, or null for a new channel. */
+export type ChannelDialogData = NotificationChannelDto | { forProject: string } | null;
+
 /** Add or edit a notification channel. Stored credentials are never shown; leaving the field empty keeps them. */
 @Component({
   selector: 'app-channel-dialog',
@@ -41,6 +44,7 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
     .row { display: flex; gap: 12px; }
     .events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 6px 0 16px; padding: 8px 12px; border-radius: 20px; background: var(--mat-sys-surface-container); }
     .label { font-weight: 600; margin: 12px 0 0; }
+    .sub { margin: 2px 0 8px; font-size: 13px; color: var(--mat-sys-on-surface-variant); }
     .error { color: var(--mat-sys-error); font-size: 14px; }
   `,
   template: `
@@ -108,6 +112,26 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
           <mat-checkbox [checked]="selected().has(e.value)" (change)="toggle(e.value, $event.checked)">{{ e.label }}</mat-checkbox>
         }
       </div>
+      <p class="label">For these projects</p>
+      <p class="sub">Deployments and image updates. Node and cleanup events don't belong to a project and always come through.</p>
+      <div class="row">
+        <mat-form-field appearance="fill">
+          <mat-label>Projects</mat-label>
+          <mat-select [ngModel]="allProjects()" (ngModelChange)="allProjects.set($event)">
+            <mat-option [value]="true">Every project</mat-option>
+            <mat-option [value]="false">Only the ones I pick</mat-option>
+          </mat-select>
+        </mat-form-field>
+        @if (!allProjects()) {
+          <mat-form-field appearance="fill">
+            <mat-label>Picked projects</mat-label>
+            <mat-select multiple [(ngModel)]="projectIds" placeholder="None yet">
+              @for (p of projects(); track p.id) { <mat-option [value]="p.id">{{ p.label }}</mat-option> }
+            </mat-select>
+            <mat-hint>Projects can also pick it in their Settings tab</mat-hint>
+          </mat-form-field>
+        }
+      </div>
       <mat-slide-toggle [(ngModel)]="enabled">Enabled</mat-slide-toggle>
 
       @if (error(); as err) { <p class="error">{{ err }}</p> }
@@ -121,7 +145,10 @@ export const EVENTS: { value: NotificationEvent; label: string }[] = [
 export class ChannelDialog {
   protected readonly ref = inject<MatDialogRef<ChannelDialog, NotificationChannelDto | null>>(MatDialogRef);
   private readonly api = inject(NotificationsService);
-  protected readonly existing = inject<NotificationChannelDto | null>(MAT_DIALOG_DATA);
+  private readonly data = inject<ChannelDialogData>(MAT_DIALOG_DATA);
+  protected readonly existing = this.data && 'id' in this.data ? this.data : null;
+  /** Opened from a project's Settings tab: a new channel starts as that project's only. */
+  private readonly forProject = this.data && 'forProject' in this.data ? this.data.forProject : null;
 
   protected readonly types = CHANNEL_TYPES;
   protected readonly events = EVENTS;
@@ -137,6 +164,23 @@ export class ChannelDialog {
   protected readonly selected = signal(new Set<NotificationEvent>((this.existing?.events as NotificationEvent[] | undefined) ?? ['DeploymentFailed', 'NodeOffline']));
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly allProjects = signal(this.existing?.allProjects ?? !this.forProject);
+  protected projectIds: string[] = [...(this.existing?.projectIds ?? (this.forProject ? [this.forProject] : []))];
+  /** DockiUp's projects, named with their host when the name runs on several. */
+  protected readonly projects = signal<{ id: string; label: string }[]>([]);
+
+  constructor() {
+    Promise.all([firstValueFrom(inject(ProjectService).getProjects()), firstValueFrom(inject(NodesService).apiNodesGet())])
+      .then(([projects, nodes]) => {
+        const managed = projects.filter((p) => p.id);
+        const host = (id?: string | null) => (id ? nodes.find((n) => n.id === id)?.name ?? 'node' : 'local');
+        const repeated = (name: string) => managed.filter((p) => p.projectName === name).length > 1;
+        this.projects.set(managed
+          .map((p) => ({ id: p.id!, label: repeated(p.projectName) ? `${p.projectName} (${host(p.nodeId)})` : p.projectName }))
+          .sort((a, b) => a.label.localeCompare(b.label)));
+      })
+      .catch(() => this.projects.set([]));
+  }
 
   // Only the optional credentials (ntfy token, webhook header) can be removed; the others are required.
   protected readonly canClear = computed(() => !!this.existing?.secretMasked && (this.type() === 'Ntfy' || this.type() === 'Webhook'));
@@ -168,6 +212,8 @@ export class ChannelDialog {
       headerName: this.headerName.trim() || null,
       // null keeps the stored credential, '' removes it.
       secret: this.secret ? this.secret : this.clearSecret() ? '' : null,
+      allProjects: this.allProjects(),
+      projectIds: this.projectIds,
     };
     this.saving.set(true);
     this.error.set(null);

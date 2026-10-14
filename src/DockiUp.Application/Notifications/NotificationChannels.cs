@@ -5,13 +5,18 @@ namespace DockiUp.Application.Notifications
 {
     /// <summary>A channel as the API shows it: the credential only ever masked.</summary>
     public record NotificationChannelDto(Guid Id, string Name, NotificationChannelType Type, bool Enabled, NotificationEvent[] Events,
-        string? Url, string? Target, string? HeaderName, string? SecretMasked, DateTime CreatedAt);
+        string? Url, string? Target, string? HeaderName, string? SecretMasked, DateTime CreatedAt, bool AllProjects, Guid[] ProjectIds);
 
     /// <summary>Create/update a channel. <see cref="Secret"/>: null keeps the stored one, "" removes it, anything
     /// else replaces it. Discord/Slack: the webhook URL; Telegram: the bot token; ntfy: an optional access token;
     /// Webhook: an optional value for <see cref="HeaderName"/> (default X-Webhook-Secret).</summary>
+    /// <param name="AllProjects">Null keeps the stored choice (true for a new channel).</param>
+    /// <param name="ProjectIds">The projects it covers when not <paramref name="AllProjects"/>; null keeps them.</param>
     public record SaveNotificationChannelRequest(string Name, NotificationChannelType Type, bool Enabled, NotificationEvent[] Events,
-        string? Url, string? Target, string? HeaderName, string? Secret);
+        string? Url, string? Target, string? HeaderName, string? Secret, bool? AllProjects = null, Guid[]? ProjectIds = null);
+
+    /// <summary>A channel as a project's Settings tab shows it: whether it reaches this project, and why.</summary>
+    public record ProjectChannelDto(Guid Id, string Name, NotificationChannelType Type, bool Enabled, NotificationEvent[] Events, bool AllProjects, bool Selected);
 
     public static class NotificationChannels
     {
@@ -22,7 +27,13 @@ namespace DockiUp.Application.Notifications
 
         public static NotificationChannelDto ToDto(NotificationChannel c, ISecretsVaultService vault) => new(
             c.Id, c.Name, c.Type, c.Enabled, Split(c.Events), c.Url, c.Target, c.HeaderName,
-            c.SecretEncrypted is null ? null : SecretMask.Mask(vault.Decrypt(c.SecretEncrypted)), c.CreatedAt);
+            c.SecretEncrypted is null ? null : SecretMask.Mask(vault.Decrypt(c.SecretEncrypted)), c.CreatedAt, c.AllProjects, [.. c.ProjectIds]);
+
+        /// <summary>Whether a message reaches the channel: it subscribes to the event, and the event is about no
+        /// project or one the channel covers.</summary>
+        public static bool Receives(NotificationChannel c, NotificationMessage message)
+            => c.Enabled && c.Events.HasFlag(message.Event)
+               && (message.ProjectId is not { } project || c.AllProjects || c.ProjectIds.Contains(project));
 
         public static ChannelTarget ToTarget(NotificationChannel c, ISecretsVaultService vault)
             => new(c.Type, c.Url, c.Target, c.HeaderName, c.SecretEncrypted is null ? null : vault.Decrypt(c.SecretEncrypted));
@@ -75,6 +86,8 @@ namespace DockiUp.Application.Notifications
             channel.Target = target;
             channel.HeaderName = request.Type == NotificationChannelType.Webhook ? Clean(request.HeaderName) : null;
             channel.SecretEncrypted = secret is null ? null : vault.Encrypt(secret);
+            if (request.AllProjects is { } all) channel.AllProjects = all;
+            if (request.ProjectIds is { } ids) channel.ProjectIds = [.. ids.Distinct()];
         }
 
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

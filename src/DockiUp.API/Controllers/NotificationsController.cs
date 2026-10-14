@@ -79,6 +79,32 @@ namespace DockiUp.API.Controllers
             }
         }
 
+        /// <summary>Every channel, and whether it reaches this project: all-project channels always do, the others
+        /// when the project is one of theirs.</summary>
+        [HttpGet("Projects/{projectId:guid}/Channels", Name = "ListProjectNotificationChannels")]
+        [ProducesResponseType(typeof(ProjectChannelDto[]), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ProjectChannelDto[]>> ListProjectNotificationChannels(Guid projectId, CancellationToken cancellationToken)
+        {
+            var rows = await db.NotificationChannels.AsNoTracking().OrderBy(c => c.Name).ToListAsync(cancellationToken);
+            return Ok(rows.Select(c => new ProjectChannelDto(c.Id, c.Name, c.Type, c.Enabled, NotificationChannels.Split(c.Events),
+                c.AllProjects, c.AllProjects || c.ProjectIds.Contains(projectId))).ToArray());
+        }
+
+        /// <summary>Adds the project to a channel that isn't for all projects, or takes it out again.</summary>
+        [HttpPut("Projects/{projectId:guid}/Channels/{id:guid}", Name = "SetProjectNotificationChannel")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetProjectNotificationChannel(Guid projectId, Guid id, [FromQuery] bool selected, CancellationToken cancellationToken)
+        {
+            if (!await db.ProjectInfo.AnyAsync(p => p.Id == projectId, cancellationToken)) throw new KeyNotFoundException("Project not found.");
+            var channel = await Find(id, cancellationToken);
+            if (channel.AllProjects) throw new ArgumentException($"\"{channel.Name}\" already covers every project; change that in Settings.");
+            channel.ProjectIds = selected ? [.. channel.ProjectIds.Append(projectId).Distinct()] : [.. channel.ProjectIds.Where(p => p != projectId)];
+            await db.SaveChangesAsync(cancellationToken);
+            return NoContent();
+        }
+
         private async Task<NotificationChannel> Find(Guid id, CancellationToken cancellationToken)
             => await db.NotificationChannels.FirstOrDefaultAsync(c => c.Id == id, cancellationToken)
                 ?? throw new KeyNotFoundException("Notification channel not found.");

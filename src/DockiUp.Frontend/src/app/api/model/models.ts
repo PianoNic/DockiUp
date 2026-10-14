@@ -51,6 +51,7 @@ export * from './notificationChannelDto';
 export * from './notificationChannelType';
 export * from './pinServiceImageRequest';
 export * from './problemDetails';
+export * from './projectChannelDto';
 export * from './projectDto';
 export * from './projectFileContentDto';
 export * from './projectFileEntryDto';

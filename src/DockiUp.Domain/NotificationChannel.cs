@@ -33,6 +33,10 @@ namespace DockiUp.Domain
         public required NotificationChannelType Type { get; set; }
         public bool Enabled { get; set; } = true;
         public NotificationEvent Events { get; set; }
+        /// <summary>Project events (deployments, image updates) of every project, or only of <see cref="ProjectIds"/>.
+        /// Node and cleanup events don't belong to a project and reach the channel either way.</summary>
+        public bool AllProjects { get; set; } = true;
+        public List<Guid> ProjectIds { get; set; } = [];
 
         /// <summary>ntfy: server URL; Webhook: target URL.</summary>
         public string? Url { get; set; }

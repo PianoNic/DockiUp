@@ -19,6 +19,8 @@ export interface SaveNotificationChannelRequest {
     target: string | null;
     headerName: string | null;
     secret: string | null;
+    allProjects?: boolean | null;
+    projectIds?: Array<string> | null;
 }
 export namespace SaveNotificationChannelRequest {
 }
