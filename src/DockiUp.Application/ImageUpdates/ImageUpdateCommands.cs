@@ -38,8 +38,9 @@ namespace DockiUp.Application.ImageUpdates
 
                 // Many services share an image (and tag): ask the registry once per reference per check.
                 var digests = new Dictionary<string, Task<string?>>();
+                var versions = new Dictionary<string, Task<string>>();
                 foreach (var project in projects)
-                    await CheckProjectAsync(project, digests, cancellationToken);
+                    await CheckProjectAsync(project, digests, versions, cancellationToken);
 
                 if (request.ProjectId is null)
                 {
@@ -56,7 +57,8 @@ namespace DockiUp.Application.ImageUpdates
             finally { Gate.Release(); }
         }
 
-        private async Task CheckProjectAsync(ProjectInfo project, Dictionary<string, Task<string?>> digests, CancellationToken cancellationToken)
+        private async Task CheckProjectAsync(ProjectInfo project, Dictionary<string, Task<string?>> digests,
+            Dictionary<string, Task<string>> versions, CancellationToken cancellationToken)
         {
             var previous = await db.ImageUpdates.Where(u => u.ProjectId == project.Id).ToListAsync(cancellationToken);
             if (project.ImageUpdatePolicy == ImageUpdatePolicy.Off)
@@ -87,8 +89,14 @@ namespace DockiUp.Application.ImageUpdates
                     row = new ImageUpdateStatus { ProjectId = project.Id, ServiceName = service.ServiceName, Image = service.Image };
                     db.ImageUpdates.Add(row);
                 }
-                var before = (row.UpdateAvailable, row.LatestDigest);
+                var before = (row.UpdateAvailable, row.LatestDigest, row.CurrentDigest, row.CurrentVersion, row.LatestVersion);
                 await CompareAsync(row, service, project.ImageUpdateExcludedServices.Contains(service.ServiceName), digests, cancellationToken);
+                // Looked up again only when a digest moved, so a check stays a couple of requests.
+                row.CurrentVersion = row.CurrentDigest == before.CurrentDigest && before.CurrentVersion is not null
+                    ? before.CurrentVersion : await VersionAsync(row.Image, row.CurrentDigest, versions, cancellationToken);
+                row.LatestVersion = !row.UpdateAvailable ? null
+                    : row.LatestDigest == before.LatestDigest && before.LatestVersion is not null
+                        ? before.LatestVersion : await VersionAsync(row.Image, row.LatestDigest, versions, cancellationToken);
                 row.CheckedAt = now;
                 current.Add(row);
                 // Report each update once: when it appears, or when the tag moved on again since.
@@ -121,6 +129,23 @@ namespace DockiUp.Application.ImageUpdates
                 ImageUpdatePolicy.Notify => (anyNew, false),
                 _ => (anyNew, anyAvailable && !deploymentPending),
             };
+
+        /// <summary>The version tag behind <paramref name="digest"/>; null on a registry error, so the next check tries again.</summary>
+        private async Task<string?> VersionAsync(string reference, string? digest, Dictionary<string, Task<string>> versions, CancellationToken cancellationToken)
+        {
+            if (digest is null || !ImageReference.TryParse(reference, out var image) || image.Digest is not null) return null;
+            try
+            {
+                var key = $"{image}@{digest}";
+                if (!versions.TryGetValue(key, out var lookup))
+                    versions[key] = lookup = ImageVersions.ResolveAsync(registry, image, digest, cancellationToken);
+                return await lookup;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return null;
+            }
+        }
 
         private async Task CompareAsync(ImageUpdateStatus row, ServiceImageDto service, bool excluded,
             Dictionary<string, Task<string?>> digests, CancellationToken cancellationToken)

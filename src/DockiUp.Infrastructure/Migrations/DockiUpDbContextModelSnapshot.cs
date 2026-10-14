@@ -271,11 +271,17 @@ namespace DockiUp.Infrastructure.Migrations
                     b.Property<string>("CurrentDigest")
                         .HasColumnType("text");
 
+                    b.Property<string>("CurrentVersion")
+                        .HasColumnType("text");
+
                     b.Property<string>("Image")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("LatestDigest")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LatestVersion")
                         .HasColumnType("text");
 
                     b.Property<string>("Note")

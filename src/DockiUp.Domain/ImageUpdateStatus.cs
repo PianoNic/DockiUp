@@ -12,6 +12,11 @@ namespace DockiUp.Domain
         public string? CurrentDigest { get; set; }
         /// <summary>Digest the tag points to in the registry right now.</summary>
         public string? LatestDigest { get; set; }
+        /// <summary>The version tag <see cref="CurrentDigest"/> is (e.g. 6.0.3 for `:6`); "" when looked up and
+        /// not found, null when not looked up yet.</summary>
+        public string? CurrentVersion { get; set; }
+        /// <summary>Same for <see cref="LatestDigest"/>, while an update is available.</summary>
+        public string? LatestVersion { get; set; }
         public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
         public bool UpdateAvailable { get; set; }
         /// <summary>Why the service could not be compared (built locally, pinned by digest, registry error, ...).</summary>

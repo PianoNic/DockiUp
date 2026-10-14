@@ -18,5 +18,7 @@ export interface ImageUpdateDto {
     checkedAt: string;
     updateAvailable: boolean;
     note: string | null;
+    currentVersion: string | null;
+    latestVersion: string | null;
 }
 

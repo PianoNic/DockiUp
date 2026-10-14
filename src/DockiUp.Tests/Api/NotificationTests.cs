@@ -59,7 +59,7 @@ public class NotificationEventHandlerTests
         await _handler.Handle(new NodeConnectionChanged(Guid.NewGuid(), "edge", false), default);
         await _handler.Handle(new NodeConnectionChanged(Guid.NewGuid(), "edge", true), default);
         await _handler.Handle(new DockiUp.Application.ImageUpdates.ImageUpdatesFound(Guid.NewGuid(), "App", DockiUp.Domain.Enums.ImageUpdatePolicy.Notify,
-            [new DockiUp.Application.ImageUpdates.ImageUpdateDto(Guid.NewGuid(), "web", "nginx:latest", "sha256:a", "sha256:b", DateTime.UtcNow, true, null)]), default);
+            [new DockiUp.Application.ImageUpdates.ImageUpdateDto(Guid.NewGuid(), "web", "nginx:latest", "sha256:a", "sha256:b", DateTime.UtcNow, true, null, null, null)]), default);
         await _handler.Handle(new CleanupCompleted("Removed 3 images", 1024, "edge"), default);
 
         Assert.Equal([NotificationEvent.NodeOffline, NotificationEvent.NodeOnline, NotificationEvent.ImageUpdateAvailable, NotificationEvent.CleanupReport],

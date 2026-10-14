@@ -333,6 +333,28 @@ public class ImageUpdateHandlerTests
     }
 
     [Fact]
+    public void Versions_Candidates_AreTheMoreSpecificTagsOfTheSameFlavour()
+    {
+        string[] tags = ["latest", "6", "6.0", "6.0.3", "6.0.2", "6.1-rc1", "5.9", "17-alpine", "17.6-alpine", "17.6", "edge"];
+        Assert.Equal(["6.0", "6.0.3", "6.0.2"], ImageVersions.Candidates("6", tags));
+        Assert.Equal(["17.6-alpine"], ImageVersions.Candidates("17-alpine", tags));
+        Assert.Equal(["17.6", "6", "6.0", "6.0.3", "6.0.2", "5.9"], ImageVersions.Candidates("latest", tags));
+    }
+
+    [Fact]
+    public async Task Versions_Resolve_ToTheMostSpecificTagWithTheSameDigest()
+    {
+        var registry = new Mock<IRegistryClient>();
+        ImageReference.TryParse("glitchtip/glitchtip:6", out var image);
+        registry.Setup(r => r.ListTagsAsync(image, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(["6", "6.1", "6.1.0", "6.0", "6.0.3", "6.0.2"]);
+        registry.Setup(r => r.GetDigestAsync(It.IsAny<ImageReference>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ImageReference i, CancellationToken _) => i.Tag is "6.0" or "6.0.3" ? Old : New);
+
+        Assert.Equal("6.0.3", await ImageVersions.ResolveAsync(registry.Object, image, Old, default));
+        Assert.Equal("", await ImageVersions.ResolveAsync(registry.Object, image, "sha256:gone", default)); // none matches
+    }
+
+    [Fact]
     public async Task Check_UnknownProject_IsNotFound()
         => await Assert.ThrowsAsync<KeyNotFoundException>(async () => await Checker().Handle(new CheckImageUpdatesCommand(Guid.NewGuid()), CancellationToken.None));
 
@@ -488,7 +510,7 @@ public class ImageUpdateHandlerTests
     {
         var id = Guid.NewGuid();
         await new ImageUpdatesFoundActivityHandler(_activity.Object).Handle(new ImageUpdatesFound(id, "App", ImageUpdatePolicy.Notify,
-            [new ImageUpdateDto(id, "web", "nginx:latest", Old, New, DateTime.UtcNow, true, null)]), CancellationToken.None);
+            [new ImageUpdateDto(id, "web", "nginx:latest", Old, New, DateTime.UtcNow, true, null, null, null)]), CancellationToken.None);
         _activity.Verify(a => a.LogAsync("image.update", "App", id, "web (nginx:latest)", It.IsAny<CancellationToken>(), null));
     }
 }
