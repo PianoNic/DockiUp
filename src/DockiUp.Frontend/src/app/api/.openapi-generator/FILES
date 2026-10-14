@@ -78,6 +78,7 @@ model/notificationChannelDto.ts
 model/notificationChannelType.ts
 model/pinServiceImageRequest.ts
 model/problemDetails.ts
+model/projectChannelDto.ts
 model/projectDto.ts
 model/projectFileContentDto.ts
 model/projectFileEntryDto.ts

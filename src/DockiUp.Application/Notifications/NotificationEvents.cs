@@ -17,8 +17,9 @@ namespace DockiUp.Application.Notifications
     /// <summary>Publish after a cleanup (prune) run with a human-readable summary of what was removed.</summary>
     public sealed record CleanupCompleted(string Summary, long ReclaimedBytes = 0, string? NodeName = null) : INotification;
 
-    /// <summary>What a channel sends. <see cref="Data"/> is the structured form for generic webhooks.</summary>
-    public sealed record NotificationMessage(NotificationEvent Event, string Title, string Body, IReadOnlyDictionary<string, string?>? Data = null);
+    /// <summary>What a channel sends. <see cref="Data"/> is the structured form for generic webhooks;
+    /// <see cref="ProjectId"/> limits it to the channels covering that project.</summary>
+    public sealed record NotificationMessage(NotificationEvent Event, string Title, string Body, IReadOnlyDictionary<string, string?>? Data = null, Guid? ProjectId = null);
 
     /// <summary>Queues a message for every enabled channel subscribed to its event; returns immediately.</summary>
     public interface INotificationDispatcher
@@ -48,9 +49,9 @@ namespace DockiUp.Application.Notifications
             var commit = e.Commit is { } sha ? $" @ {sha[..Math.Min(7, sha.Length)]}" : "";
             dispatcher.Enqueue(e.Succeeded
                 ? new NotificationMessage(NotificationEvent.DeploymentSucceeded, $"Deployed {e.ProjectName}",
-                    $"{e.ProjectName} deployed successfully{commit} ({e.Trigger}).", Data(e))
+                    $"{e.ProjectName} deployed successfully{commit} ({e.Trigger}).", Data(e), e.ProjectId)
                 : new NotificationMessage(NotificationEvent.DeploymentFailed, $"Deployment of {e.ProjectName} failed",
-                    $"{e.ProjectName} failed to deploy{commit} ({e.Trigger}): {e.Error}", Data(e)));
+                    $"{e.ProjectName} failed to deploy{commit} ({e.Trigger}): {e.Error}", Data(e), e.ProjectId));
             return ValueTask.CompletedTask;
         }
 
@@ -71,7 +72,8 @@ namespace DockiUp.Application.Notifications
             var auto = e.Policy == Domain.Enums.ImageUpdatePolicy.Auto ? " They are being deployed automatically." : "";
             dispatcher.Enqueue(new NotificationMessage(NotificationEvent.ImageUpdateAvailable, $"Image updates for {e.ProjectName}",
                 $"Newer images are available for {e.ProjectName}: {string.Join(", ", images)}.{auto}",
-                new Dictionary<string, string?> { ["projectId"] = e.ProjectId.ToString(), ["projectName"] = e.ProjectName, ["images"] = string.Join(",", images) }));
+                new Dictionary<string, string?> { ["projectId"] = e.ProjectId.ToString(), ["projectName"] = e.ProjectName, ["images"] = string.Join(",", images) },
+                e.ProjectId));
             return ValueTask.CompletedTask;
         }
 

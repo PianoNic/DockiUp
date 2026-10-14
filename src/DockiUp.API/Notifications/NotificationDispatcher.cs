@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DockiUp.API.Notifications
 {
-    /// <summary>Sends queued notifications to every enabled channel subscribed to the event, in the background:
+    /// <summary>Sends queued notifications to every enabled channel subscribed to the event (and covering its project,
+    /// see <see cref="NotificationChannels.Receives"/>), in the background:
     /// a slow or broken channel never holds up a deploy or a request. Each send has a timeout; failures are
     /// logged (without the channel's credential) and dropped.</summary>
     public sealed class NotificationDispatcher(IServiceScopeFactory scopeFactory, INotificationSender sender, ILogger<NotificationDispatcher> logger)
@@ -38,7 +39,7 @@ namespace DockiUp.API.Notifications
             var vault = scope.ServiceProvider.GetRequiredService<ISecretsVaultService>();
 
             var channels = await db.NotificationChannels.AsNoTracking().Where(c => c.Enabled).ToListAsync(cancellationToken);
-            foreach (var channel in channels.Where(c => c.Events.HasFlag(message.Event)))
+            foreach (var channel in channels.Where(c => NotificationChannels.Receives(c, message)))
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 timeout.CancelAfter(SendTimeout);

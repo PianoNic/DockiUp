@@ -33,7 +33,7 @@ import { CHANNEL_TYPES, ChannelDialog, EVENTS } from './channel-dialog';
               <span [class]="typeShape(c.type)" [class.off]="!c.enabled"><mat-icon>{{ typeIcon(c.type) }}</mat-icon></span>
               <span class="main" [class.off]="!c.enabled">
                 <span class="name">{{ c.name }}</span>
-                <span class="meta">{{ typeLabel(c.type) }}@if (c.target || c.url) { · {{ c.target || c.url }} }</span>
+                <span class="meta">{{ typeLabel(c.type) }}@if (c.target || c.url) { · {{ c.target || c.url }} } · {{ c.allProjects ? 'every project' : c.projectIds.length === 1 ? '1 project' : c.projectIds.length + ' projects' }}</span>
               </span>
               <span class="chips">
                 @for (e of c.events; track e) { <span class="x-chip">{{ eventLabel(e) }}</span> } @empty { <span class="meta">No events</span> }
