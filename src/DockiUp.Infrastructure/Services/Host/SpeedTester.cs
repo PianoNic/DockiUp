@@ -6,8 +6,9 @@ namespace DockiUp.Infrastructure.Services.Host
 {
     /// <summary>Measures the host's internet connection against Cloudflare's speed test endpoints (the ones
     /// speed.cloudflare.com uses): latency from small requests, then a few parallel streams per direction for a few
-    /// seconds each. Transfers are counted as the bytes move, so each stream needs only a handful of large requests:
-    /// Cloudflare throttles (429) hosts that send many small ones.</summary>
+    /// seconds each, stopping early after <see cref="MaxBytes"/>. Cloudflare throttles (429) hosts that send many
+    /// requests, and on a multi-gigabit line even 25 MB ones finish in a blink: the byte cap keeps a test to about ten
+    /// requests per direction (and bounds its data use), while still measuring for most of a second.</summary>
     public static class SpeedTester
     {
         public const string Server = "speed.cloudflare.com";
@@ -16,6 +17,7 @@ namespace DockiUp.Infrastructure.Services.Host
         private const int Streams = 4;
         // The largest single transfer Cloudflare's endpoints accept (bigger downloads get a 403).
         private const int TransferBytes = 25_000_000;
+        private const long MaxBytes = 250_000_000;
 
         public static async Task<SpeedTestDto> RunAsync(CancellationToken cancellationToken = default)
         {
@@ -67,7 +69,8 @@ namespace DockiUp.Infrastructure.Services.Host
             return (sorted[sorted.Count / 2], jitter);
         }
 
-        /// <summary>Mbit/s over <see cref="Window"/> with <see cref="Streams"/> transfers going at once.</summary>
+        /// <summary>Mbit/s with <see cref="Streams"/> transfers going at once, over <see cref="Window"/> or until
+        /// <see cref="MaxBytes"/> moved, whichever comes first.</summary>
         private static async Task<double> ThroughputAsync(Func<CancellationToken, Action<int>, Task> transfer, CancellationToken cancellationToken)
         {
             long bytes = 0;
@@ -79,7 +82,10 @@ namespace DockiUp.Infrastructure.Services.Host
                 try
                 {
                     while (!stop.IsCancellationRequested)
-                        await transfer(stop.Token, n => Interlocked.Add(ref bytes, n));
+                        await transfer(stop.Token, n =>
+                        {
+                            if (Interlocked.Add(ref bytes, n) >= MaxBytes) stop.Cancel();
+                        });
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { } // the window closed mid-transfer
             }));
