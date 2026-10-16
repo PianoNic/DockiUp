@@ -1,17 +1,21 @@
 using System.Diagnostics;
+using System.Net;
 using DockiUp.Application.Dtos;
 
 namespace DockiUp.Infrastructure.Services.Host
 {
     /// <summary>Measures the host's internet connection against Cloudflare's speed test endpoints (the ones
     /// speed.cloudflare.com uses): latency from small requests, then a few parallel streams per direction for a few
-    /// seconds each. Short and capped, so a test moves at most a few hundred MB even on a fast line.</summary>
+    /// seconds each. Transfers are counted as the bytes move, so each stream needs only a handful of large requests:
+    /// Cloudflare throttles (429) hosts that send many small ones.</summary>
     public static class SpeedTester
     {
         public const string Server = "speed.cloudflare.com";
         private static readonly HttpClient Http = new() { BaseAddress = new Uri($"https://{Server}/"), Timeout = TimeSpan.FromSeconds(30) };
         private static readonly TimeSpan Window = TimeSpan.FromSeconds(6);
         private const int Streams = 4;
+        // The largest single transfer Cloudflare's endpoints accept (bigger downloads get a 403).
+        private const int TransferBytes = 25_000_000;
 
         public static async Task<SpeedTestDto> RunAsync(CancellationToken cancellationToken = default)
         {
@@ -20,25 +24,29 @@ namespace DockiUp.Infrastructure.Services.Host
                 var (ping, jitter) = await LatencyAsync(cancellationToken);
                 var down = await ThroughputAsync(async (token, count) =>
                 {
-                    using var response = await Http.GetAsync("__down?bytes=25000000", HttpCompletionOption.ResponseHeadersRead, token);
+                    using var response = await Http.GetAsync($"__down?bytes={TransferBytes}", HttpCompletionOption.ResponseHeadersRead, token);
                     response.EnsureSuccessStatusCode();
                     await using var stream = await response.Content.ReadAsStreamAsync(token);
                     var buffer = new byte[81920];
                     int n;
                     while ((n = await stream.ReadAsync(buffer, token)) > 0) count(n);
                 }, cancellationToken);
-                var payload = new byte[1_000_000];
                 var up = await ThroughputAsync(async (token, count) =>
                 {
-                    using var response = await Http.PostAsync("__up", new ByteArrayContent(payload), token);
+                    using var response = await Http.PostAsync("__up", new CountingContent(TransferBytes, count), token);
                     response.EnsureSuccessStatusCode();
-                    count(payload.Length);
                 }, cancellationToken);
                 return new SpeedTestDto(null, DateTime.UtcNow, Math.Round(down, 1), Math.Round(up, 1), Math.Round(ping, 1), Math.Round(jitter, 1), Server, null);
             }
             catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
-                return new SpeedTestDto(null, DateTime.UtcNow, null, null, null, null, Server, e is OperationCanceledException ? "Timed out" : e.Message);
+                var error = e switch
+                {
+                    HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests } => "Cloudflare is limiting tests from this host for now; it tries again in an hour.",
+                    OperationCanceledException => "Timed out",
+                    _ => e.Message,
+                };
+                return new SpeedTestDto(null, DateTime.UtcNow, null, null, null, null, Server, error);
             }
         }
 
@@ -46,11 +54,12 @@ namespace DockiUp.Infrastructure.Services.Host
         private static async Task<(double Ping, double Jitter)> LatencyAsync(CancellationToken cancellationToken)
         {
             var times = new List<double>();
-            for (var i = 0; i < 9; i++)
+            for (var i = 0; i < 6; i++)
             {
                 var sw = Stopwatch.StartNew();
                 using var response = await Http.GetAsync("__down?bytes=0", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 sw.Stop();
+                response.EnsureSuccessStatusCode();
                 if (i > 0) times.Add(sw.Elapsed.TotalMilliseconds);
             }
             var sorted = times.Order().ToList();
@@ -75,6 +84,30 @@ namespace DockiUp.Infrastructure.Services.Host
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { } // the window closed mid-transfer
             }));
             return Interlocked.Read(ref bytes) * 8 / sw.Elapsed.TotalSeconds / 1_000_000;
+        }
+
+        /// <summary>An upload body of zeros that reports each chunk as it is sent, so a transfer cut off by the window still counts.</summary>
+        private sealed class CountingContent(int length, Action<int> sent) : HttpContent
+        {
+            private static readonly byte[] Chunk = new byte[65536];
+
+            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+            {
+                for (var left = length; left > 0; left -= Chunk.Length)
+                {
+                    var n = Math.Min(left, Chunk.Length);
+                    await stream.WriteAsync(Chunk.AsMemory(0, n), cancellationToken);
+                    sent(n);
+                }
+            }
+
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => SerializeToStreamAsync(stream, context, CancellationToken.None);
+
+            protected override bool TryComputeLength(out long size)
+            {
+                size = length;
+                return true;
+            }
         }
     }
 }

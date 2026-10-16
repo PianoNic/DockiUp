@@ -12,6 +12,7 @@ public class SpeedTestHostedService(IServiceScopeFactory scopeFactory, INodeDire
     : BackgroundService
 {
     public static readonly TimeSpan DefaultInterval = TimeSpan.FromDays(1);
+    private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromHours(1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -25,11 +26,14 @@ public class SpeedTestHostedService(IServiceScopeFactory scopeFactory, INodeDire
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<IDockiUpDbContext>();
-                var last = (await db.SpeedTestResults.GroupBy(r => r.NodeId).Select(g => new { NodeId = g.Key, At = g.Max(r => r.At) }).ToListAsync(stoppingToken))
-                    .ToDictionary(r => r.NodeId?.ToString() ?? "local", r => r.At);
+                var last = (await db.SpeedTestResults.OrderByDescending(r => r.At).Take(500).ToListAsync(stoppingToken))
+                    .GroupBy(r => r.NodeId?.ToString() ?? "local")
+                    .ToDictionary(g => g.Key, g => g.First());
                 foreach (var nodeId in new Guid?[] { null }.Concat(nodes.GetOnlineNodeIds().Select(id => (Guid?)id)))
                 {
-                    if (last.TryGetValue(nodeId?.ToString() ?? "local", out var at) && DateTime.UtcNow - at < interval) continue;
+                    // A failed test (throttled, offline line) is tried again after an hour, not after a whole interval.
+                    if (last.TryGetValue(nodeId?.ToString() ?? "local", out var test)
+                        && DateTime.UtcNow - test.At < (test.Error is null ? interval : TimeSpan.FromTicks(Math.Min(interval.Ticks, RetryAfterFailure.Ticks)))) continue;
                     await HostsController.RunSpeedTestAsync(scope.ServiceProvider, nodeId, stoppingToken);
                 }
             }
